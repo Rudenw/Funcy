@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Funcy.Console", "src\Funcy.Console\Funcy.Console.csproj", "{9D01FBBB-F7CA-45BB-958C-3B360040A2AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Funcy.Infrastructure", "Funcy.Infrastructure\Funcy.Infrastructure.csproj", "{82F76F0A-B20B-4B5F-8AD7-C54FAB48BDA4}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{9D01FBBB-F7CA-45BB-958C-3B360040A2AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9D01FBBB-F7CA-45BB-958C-3B360040A2AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9D01FBBB-F7CA-45BB-958C-3B360040A2AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9D01FBBB-F7CA-45BB-958C-3B360040A2AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82F76F0A-B20B-4B5F-8AD7-C54FAB48BDA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82F76F0A-B20B-4B5F-8AD7-C54FAB48BDA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82F76F0A-B20B-4B5F-8AD7-C54FAB48BDA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82F76F0A-B20B-4B5F-8AD7-C54FAB48BDA4}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
