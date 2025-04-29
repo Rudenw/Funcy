@@ -1,61 +1,89 @@
+using Funcy.Console.Ui;
 using Funcy.Infrastructure.Azure;
+using Funcy.Infrastructure.Model;
 
 namespace Funcy.Console;
 
 using Spectre.Console;
 
-public class MainMenuService
+public class MainMenuService(
+    AzureFunctionService functionService,
+    InputHandler inputHandler,
+    TableRowUpdater tableRowUpdater,
+    ResizeHandler resizeHandler)
 {
-    private readonly AzureFunctionService _functionService;
-    
-    public MainMenuService(AzureFunctionService functionService)
-    {
-        _functionService = functionService;
-    }
+    private List<FunctionAppDetails> _functionApps = [];
+    private FunctionAppPanel _functionAppPanel;
+    public TaskCompletionSource ResizeUpdateTrigger { get; private set; } = new();
 
-    public async void ShowMainMenuAsync()
+    public async Task StartMonitoringAsync()
     {
-        var choice = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("Choose an option:")
-                .AddChoices(MainMenuConstants.ListFunction, MainMenuConstants.StartFunction,
-                    MainMenuConstants.StopFunction, MainMenuConstants.Exit));
-
-        switch (choice)
+        _functionApps = await functionService.InitialLoadFunctionAppsAsync();
+        _functionAppPanel = new FunctionAppPanel(_functionApps, tableRowUpdater);
+        var cts = new CancellationTokenSource();
+        
+        resizeHandler.OnResize += (width, height) =>
         {
-            case MainMenuConstants.ListFunction:
-                await ListFunctions();
-                break;
-            case MainMenuConstants.StartFunction:
-                StartFunction();
-                break;
-            case MainMenuConstants.StopFunction:
-                StopFunction();
-                break;
-            case MainMenuConstants.Exit:
-                Environment.Exit(0);
-                break;
+            lock (ResizeUpdateTrigger)
+            {
+                ResizeUpdateTrigger.TrySetResult();
+            }
+        };
+
+        //var updateTask = UpdateDataAsync(cts.Token);
+        resizeHandler.StartPolling();
+
+        var inputTask = inputHandler.HandleInputAsync(_functionAppPanel.MaxVisibleRows, _functionApps.Count, cts.Token);
+        
+        await HandleInputAndRenderAsync(cts.Token);
+        
+        await cts.CancelAsync();
+        //await updateTask;
+        await inputTask;
+    }
+
+    private async Task HandleInputAndRenderAsync(CancellationToken token)
+    {
+        AnsiConsole.Clear();
+        _functionAppPanel.CreateFunctionAppPanel();
+        tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, 0, 0); //TODO: inte här
+
+        while (true)
+        {
+            await AnsiConsole.Live(_functionAppPanel.Panel).StartAsync(ctx =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    ctx.Refresh();
+                    Task.WaitAny(ResizeUpdateTrigger.Task, inputHandler.UpdateTrigger.Task);
+
+                    if (inputHandler.IsVisibleStartIndexChanged)
+                    {
+                        tableRowUpdater.UpdateVisibleTableRows(_functionAppPanel.Table, inputHandler.VisibleStartIndex, _functionAppPanel.MaxVisibleRows);    
+                    }
+                
+                    tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, inputHandler.OldSelectedIndex,
+                        inputHandler.SelectedIndex);
+
+                    if (inputHandler.UpdateTrigger.Task.IsCompleted)
+                    {
+                        inputHandler.ResetUpdateTrigger();
+                    }
+
+                    if (ResizeUpdateTrigger.Task.IsCompleted)
+                    {
+                        AnsiConsole.Clear();
+                        _functionAppPanel.UpdateMaxVisibleRows();
+                        _functionAppPanel.CreateFunctionAppPanel();
+                        tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, inputHandler.OldSelectedIndex, inputHandler.SelectedIndex); //TODO: inte här
+                        ctx.UpdateTarget(_functionAppPanel.Panel);
+                        ResizeUpdateTrigger = new TaskCompletionSource();
+                        break;
+                    }
+                }
+
+                return Task.CompletedTask;
+            });
         }
-    }
-
-    private async Task ListFunctions()
-    {
-        // Kalla FunctionAppStatusRenderer för att visa en tabell
-        AnsiConsole.Markup("[green]Här listas alla funktioner[/]");
-        await _functionService.ListFunctionAppsAsync("ee691e14-38ba-4613-91bc-2287244a60e7");
-    }
-
-    private void StartFunction()
-    {
-        var functionName = AnsiConsole.Ask<string>("Ange namnet på funktionen att starta:");
-        //_functionService.StartFunctionAsync(functionName).Wait();
-        AnsiConsole.Markup($"[green]Startade funktionen {functionName}[/]");
-    }
-
-    private void StopFunction()
-    {
-        var functionName = AnsiConsole.Ask<string>("Ange namnet på funktionen att stoppa:");
-        //_functionService.StopFunctionAsync(functionName).Wait();
-        AnsiConsole.Markup($"[red]Stoppade funktionen {functionName}[/]");
     }
 }
