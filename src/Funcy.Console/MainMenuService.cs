@@ -1,6 +1,9 @@
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.Panels;
+using Funcy.Console.Ui.Triggers;
 using Funcy.Infrastructure.Azure;
 using Funcy.Infrastructure.Model;
+using Spectre.Console.Rendering;
 
 namespace Funcy.Console;
 
@@ -13,71 +16,70 @@ public class MainMenuService(
     ResizeHandler resizeHandler)
 {
     private List<FunctionAppDetails> _functionApps = [];
-    private FunctionAppPanel _functionAppPanel;
-    public TaskCompletionSource ResizeUpdateTrigger { get; private set; } = new();
+    private TopPanel? _topPanel;
+    private FunctionAppPanel? _functionListPanel;
+    
+    private readonly List<IPanelController> _panelControllers = [];
 
-    public async Task StartMonitoringAsync()
+    public async Task StartAsync()
     {
-        _functionApps = await functionService.InitialLoadFunctionAppsAsync();
-        _functionAppPanel = new FunctionAppPanel(_functionApps, tableRowUpdater);
+        await InitFunctionAppPanel();
+        _topPanel = new TopPanel();
+
         var cts = new CancellationTokenSource();
         
-        resizeHandler.OnResize += (width, height) =>
-        {
-            lock (ResizeUpdateTrigger)
-            {
-                ResizeUpdateTrigger.TrySetResult();
-            }
-        };
-
-        //var updateTask = UpdateDataAsync(cts.Token);
         resizeHandler.StartPolling();
-
-        var inputTask = inputHandler.HandleInputAsync(_functionAppPanel.MaxVisibleRows, _functionApps.Count, cts.Token);
+        var inputTask = inputHandler.StartListeningAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
         await cts.CancelAsync();
-        //await updateTask;
         await inputTask;
+        resizeHandler.StopPolling();
+    }
+
+    private async Task InitFunctionAppPanel()
+    {
+        _functionApps = await functionService.InitialLoadFunctionAppsAsync();
+        _functionListPanel = new FunctionAppPanel(_functionApps);
+        _panelControllers.Add(_functionListPanel);
+    }
+    
+    private async Task WaitForAnyTriggerAsync()
+    {
+        await Task.WhenAny(
+            resizeHandler.WaitForTriggerAsync(),
+            inputHandler.WaitForTriggerAsync());
     }
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
     {
-        AnsiConsole.Clear();
-        _functionAppPanel.CreateFunctionAppPanel();
-        tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, 0, 0); //TODO: inte här
+        _functionListPanel.CreateFunctionAppPanel();
 
         while (true)
         {
-            await AnsiConsole.Live(_functionAppPanel.Panel).StartAsync(ctx =>
+            AnsiConsole.Clear();
+            await AnsiConsole.Live(BuildMainLayout()).StartAsync(async ctx =>
             {
                 while (!token.IsCancellationRequested)
                 {
                     ctx.Refresh();
-                    Task.WaitAny(ResizeUpdateTrigger.Task, inputHandler.UpdateTrigger.Task);
+                    await WaitForAnyTriggerAsync();
 
-                    if (inputHandler.IsVisibleStartIndexChanged)
+                    if (inputHandler.IsTriggered)
                     {
-                        tableRowUpdater.UpdateVisibleTableRows(_functionAppPanel.Table, inputHandler.VisibleStartIndex, _functionAppPanel.MaxVisibleRows);    
+                        await _functionListPanel.HandleInputAsync(inputHandler.TriggeredKey);
+                        _functionListPanel.UpdateVisibleTableRows();    
+                        inputHandler.ResetTrigger();
                     }
                 
-                    tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, inputHandler.OldSelectedIndex,
-                        inputHandler.SelectedIndex);
+                    _functionListPanel.UpdateSelectedTableRow();
 
-                    if (inputHandler.UpdateTrigger.Task.IsCompleted)
+                    if (resizeHandler.IsTriggered)
                     {
-                        inputHandler.ResetUpdateTrigger();
-                    }
-
-                    if (ResizeUpdateTrigger.Task.IsCompleted)
-                    {
-                        AnsiConsole.Clear();
-                        _functionAppPanel.UpdateMaxVisibleRows();
-                        _functionAppPanel.CreateFunctionAppPanel();
-                        tableRowUpdater.UpdateSelectedTableRow(_functionAppPanel.Table.Rows, inputHandler.OldSelectedIndex, inputHandler.SelectedIndex); //TODO: inte här
-                        ctx.UpdateTarget(_functionAppPanel.Panel);
-                        ResizeUpdateTrigger = new TaskCompletionSource();
+                        _functionListPanel.OnResize();
+                        ctx.UpdateTarget(_functionListPanel.Panel);
+                        resizeHandler.ResetTrigger();
                         break;
                     }
                 }
@@ -85,5 +87,13 @@ public class MainMenuService(
                 return Task.CompletedTask;
             });
         }
+    }
+    
+    private IRenderable BuildMainLayout()
+    {
+        // Returnerar ett grid eller en Rows-instans med båda panelerna
+        return new Rows(
+            _topPanel.Panel,
+            _functionListPanel.CreateFunctionAppPanel());
     }
 }

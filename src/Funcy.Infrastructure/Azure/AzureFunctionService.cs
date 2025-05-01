@@ -35,7 +35,7 @@ public class AzureFunctionService
         int counter = 0;
         try
         {
-            while (await webSitesEnumerator.MoveNextAsync())
+            while (await webSitesEnumerator.MoveNextAsync() || counter < 10)
             {
                 counter++;
                 var webSite = webSitesEnumerator.Current;

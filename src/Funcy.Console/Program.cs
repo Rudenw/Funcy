@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Funcy.Console;
 using Funcy.Console.Data;
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.Triggers;
 using Funcy.Infrastructure.Azure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -24,7 +25,7 @@ var host = Host.CreateDefaultBuilder(args)
 
 // Hämta vår service från DI-containern
 var helloService = host.Services.GetRequiredService<MainMenuService>();
-await helloService.StartMonitoringAsync();
+await helloService.StartAsync();
 
 // Håll hosten igång tills användaren avslutar
 await host.RunAsync();
