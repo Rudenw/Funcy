@@ -1,7 +1,7 @@
-using Funcy.Console.Data.Entities;
+using Funcy.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace Funcy.Console.Data;
+namespace Funcy.Data;
 
 public class FunctionAppDbContext : DbContext
 {

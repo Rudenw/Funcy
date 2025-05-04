@@ -1,4 +1,4 @@
-namespace Funcy.Console.Data.Entities;
+namespace Funcy.Data.Entities;
 
 public class Function
 {

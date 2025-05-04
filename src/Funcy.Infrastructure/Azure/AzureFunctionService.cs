@@ -1,98 +1,128 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using Azure.Core;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
+using Funcy.Data;
+using Funcy.Data.Entities;
+using Funcy.Infrastructure.Mappers;
 using Funcy.Infrastructure.Model;
+using Microsoft.EntityFrameworkCore;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class AzureFunctionService
+public class AzureFunctionService(IAzureSubscriptionService subscriptionService, KuduApiClient kuduApiClient, IDbContextFactory<FunctionAppDbContext> dbContextFactory)
 {
-    private readonly string _subscriptionId;
+    private readonly ArmClient _client = new(new DefaultAzureCredential());
 
-    //resource group: rg-sp-weeu-ais-workflow-tst
-    //subscriptionId: ee691e14-38ba-4613-91bc-2287244a60e7
-    private readonly ArmClient _client;
-    private readonly List<FunctionAppDetails> _functionAppDetailsList;
-    private DateTime _lastCacheTime;
-    private readonly TimeSpan _cacheDuration = TimeSpan.FromMinutes(5);
+    public async IAsyncEnumerable<FunctionAppDetails> FetchFunctionAppDetailsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        var subscription = _client.GetSubscriptionResource(new ResourceIdentifier($"/subscriptions/{subscriptionId}"));
 
-    public AzureFunctionService(string subscriptionId)
-    {
-        _subscriptionId = subscriptionId;
-        _client = new ArmClient(new DefaultAzureCredential());
-        _functionAppDetailsList = [];
-        _lastCacheTime = DateTime.MinValue;
-    }
-    
-    public async Task<List<FunctionAppDetails>> InitialLoadFunctionAppsAsync()
-    {
-        var stopwatch = Stopwatch.StartNew();
-        
-        var subscription = _client.GetSubscriptionResource(new ResourceIdentifier($"/subscriptions/{_subscriptionId}"));
-        var webSitesEnumerator = subscription.GetWebSitesAsync().GetAsyncEnumerator();
-        int counter = 0;
-        try
+        var channel = Channel.CreateUnbounded<FunctionAppDetails>();
+        var tasks = new List<Task>();
+        var throttler = new SemaphoreSlim(5);
+        await foreach (var webSite in subscription.GetWebSitesAsync())
         {
-            while (await webSitesEnumerator.MoveNextAsync() || counter < 10)
+            if (!webSite.Data.Name.StartsWith("func-sp-weeu-ais"))
             {
-                counter++;
-                var webSite = webSitesEnumerator.Current;
-                if (!webSite.Data.Name.StartsWith("func-sp-weeu-ais"))
+                continue;
+            }
+
+            var task = Task.Run(async () =>
+            {
+                try
                 {
-                    continue;
+                    await throttler.WaitAsync(cancellationToken);
+                    
+                    await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+
+                    var existing = await dbContext.FunctionApps
+                        .Include(f => f.Functions)
+                        .FirstOrDefaultAsync(f =>
+                            f.Name == webSite.Data.Name && f.ResourceGroup == webSite.Data.ResourceGroup &&
+                            f.Subscription == subscriptionId, cancellationToken: cancellationToken);
+
+                    var functionList = await FetchFunctionListFromKudu(webSite);
+                    var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, dbContext);
+
+                    await channel.Writer.WriteAsync(functionApp.Map(), cancellationToken);
                 }
-
-                webSite.Data.Tags.TryGetValue("System", out var systemName);
-                var functionAppDetails = new FunctionAppDetails()
+                catch (Exception e)
                 {
-                    Name = webSite.Data.Name,
-                    State = webSite.Data.State,
-                    System = systemName ?? string.Empty,
-                    ResourceGroup = webSite.Data.ResourceGroup
-                };
-                
-                _functionAppDetailsList.Add(functionAppDetails);
+                    Console.WriteLine(e);
+                }
+                finally
+                {
+                    throttler.Release();
+                }
+            }, cancellationToken);
+            
+            tasks.Add(task);
+        }
+
+        _ = Task.Run(async () =>
+        {
+            await Task.WhenAll(tasks);
+            channel.Writer.Complete();
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            
+            throttler.Dispose();
+        }, cancellationToken);
+        
+        while (await channel.Reader.WaitToReadAsync(cancellationToken))
+        {
+            while (channel.Reader.TryRead(out var item))
+            {
+                yield return item;
             }
         }
-        catch (Exception e)
-        {
-            System.Console.WriteLine(e);
-        }
-        finally
-        {
-            await webSitesEnumerator.DisposeAsync();
-        }
-
-        stopwatch.Stop();
-
-        _functionAppDetailsList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
-        
-        return _functionAppDetailsList;
     }
-    
-    public async Task<List<FunctionAppDetails>> UpdateFunctionAppsAsync(CancellationToken ct)
+
+    private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, WebSiteResource webSite, List<Function> functionList, FunctionAppDbContext dbContext)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var tasks = _functionAppDetailsList.Select(async functionApp =>
+        if (functionApp is null)
         {
-            try
+            webSite.Data.Tags.TryGetValue("System", out var systemName);
+            functionApp = new FunctionApp()
             {
-                var webSite = _client.GetWebSiteResource(new ResourceIdentifier($"/subscriptions/{_subscriptionId}/resourceGroups/{functionApp.ResourceGroup}/providers/Microsoft.Web/sites/{functionApp.Name}"));
-                webSite = await webSite.GetAsync(ct);
-                functionApp.State = webSite.Data.State;
-            }
-            catch (Exception ex)
-            {
-                System.Console.WriteLine($"Failed to update Function App {functionApp.Name}: {ex.Message}");
-            }
-        });
+                Name = webSite.Data.Name,
+                State = webSite.Data.State,
+                System = systemName ?? string.Empty,
+                Subscription = webSite.Id?.SubscriptionId ?? string.Empty,
+                ResourceGroup = webSite.Data.ResourceGroup,
+                Functions = functionList
+            };
+            dbContext.FunctionApps.Add(functionApp);
+        }
+        else
+        {
+            functionApp.State = webSite.Data.State;
+            dbContext.Functions.RemoveRange(functionApp.Functions);
+            functionApp.Functions = functionList;
+        }
 
-        await Task.WhenAll(tasks);
-        
-        stopwatch.Stop();
+        return functionApp;
+    }
 
-        return _functionAppDetailsList;
+    private async Task<List<Function>> FetchFunctionListFromKudu(WebSiteResource webSite)
+    {
+        var kuduInfoList = await kuduApiClient.GetFunctionsAsync(webSite.Data.Name);
+
+        var functionList = kuduInfoList.Select(kuduFunctionInfo => new Function()
+            { Name = kuduFunctionInfo.Name, Trigger = kuduFunctionInfo.TriggerType }).ToList();
+        return functionList;
+    }
+
+    public List<FunctionAppDetails> GetFunctionsFromDatabase()
+    {
+        using var dbContext = dbContextFactory.CreateDbContext(); 
+        var functionAppList = dbContext.FunctionApps.Select(x => x.Map()).ToList();
+        functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
+        return functionAppList;
     }
 }

@@ -12,10 +12,9 @@ using Spectre.Console;
 public class MainMenuService(
     AzureFunctionService functionService,
     InputHandler inputHandler,
-    TableRowUpdater tableRowUpdater,
-    ResizeHandler resizeHandler)
+    ResizeHandler resizeHandler,
+    FunctionAppUpdateHandler functionAppUpdateHandler)
 {
-    private List<FunctionAppDetails> _functionApps = [];
     private TopPanel? _topPanel;
     private FunctionAppPanel? _functionListPanel;
     
@@ -23,25 +22,26 @@ public class MainMenuService(
 
     public async Task StartAsync()
     {
-        await InitFunctionAppPanel();
+        InitFunctionAppPanel();
         _topPanel = new TopPanel();
 
         var cts = new CancellationTokenSource();
         
         resizeHandler.StartPolling();
+        var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
         await cts.CancelAsync();
         await inputTask;
+        await functionTask;
         resizeHandler.StopPolling();
     }
 
-    private async Task InitFunctionAppPanel()
+    private void InitFunctionAppPanel()
     {
-        _functionApps = await functionService.InitialLoadFunctionAppsAsync();
-        _functionListPanel = new FunctionAppPanel(_functionApps);
+        _functionListPanel = new FunctionAppPanel(functionAppUpdateHandler.FunctionApps);
         _panelControllers.Add(_functionListPanel);
     }
     
@@ -49,7 +49,8 @@ public class MainMenuService(
     {
         await Task.WhenAny(
             resizeHandler.WaitForTriggerAsync(),
-            inputHandler.WaitForTriggerAsync());
+            inputHandler.WaitForTriggerAsync(),
+            functionAppUpdateHandler.WaitForTriggerAsync());
     }
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
@@ -69,8 +70,16 @@ public class MainMenuService(
                     if (inputHandler.IsTriggered)
                     {
                         await _functionListPanel.HandleInputAsync(inputHandler.TriggeredKey);
-                        _functionListPanel.UpdateVisibleTableRows();    
+                        _functionListPanel.UpdateVisibleTableRows();
                         inputHandler.ResetTrigger();
+                    }
+                    
+                    if (functionAppUpdateHandler.IsTriggered)
+                    {
+                        _functionListPanel.CreateFunctionAppPanel();
+                        ctx.UpdateTarget(_functionListPanel.Panel);
+                        functionAppUpdateHandler.ResetTrigger();
+                        break;
                     }
                 
                     _functionListPanel.UpdateSelectedTableRow();

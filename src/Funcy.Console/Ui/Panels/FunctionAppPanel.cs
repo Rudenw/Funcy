@@ -17,16 +17,16 @@ public class FunctionAppPanel : IPanelController
     private Table Table { get; set; }
 
     private int MaxVisibleRows { get; set; } = 5;
-    private readonly List<FunctionAppDetails> _functionAppDetails;
+    private List<FunctionAppDetails> FunctionAppDetails { get; set; }
     private int _oldSelectedIndex;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
-        _functionAppDetails = functionAppDetails;
+        FunctionAppDetails = functionAppDetails;
 
         UpdateMaxVisibleRows();
         
-        Table = CreateFunctionAppTable(_functionAppDetails);
+        Table = CreateFunctionAppTable(FunctionAppDetails);
         Panel = new Panel(Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
@@ -88,12 +88,12 @@ public class FunctionAppPanel : IPanelController
 
     private void UpdateMaxVisibleRows()
     {
-        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 10, _functionAppDetails.Count);
+        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 10, FunctionAppDetails.Count);
     }
 
     public IRenderable CreateFunctionAppPanel()
     {
-        Table = CreateFunctionAppTable(_functionAppDetails);
+        Table = CreateFunctionAppTable(FunctionAppDetails);
         Panel = new Panel(Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
