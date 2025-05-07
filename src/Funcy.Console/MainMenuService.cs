@@ -55,12 +55,12 @@ public class MainMenuService(
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
     {
-        _functionListPanel.CreateFunctionAppPanel();
+        var mainLayout = BuildMainLayout();
 
         while (true)
         {
             AnsiConsole.Clear();
-            await AnsiConsole.Live(BuildMainLayout()).StartAsync(async ctx =>
+            await AnsiConsole.Live(mainLayout).StartAsync(async ctx =>
             {
                 while (!token.IsCancellationRequested)
                 {
@@ -70,21 +70,18 @@ public class MainMenuService(
                     if (inputHandler.IsTriggered)
                     {
                         await _functionListPanel.HandleInputAsync(inputHandler.TriggeredKey);
-                        _functionListPanel.UpdateVisibleTableRows();
                         inputHandler.ResetTrigger();
                     }
                     
                     if (functionAppUpdateHandler.IsTriggered)
                     {
-                        _functionListPanel.CreateFunctionAppPanel();
-                        ctx.UpdateTarget(_functionListPanel.Panel);
+                        _functionListPanel.OnFunctionAppUpdated();
                         functionAppUpdateHandler.ResetTrigger();
-                        break;
                     }
                 
                     _functionListPanel.UpdateSelectedTableRow();
 
-                    if (resizeHandler.IsTriggered)
+                    if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
                     {
                         _functionListPanel.OnResize();
                         ctx.UpdateTarget(_functionListPanel.Panel);
@@ -100,7 +97,6 @@ public class MainMenuService(
     
     private IRenderable BuildMainLayout()
     {
-        // Returnerar ett grid eller en Rows-instans med båda panelerna
         return new Rows(
             _topPanel.Panel,
             _functionListPanel.CreateFunctionAppPanel());

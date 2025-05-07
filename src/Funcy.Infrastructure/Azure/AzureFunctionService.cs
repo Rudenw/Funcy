@@ -10,10 +10,11 @@ using Funcy.Data.Entities;
 using Funcy.Infrastructure.Mappers;
 using Funcy.Infrastructure.Model;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class AzureFunctionService(IAzureSubscriptionService subscriptionService, KuduApiClient kuduApiClient, IDbContextFactory<FunctionAppDbContext> dbContextFactory)
+public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSubscriptionService subscriptionService, KuduApiClient kuduApiClient, IDbContextFactory<FunctionAppDbContext> dbContextFactory)
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
 
@@ -53,7 +54,7 @@ public class AzureFunctionService(IAzureSubscriptionService subscriptionService,
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine(e);
+                    logger.LogError(e, "Error while fetching function app details");;
                 }
                 finally
                 {

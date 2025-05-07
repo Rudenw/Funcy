@@ -9,15 +9,36 @@ using Funcy.Data;
 using Funcy.Infrastructure.Azure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Serilog;
 
-const string subscriptionId = "ee691e14-38ba-4613-91bc-2287244a60e7";
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .Build();
+
+Log.Logger = new LoggerConfiguration()
+    .ReadFrom.Configuration(config)
+    .CreateLogger();
 
 var host = Host.CreateDefaultBuilder(args)
+    .ConfigureLogging(logging =>
+    {
+        logging.ClearProviders();
+        logging.AddSerilog();
+    })
     .ConfigureServices((context, services) =>
     {
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
-            options.UseSqlite(context.Configuration.GetConnectionString("DefaultConnection")));
+        {
+            options.UseSqlite(context.Configuration.GetConnectionString("DefaultConnection"))
+                .UseLoggerFactory(LoggerFactory.Create(builder =>
+                {
+                    builder.AddSerilog().SetMinimumLevel(LogLevel.Information);
+                })).EnableSensitiveDataLogging();
+        });
+        
         services.AddTransient<InputHandler>();
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();

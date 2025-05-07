@@ -10,7 +10,7 @@ public static class FunctionAppDetailsMapper
         return new FunctionAppDetails
         {
             Name = functionApp.Name,
-            State = functionApp.System,
+            State = functionApp.State,
             System = functionApp.System,
             ResourceGroup = functionApp.ResourceGroup,
             Functions = functionApp.Functions.Select(x => x.Map()).ToList()

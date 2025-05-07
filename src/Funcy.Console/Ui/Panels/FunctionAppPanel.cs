@@ -7,7 +7,7 @@ namespace Funcy.Console.Ui.Panels;
 
 public class FunctionAppPanel : IPanelController
 {
-    private List<TableRowMarkup> _allRows = [];
+    private Dictionary<string, TableRowMarkup> _allRows = [];
     private List<TableRowMarkup> _visibleRows = [];
 
     private int _selectedIndex = 0;
@@ -26,7 +26,7 @@ public class FunctionAppPanel : IPanelController
 
         UpdateMaxVisibleRows();
         
-        Table = CreateFunctionAppTable(FunctionAppDetails);
+        Table = CreateFunctionAppTable();
         Panel = new Panel(Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
@@ -83,17 +83,47 @@ public class FunctionAppPanel : IPanelController
         {
             UpdateVisibleTableRows();
         }
-        //UpdateView();
+    }
+
+    public void OnFunctionAppUpdated()
+    {
+        SortFunctionAppDetails();
+        UpdateMaxVisibleRows();
+        UpdateAllRows();
+        UpdateVisibleTableRows();
+    }
+
+    private void SortFunctionAppDetails()
+    {
+        FunctionAppDetails.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
     }
 
     private void UpdateMaxVisibleRows()
     {
-        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 10, FunctionAppDetails.Count);
+        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 8, FunctionAppDetails.Count);
+    }
+
+    private void UpdateAllRows()
+    {
+        foreach (var app in FunctionAppDetails)
+        {
+            var tableRowMarkup = new TableRowMarkup
+            {
+                SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
+                SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
+                SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
+                UnselectedName = new Markup(app.Name),
+                UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
+                UnselectedSystem = new Markup(app.System)
+            };
+
+            _allRows[app.Name] = tableRowMarkup;
+        }
     }
 
     public IRenderable CreateFunctionAppPanel()
     {
-        Table = CreateFunctionAppTable(FunctionAppDetails);
+        Table = CreateFunctionAppTable();
         Panel = new Panel(Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
@@ -103,15 +133,15 @@ public class FunctionAppPanel : IPanelController
         return Panel;
     }
 
-    public void UpdateVisibleTableRows()
+    private void UpdateVisibleTableRows()
     {
         Table.Rows.Clear();
         _visibleRows.Clear();
 
-        foreach (var row in _allRows.Skip(_visibleStartIndex).Take(MaxVisibleRows))
+        foreach (var app in FunctionAppDetails.Skip(_visibleStartIndex).Take(MaxVisibleRows))
         {
-            Table.AddRow(row.Columns);
-            _visibleRows.Add(row);
+            Table.AddRow(_allRows[app.Name].Columns);
+            _visibleRows.Add(_allRows[app.Name]);
         }
     }
     
@@ -132,7 +162,7 @@ public class FunctionAppPanel : IPanelController
         }
     }
     
-    private Table CreateFunctionAppTable(List<FunctionAppDetails> functionAppDetails)
+    private Table CreateFunctionAppTable()
     {
         var table = new Table();
         table.Border(TableBorder.None);
@@ -141,9 +171,13 @@ public class FunctionAppPanel : IPanelController
         table.AddColumn("[bold]Status[/]");
         table.AddColumn("[bold]System[/]");
 
-        for (var i = 0; i < functionAppDetails.Count; i++)
+        _allRows.Clear();
+        _visibleRows.Clear();
+        table.Rows.Clear();
+        
+        for (var i = 0; i < FunctionAppDetails.Count; i++)
         {
-            var app = functionAppDetails[i];
+            var app = FunctionAppDetails[i];
 
             var tableRowMarkup = new TableRowMarkup
             {
@@ -154,8 +188,8 @@ public class FunctionAppPanel : IPanelController
                 UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
                 UnselectedSystem = new Markup(app.System)
             };
-
-            _allRows.Add(tableRowMarkup);
+            
+            _allRows.Add(app.Name, tableRowMarkup);
 
             if (i < MaxVisibleRows)
             {
