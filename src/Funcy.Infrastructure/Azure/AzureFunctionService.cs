@@ -49,11 +49,12 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
 
                     var functionList = await FetchFunctionListFromKudu(webSite);
                     var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, dbContext);
-
+                    await dbContext.SaveChangesAsync(cancellationToken);
                     await channel.Writer.WriteAsync(functionApp.Map(), cancellationToken);
                 }
                 catch (Exception e)
                 {
+                    //TODO: if error when getting function details, perhaps add to a list and then retry? or use polly
                     logger.LogError(e, "Error while fetching function app details");;
                 }
                 finally
@@ -69,9 +70,6 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
         {
             await Task.WhenAll(tasks);
             channel.Writer.Complete();
-            await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-            await dbContext.SaveChangesAsync(cancellationToken);
-            
             throttler.Dispose();
         }, cancellationToken);
         
@@ -122,7 +120,7 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
     public List<FunctionAppDetails> GetFunctionsFromDatabase()
     {
         using var dbContext = dbContextFactory.CreateDbContext(); 
-        var functionAppList = dbContext.FunctionApps.Select(x => x.Map()).ToList();
+        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Select(x => x.Map()).ToList();
         functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
         return functionAppList;
     }

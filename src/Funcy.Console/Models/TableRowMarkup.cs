@@ -12,5 +12,8 @@ public record TableRowMarkup
     public required Markup UnselectedState { get; set; }
     public required Markup UnselectedSystem { get; set; }
 
-    public List<Markup> Columns => [UnselectedName, UnselectedState, UnselectedSystem];
+    public List<Markup> Columns => [Unexpanded, UnselectedName, UnselectedState, UnselectedSystem];
+    public bool CanExpand { get; set; }
+    public required Markup Expanded { get; set; }
+    public required Markup Unexpanded { get; set; }
 }

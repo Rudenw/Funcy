@@ -7,11 +7,10 @@ public class TopPanel : IPanelController
 {
     public Panel Panel { get; set; }
 
-    public TopPanel()
+    public TopPanel(string subscriptionName)
     {
-        var text = new Markup("[bold yellow]Subscription: [/] subscription-name");
-        var text2 = new Markup("[bold yellow]Resource Group: [/] resource-group");
-        var rows = new Rows(text, text2);
+        var text = new Markup($"[bold yellow]Subscription: [/] {subscriptionName}");
+        var rows = new Rows(text);
         Panel = new Panel(rows);
         Panel.Border(BoxBorder.None);
     }

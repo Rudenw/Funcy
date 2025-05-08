@@ -17,12 +17,16 @@ public class FunctionAppPanel : IPanelController
     private Table Table { get; set; }
 
     private int MaxVisibleRows { get; set; } = 5;
-    private List<FunctionAppDetails> FunctionAppDetails { get; set; }
+    private List<FunctionAppDetails> FunctionAppDetails { get; set; } = [];
+    private readonly object _lock = new object();
     private int _oldSelectedIndex;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
-        FunctionAppDetails = functionAppDetails;
+        lock (_lock)
+        {
+            FunctionAppDetails = functionAppDetails.ToList();
+        }
 
         UpdateMaxVisibleRows();
         
@@ -35,8 +39,21 @@ public class FunctionAppPanel : IPanelController
     public void OnResize()
     {
         UpdateMaxVisibleRows();
-        CreateFunctionAppPanel();
+        UpdateVisibleTableRows();
         UpdateSelectedTableRow();
+    }
+    
+    public void OnFunctionAppsUpdated(List<FunctionAppDetails> functionAppDetails)
+    {
+        lock (_lock)
+        {
+            FunctionAppDetails = functionAppDetails.ToList();            
+        }
+        
+        SortFunctionAppDetails();
+        UpdateMaxVisibleRows();
+        UpdateAllRows();
+        UpdateVisibleTableRows();
     }
 
     public async Task HandleInputAsync(ConsoleKey key)
@@ -85,17 +102,13 @@ public class FunctionAppPanel : IPanelController
         }
     }
 
-    public void OnFunctionAppUpdated()
-    {
-        SortFunctionAppDetails();
-        UpdateMaxVisibleRows();
-        UpdateAllRows();
-        UpdateVisibleTableRows();
-    }
-
     private void SortFunctionAppDetails()
     {
-        FunctionAppDetails.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
+        FunctionAppDetails.Sort((a, b) =>
+        {
+            var systemCompare = string.Compare(a.System, b.System, StringComparison.Ordinal);
+            return systemCompare != 0 ? systemCompare : string.Compare(a.Name, b.Name, StringComparison.Ordinal);
+        });
     }
 
     private void UpdateMaxVisibleRows()
@@ -105,20 +118,33 @@ public class FunctionAppPanel : IPanelController
 
     private void UpdateAllRows()
     {
-        foreach (var app in FunctionAppDetails)
+        lock (_lock)
         {
-            var tableRowMarkup = new TableRowMarkup
+            foreach (var app in FunctionAppDetails)
             {
-                SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
-                SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
-                SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
-                UnselectedName = new Markup(app.Name),
-                UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
-                UnselectedSystem = new Markup(app.System)
-            };
+                var tableRowMarkup = CreateTableRowMarkup(app);
 
-            _allRows[app.Name] = tableRowMarkup;
+                _allRows[app.Name] = tableRowMarkup;
+            }
         }
+    }
+
+    private static TableRowMarkup CreateTableRowMarkup(FunctionAppDetails app)
+    {
+        var canExpand = app.Functions.Any();
+        var tableRowMarkup = new TableRowMarkup
+        {
+            CanExpand = canExpand,
+            Expanded = new Markup(canExpand ? "▾" : " "),
+            SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
+            SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
+            SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
+            Unexpanded = new Markup(canExpand ? "▸" : " "),
+            UnselectedName = new Markup(app.Name),
+            UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
+            UnselectedSystem = new Markup(app.System)
+        };
+        return tableRowMarkup;
     }
 
     public IRenderable CreateFunctionAppPanel()
@@ -138,10 +164,13 @@ public class FunctionAppPanel : IPanelController
         Table.Rows.Clear();
         _visibleRows.Clear();
 
-        foreach (var app in FunctionAppDetails.Skip(_visibleStartIndex).Take(MaxVisibleRows))
+        lock (_lock)
         {
-            Table.AddRow(_allRows[app.Name].Columns);
-            _visibleRows.Add(_allRows[app.Name]);
+            foreach (var app in FunctionAppDetails.Skip(_visibleStartIndex).Take(MaxVisibleRows))
+            {
+                Table.AddRow(_allRows[app.Name].Columns);
+                _visibleRows.Add(_allRows[app.Name]);
+            }            
         }
     }
     
@@ -149,16 +178,16 @@ public class FunctionAppPanel : IPanelController
     {
         if (Table.Rows.Count > _oldSelectedIndex)
         {
-            Table.Rows.Update(_oldSelectedIndex, 0, _visibleRows[_oldSelectedIndex].UnselectedName);
-            Table.Rows.Update(_oldSelectedIndex, 1, _visibleRows[_oldSelectedIndex].UnselectedState);
-            Table.Rows.Update(_oldSelectedIndex, 2, _visibleRows[_oldSelectedIndex].UnselectedSystem);
+            Table.Rows.Update(_oldSelectedIndex, 1, _visibleRows[_oldSelectedIndex].UnselectedName);
+            Table.Rows.Update(_oldSelectedIndex, 2, _visibleRows[_oldSelectedIndex].UnselectedState);
+            Table.Rows.Update(_oldSelectedIndex, 3, _visibleRows[_oldSelectedIndex].UnselectedSystem);
         }
 
         if (Table.Rows.Count > _selectedIndex)
         {
-            Table.Rows.Update(_selectedIndex, 0, _visibleRows[_selectedIndex].SelectedName);
-            Table.Rows.Update(_selectedIndex, 1, _visibleRows[_selectedIndex].SelectedState);
-            Table.Rows.Update(_selectedIndex, 2, _visibleRows[_selectedIndex].SelectedSystem);
+            Table.Rows.Update(_selectedIndex, 1, _visibleRows[_selectedIndex].SelectedName);
+            Table.Rows.Update(_selectedIndex, 2, _visibleRows[_selectedIndex].SelectedState);
+            Table.Rows.Update(_selectedIndex, 3, _visibleRows[_selectedIndex].SelectedSystem);
         }
     }
     
@@ -167,6 +196,7 @@ public class FunctionAppPanel : IPanelController
         var table = new Table();
         table.Border(TableBorder.None);
         table.Width(100);
+        table.AddColumn(" ");
         table.AddColumn("[bold]Name[/]");
         table.AddColumn("[bold]Status[/]");
         table.AddColumn("[bold]System[/]");
@@ -174,28 +204,23 @@ public class FunctionAppPanel : IPanelController
         _allRows.Clear();
         _visibleRows.Clear();
         table.Rows.Clear();
-        
-        for (var i = 0; i < FunctionAppDetails.Count; i++)
+
+        lock (_lock)
         {
-            var app = FunctionAppDetails[i];
-
-            var tableRowMarkup = new TableRowMarkup
+            for (var i = 0; i < FunctionAppDetails.Count; i++)
             {
-                SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
-                SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
-                SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
-                UnselectedName = new Markup(app.Name),
-                UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
-                UnselectedSystem = new Markup(app.System)
-            };
+                var app = FunctionAppDetails[i];
+
+                var tableRowMarkup = CreateTableRowMarkup(app);
             
-            _allRows.Add(app.Name, tableRowMarkup);
+                _allRows.Add(app.Name, tableRowMarkup);
 
-            if (i < MaxVisibleRows)
-            {
-                table.AddRow(tableRowMarkup.Columns);
-                _visibleRows.Add(tableRowMarkup);
-            }
+                if (i < MaxVisibleRows)
+                {
+                    table.AddRow(tableRowMarkup.Columns);
+                    _visibleRows.Add(tableRowMarkup);
+                }
+            }    
         }
 
         return table;

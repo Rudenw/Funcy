@@ -7,6 +7,7 @@ public class FunctionAppUpdateHandler(AzureFunctionService functionService)
 {
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public bool IsTriggered { get; set; }
+    private readonly object _lock = new();
     public readonly List<FunctionAppDetails> FunctionApps = functionService.GetFunctionsFromDatabase();
 
     public async Task StartListeningAsync(CancellationToken token)
@@ -17,7 +18,7 @@ public class FunctionAppUpdateHandler(AzureFunctionService functionService)
             {
                 await foreach (var newApp in functionService.FetchFunctionAppDetailsAsync(token))
                 {
-                    lock (FunctionApps)
+                    lock (_lock)
                     {
                         var existing = FunctionApps.FirstOrDefault(x => x.Name == newApp.Name);
                         if (existing is not null)

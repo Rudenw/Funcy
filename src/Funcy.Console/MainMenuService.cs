@@ -10,7 +10,7 @@ namespace Funcy.Console;
 using Spectre.Console;
 
 public class MainMenuService(
-    AzureFunctionService functionService,
+    IAzureSubscriptionService subscriptionService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler)
@@ -23,7 +23,7 @@ public class MainMenuService(
     public async Task StartAsync()
     {
         InitFunctionAppPanel();
-        _topPanel = new TopPanel();
+        await InitTopPanel();
 
         var cts = new CancellationTokenSource();
         
@@ -42,6 +42,14 @@ public class MainMenuService(
     private void InitFunctionAppPanel()
     {
         _functionListPanel = new FunctionAppPanel(functionAppUpdateHandler.FunctionApps);
+        _panelControllers.Add(_functionListPanel);
+    }
+    
+    private async Task InitTopPanel()
+    {
+        var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
+            
+        _topPanel = new TopPanel(subscriptionName);
         _panelControllers.Add(_functionListPanel);
     }
     
@@ -75,7 +83,7 @@ public class MainMenuService(
                     
                     if (functionAppUpdateHandler.IsTriggered)
                     {
-                        _functionListPanel.OnFunctionAppUpdated();
+                        _functionListPanel.OnFunctionAppsUpdated(functionAppUpdateHandler.FunctionApps);
                         functionAppUpdateHandler.ResetTrigger();
                     }
                 
@@ -84,7 +92,7 @@ public class MainMenuService(
                     if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
                     {
                         _functionListPanel.OnResize();
-                        ctx.UpdateTarget(_functionListPanel.Panel);
+                        //ctx.UpdateTarget(_functionListPanel.Panel);
                         resizeHandler.ResetTrigger();
                         break;
                     }
