@@ -2,7 +2,6 @@ using Funcy.Console.Ui;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Triggers;
 using Funcy.Infrastructure.Azure;
-using Funcy.Infrastructure.Model;
 using Spectre.Console.Rendering;
 
 namespace Funcy.Console;
@@ -77,18 +76,16 @@ public class MainMenuService(
 
                     if (inputHandler.IsTriggered)
                     {
-                        await _functionListPanel.HandleInputAsync(inputHandler.TriggeredKey);
+                        _functionListPanel.HandleInputAsync(inputHandler.TriggeredKey);
                         inputHandler.ResetTrigger();
                     }
                     
                     if (functionAppUpdateHandler.IsTriggered)
                     {
-                        _functionListPanel.OnFunctionAppsUpdated(functionAppUpdateHandler.FunctionApps);
+                        _functionListPanel.UpdateData(functionAppUpdateHandler.FunctionApps);
                         functionAppUpdateHandler.ResetTrigger();
                     }
-                
-                    _functionListPanel.UpdateSelectedTableRow();
-
+                    
                     if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
                     {
                         _functionListPanel.OnResize();
@@ -107,6 +104,6 @@ public class MainMenuService(
     {
         return new Rows(
             _topPanel.Panel,
-            _functionListPanel.CreateFunctionAppPanel());
+            _functionListPanel.Panel);
     }
 }

@@ -1,228 +1,102 @@
+using Funcy.Console.Data;
 using Funcy.Console.Models;
+using Funcy.Console.Ui.Factories;
+using Funcy.Console.Ui.Pagination;
+using Funcy.Console.Ui.Renderers;
 using Funcy.Infrastructure.Model;
 using Spectre.Console;
-using Spectre.Console.Rendering;
 
 namespace Funcy.Console.Ui.Panels;
 
 public class FunctionAppPanel : IPanelController
 {
-    private Dictionary<string, TableRowMarkup> _allRows = [];
+    private readonly Dictionary<string, TableRowMarkup> _markupCache = [];
     private List<TableRowMarkup> _visibleRows = [];
-
-    private int _selectedIndex = 0;
-    private int _visibleStartIndex = 0;
     
     public Panel Panel { get; private set; }
-    private Table Table { get; set; }
-
-    private int MaxVisibleRows { get; set; } = 5;
-    private List<FunctionAppDetails> FunctionAppDetails { get; set; } = [];
-    private readonly object _lock = new object();
-    private int _oldSelectedIndex;
+    
+    private readonly FunctionAppDataStore _dataStore;
+    private readonly FunctionAppPaginator _paginator;
+    private readonly FunctionAppTableRenderer _renderer;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
-        lock (_lock)
-        {
-            FunctionAppDetails = functionAppDetails.ToList();
-        }
-
-        UpdateMaxVisibleRows();
-        
-        Table = CreateFunctionAppTable();
-        Panel = new Panel(Table)
+        _dataStore = new FunctionAppDataStore();
+        _paginator = new FunctionAppPaginator();
+        _renderer = new FunctionAppTableRenderer();
+        Panel = new Panel(_renderer.Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
+        
+        UpdateData(functionAppDetails);
+    }
+    
+    public void UpdateData(List<FunctionAppDetails> functionAppDetails)
+    {
+        _dataStore.UpdateData(functionAppDetails);
+        _paginator.OnDataUpdated(functionAppDetails);
+        BuildCache(functionAppDetails);
+        RefreshView();
+    }
+    
+    private void RefreshView()
+    {
+        _visibleRows = _dataStore.FunctionAppDetails
+            .Skip(_paginator.VisibleStartIndex)
+            .Take(_paginator.MaxVisibleRows)
+            .Select(app => _markupCache[app.Name])
+            .ToList();
+        
+        _renderer.Render(_visibleRows, _paginator.SelectedIndex);
+    }
+    
+    private void BuildCache(IEnumerable<FunctionAppDetails> apps)
+    {
+        foreach (var app in apps)
+        {
+            _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
+        }
     }
     
     public void OnResize()
     {
-        UpdateMaxVisibleRows();
-        UpdateVisibleTableRows();
-        UpdateSelectedTableRow();
-    }
-    
-    public void OnFunctionAppsUpdated(List<FunctionAppDetails> functionAppDetails)
-    {
-        lock (_lock)
-        {
-            FunctionAppDetails = functionAppDetails.ToList();            
-        }
-        
-        SortFunctionAppDetails();
-        UpdateMaxVisibleRows();
-        UpdateAllRows();
-        UpdateVisibleTableRows();
+        _paginator.UpdateMaxVisibleRows();
+        RefreshView();
     }
 
-    public async Task HandleInputAsync(ConsoleKey key)
+    public void HandleInputAsync(ConsoleKey key)
     {
-        bool isVisibleStartIndexChanged = false;
-        _oldSelectedIndex = _selectedIndex;
-        switch (key)
+        var scrolled = key switch
         {
-            case ConsoleKey.UpArrow:
-                _selectedIndex--;
-                        
-                if (_selectedIndex < 0 && _visibleStartIndex > 0)
-                {
-                    isVisibleStartIndexChanged = true;
-                    _visibleStartIndex--;
-                    _selectedIndex = 0;
-                }
-
-                if (_selectedIndex < 0)
-                {
-                    _selectedIndex = 0;
-                }
-                        
-                break;
-            case ConsoleKey.DownArrow:
-                _selectedIndex++;
-
-                if (_selectedIndex >= MaxVisibleRows && _selectedIndex + _visibleStartIndex < _allRows.Count)
-                {
-                    isVisibleStartIndexChanged = true;
-                    _visibleStartIndex++;
-                    _selectedIndex = MaxVisibleRows - 1;
-                }
-
-                if (_selectedIndex >= MaxVisibleRows)
-                {
-                    _selectedIndex = MaxVisibleRows - 1;
-                }
-                        
-                break;
-        }
-
-        if (isVisibleStartIndexChanged)
-        {
-            UpdateVisibleTableRows();
-        }
-    }
-
-    private void SortFunctionAppDetails()
-    {
-        FunctionAppDetails.Sort((a, b) =>
-        {
-            var systemCompare = string.Compare(a.System, b.System, StringComparison.Ordinal);
-            return systemCompare != 0 ? systemCompare : string.Compare(a.Name, b.Name, StringComparison.Ordinal);
-        });
-    }
-
-    private void UpdateMaxVisibleRows()
-    {
-        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 8, FunctionAppDetails.Count);
-    }
-
-    private void UpdateAllRows()
-    {
-        lock (_lock)
-        {
-            foreach (var app in FunctionAppDetails)
-            {
-                var tableRowMarkup = CreateTableRowMarkup(app);
-
-                _allRows[app.Name] = tableRowMarkup;
-            }
-        }
-    }
-
-    private static TableRowMarkup CreateTableRowMarkup(FunctionAppDetails app)
-    {
-        var canExpand = app.Functions.Any();
-        var tableRowMarkup = new TableRowMarkup
-        {
-            CanExpand = canExpand,
-            Expanded = new Markup(canExpand ? "▾" : " "),
-            SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
-            SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
-            SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
-            Unexpanded = new Markup(canExpand ? "▸" : " "),
-            UnselectedName = new Markup(app.Name),
-            UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
-            UnselectedSystem = new Markup(app.System)
+            ConsoleKey.UpArrow   => _paginator.MoveUp(),
+            ConsoleKey.DownArrow => _paginator.MoveDown(),
+            _                     => false
         };
-        return tableRowMarkup;
-    }
 
-    public IRenderable CreateFunctionAppPanel()
-    {
-        Table = CreateFunctionAppTable();
-        Panel = new Panel(Table)
-            .Header("Azure Function Apps", Justify.Center)
-            .BorderColor(Color.Orange1);
-
-        UpdateSelectedTableRow();
-
-        return Panel;
-    }
-
-    private void UpdateVisibleTableRows()
-    {
-        Table.Rows.Clear();
-        _visibleRows.Clear();
-
-        lock (_lock)
+        if (scrolled)
         {
-            foreach (var app in FunctionAppDetails.Skip(_visibleStartIndex).Take(MaxVisibleRows))
-            {
-                Table.AddRow(_allRows[app.Name].Columns);
-                _visibleRows.Add(_allRows[app.Name]);
-            }            
+            RefreshView();
+        }
+        else
+        {
+            _renderer.Render(_visibleRows, _paginator.SelectedIndex);
         }
     }
     
-    public void UpdateSelectedTableRow()
-    {
-        if (Table.Rows.Count > _oldSelectedIndex)
-        {
-            Table.Rows.Update(_oldSelectedIndex, 1, _visibleRows[_oldSelectedIndex].UnselectedName);
-            Table.Rows.Update(_oldSelectedIndex, 2, _visibleRows[_oldSelectedIndex].UnselectedState);
-            Table.Rows.Update(_oldSelectedIndex, 3, _visibleRows[_oldSelectedIndex].UnselectedSystem);
-        }
-
-        if (Table.Rows.Count > _selectedIndex)
-        {
-            Table.Rows.Update(_selectedIndex, 1, _visibleRows[_selectedIndex].SelectedName);
-            Table.Rows.Update(_selectedIndex, 2, _visibleRows[_selectedIndex].SelectedState);
-            Table.Rows.Update(_selectedIndex, 3, _visibleRows[_selectedIndex].SelectedSystem);
-        }
-    }
-    
-    private Table CreateFunctionAppTable()
-    {
-        var table = new Table();
-        table.Border(TableBorder.None);
-        table.Width(100);
-        table.AddColumn(" ");
-        table.AddColumn("[bold]Name[/]");
-        table.AddColumn("[bold]Status[/]");
-        table.AddColumn("[bold]System[/]");
-
-        _allRows.Clear();
-        _visibleRows.Clear();
-        table.Rows.Clear();
-
-        lock (_lock)
-        {
-            for (var i = 0; i < FunctionAppDetails.Count; i++)
-            {
-                var app = FunctionAppDetails[i];
-
-                var tableRowMarkup = CreateTableRowMarkup(app);
-            
-                _allRows.Add(app.Name, tableRowMarkup);
-
-                if (i < MaxVisibleRows)
-                {
-                    table.AddRow(tableRowMarkup.Columns);
-                    _visibleRows.Add(tableRowMarkup);
-                }
-            }    
-        }
-
-        return table;
-    }
+    // public void UpdateSelectedTableRow()
+    // {
+    //     if (Table.Rows.Count > _oldSelectedIndex)
+    //     {
+    //         Table.Rows.Update(_oldSelectedIndex, 1, _visibleRows[_oldSelectedIndex].UnselectedName);
+    //         Table.Rows.Update(_oldSelectedIndex, 2, _visibleRows[_oldSelectedIndex].UnselectedState);
+    //         Table.Rows.Update(_oldSelectedIndex, 3, _visibleRows[_oldSelectedIndex].UnselectedSystem);
+    //     }
+    //
+    //     if (Table.Rows.Count > _selectedIndex)
+    //     {
+    //         Table.Rows.Update(_selectedIndex, 1, _visibleRows[_selectedIndex].SelectedName);
+    //         Table.Rows.Update(_selectedIndex, 2, _visibleRows[_selectedIndex].SelectedState);
+    //         Table.Rows.Update(_selectedIndex, 3, _visibleRows[_selectedIndex].SelectedSystem);
+    //     }
+    // }
 }

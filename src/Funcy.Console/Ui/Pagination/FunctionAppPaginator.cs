@@ -2,14 +2,14 @@ using Funcy.Infrastructure.Model;
 
 namespace Funcy.Console.Ui.Pagination;
 
-public class FunctionAppPaginator
+public class FunctionAppPaginator()
 {
-    private int _selectedIndex;
-    private int _visibleStartIndex;
+    public int SelectedIndex { get; private set; }
+    public int VisibleStartIndex{ get; private set; }
     private int _amountOfRows;
-    private int _maxVisibleRows = 5;
+    public int MaxVisibleRows { get; private set; }
 
-    public void OnDataChanged(List<FunctionAppDetails> functionAppDetails)
+    public void OnDataUpdated(List<FunctionAppDetails> functionAppDetails)
     {
         _amountOfRows = functionAppDetails.Count;
         UpdateMaxVisibleRows();
@@ -32,68 +32,68 @@ public class FunctionAppPaginator
     private void EnsureSelectionVisible()
     {
         // Om markeringen ligger ovanför viewport: skrolla upp
-        if (_selectedIndex < 0)
-            _selectedIndex = 0;
+        if (SelectedIndex < 0)
+            SelectedIndex = 0;
 
-        if (_selectedIndex < 0 || _selectedIndex >= _maxVisibleRows) {
+        if (SelectedIndex < 0 || SelectedIndex >= MaxVisibleRows) {
             // Flytta window så markeringen hamnar längst upp
-            _visibleStartIndex = Math.Max(0, _visibleStartIndex + (_selectedIndex - 0));
-            _selectedIndex = 0;
+            VisibleStartIndex = Math.Max(0, VisibleStartIndex + (SelectedIndex - 0));
+            SelectedIndex = 0;
         }
         // Om markeringen ligger under viewport: skrolla ner
-        else if (_selectedIndex >= _maxVisibleRows)
+        else if (SelectedIndex >= MaxVisibleRows)
         {
-            _visibleStartIndex += (_selectedIndex - (_maxVisibleRows - 1));
-            _selectedIndex = _maxVisibleRows - 1;
+            VisibleStartIndex += (SelectedIndex - (MaxVisibleRows - 1));
+            SelectedIndex = MaxVisibleRows - 1;
         }
     
         // Slutligen: om VisibleStartIndex är utanför range
-        _visibleStartIndex = Math.Clamp(_visibleStartIndex, 0, Math.Max(0, _amountOfRows - _maxVisibleRows));
+        VisibleStartIndex = Math.Clamp(VisibleStartIndex, 0, Math.Max(0, _amountOfRows - MaxVisibleRows));
     }
 
-    public PaginatorResult MoveUp()
+    public bool MoveUp()
     {
         var isVisibleStartIndexChanged = false;
         
-        _selectedIndex--;
+        SelectedIndex--;
                         
-        if (_selectedIndex < 0 && _visibleStartIndex > 0)
+        if (SelectedIndex < 0 && VisibleStartIndex > 0)
         {
             isVisibleStartIndexChanged = true;
-            _visibleStartIndex--;
-            _selectedIndex = 0;
+            VisibleStartIndex--;
+            SelectedIndex = 0;
         }
 
-        if (_selectedIndex < 0)
+        if (SelectedIndex < 0)
         {
-            _selectedIndex = 0;
+            SelectedIndex = 0;
         }
 
-        return new PaginatorResult(_visibleStartIndex, _selectedIndex, isVisibleStartIndexChanged);
+        return isVisibleStartIndexChanged;
     }
 
-    public PaginatorResult MoveDown()
+    public bool MoveDown()
     {
         var isVisibleStartIndexChanged = false;
-        _selectedIndex++;
+        SelectedIndex++;
 
-        if (_selectedIndex >= _maxVisibleRows && _selectedIndex + _visibleStartIndex < _amountOfRows)
+        if (SelectedIndex >= MaxVisibleRows && SelectedIndex + VisibleStartIndex < _amountOfRows)
         {
             isVisibleStartIndexChanged = true;
-            _visibleStartIndex++;
-            _selectedIndex = _maxVisibleRows - 1;
+            VisibleStartIndex++;
+            SelectedIndex = MaxVisibleRows - 1;
         }
 
-        if (_selectedIndex >= _maxVisibleRows)
+        if (SelectedIndex >= MaxVisibleRows)
         {
-            _selectedIndex = _maxVisibleRows - 1;
+            SelectedIndex = MaxVisibleRows - 1;
         }
 
-        return new PaginatorResult(_visibleStartIndex, _selectedIndex, isVisibleStartIndexChanged);
+        return isVisibleStartIndexChanged;
     }
     
-    private void UpdateMaxVisibleRows()
+    public void UpdateMaxVisibleRows()
     {
-        _maxVisibleRows = Math.Min(System.Console.WindowHeight - 8, _amountOfRows);
+        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 8, _amountOfRows);
     }
 }
