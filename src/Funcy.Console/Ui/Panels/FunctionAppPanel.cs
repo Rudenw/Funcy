@@ -18,6 +18,7 @@ public class FunctionAppPanel : IPanelController
     private readonly FunctionAppDataStore _dataStore;
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
+    private readonly Lock _lock = new();
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
@@ -39,32 +40,13 @@ public class FunctionAppPanel : IPanelController
         RefreshView();
     }
     
-    private void RefreshView()
-    {
-        _visibleRows = _dataStore.FunctionAppDetails
-            .Skip(_paginator.VisibleStartIndex)
-            .Take(_paginator.MaxVisibleRows)
-            .Select(app => _markupCache[app.Name])
-            .ToList();
-        
-        _renderer.Render(_visibleRows, _paginator.SelectedIndex);
-    }
-    
-    private void BuildCache(IEnumerable<FunctionAppDetails> apps)
-    {
-        foreach (var app in apps)
-        {
-            _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
-        }
-    }
-    
-    public void OnResize()
+    public void HandleResize()
     {
         _paginator.UpdateMaxVisibleRows();
         RefreshView();
     }
 
-    public void HandleInputAsync(ConsoleKey key)
+    public void HandleInput(ConsoleKey key)
     {
         var scrolled = key switch
         {
@@ -80,6 +62,28 @@ public class FunctionAppPanel : IPanelController
         else
         {
             _renderer.Render(_visibleRows, _paginator.SelectedIndex);
+        }
+    }
+    
+    private void RefreshView()
+    {
+        _visibleRows = _dataStore.FunctionAppDetails
+            .Skip(_paginator.VisibleStartIndex)
+            .Take(_paginator.MaxVisibleRows)
+            .Select(app => _markupCache[app.Name])
+            .ToList();
+        
+        _renderer.Render(_visibleRows, _paginator.SelectedIndex);
+    }
+    
+    private void BuildCache(IEnumerable<FunctionAppDetails> apps)
+    {
+        lock (_lock)
+        {
+            foreach (var app in apps)
+            {
+                _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
+            }
         }
     }
     
