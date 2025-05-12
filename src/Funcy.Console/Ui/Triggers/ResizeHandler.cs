@@ -2,16 +2,15 @@ namespace Funcy.Console.Ui.Triggers;
 
 public class ResizeHandler
 {
-    private readonly CancellationTokenSource _cts = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public bool IsTriggered { get; private set; }
 
-    public void StartPolling(int interval = 500)
+    public async Task StartPolling(CancellationToken cancellationToken, int interval = 500)
     {
-        Task.Run(async () =>
+        await Task.Run(async () =>
         {
             var lastSize = (System.Console.WindowWidth, System.Console.WindowHeight);
-            while (!_cts.Token.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested)
             {
                 var currentSize = (System.Console.WindowWidth, System.Console.WindowHeight);
 
@@ -22,9 +21,9 @@ public class ResizeHandler
                     _tcs.TrySetResult();
                 }
 
-                await Task.Delay(interval, _cts.Token);
+                await Task.Delay(interval, cancellationToken);
             }
-        }, _cts.Token);
+        }, cancellationToken);
     }
     
     public Task WaitForTriggerAsync()
@@ -36,10 +35,5 @@ public class ResizeHandler
     {
         IsTriggered = false;
         _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-    }
-
-    public void StopPolling()
-    {
-        _cts.Cancel();
     }
 }

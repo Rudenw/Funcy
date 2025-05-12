@@ -35,8 +35,8 @@ public class FunctionAppPanel : IPanelController
     public void UpdateData(List<FunctionAppDetails> functionAppDetails)
     {
         _dataStore.UpdateData(functionAppDetails);
-        _paginator.OnDataUpdated(functionAppDetails);
-        BuildCache(functionAppDetails);
+        _paginator.OnDataUpdated(_dataStore.FunctionAppDetails);
+        BuildCache(_dataStore.FunctionAppDetails);
         RefreshView();
     }
     
@@ -78,12 +78,9 @@ public class FunctionAppPanel : IPanelController
     
     private void BuildCache(IEnumerable<FunctionAppDetails> apps)
     {
-        lock (_lock)
+        foreach (var app in apps)
         {
-            foreach (var app in apps)
-            {
-                _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
-            }
+            _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
         }
     }
     
