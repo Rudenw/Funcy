@@ -46,9 +46,9 @@ public class FunctionAppPanel : IPanelController
         RefreshView();
     }
 
-    public void HandleInput(ConsoleKey key)
+    public void HandleInput(ConsoleKeyInfo keyInfo)
     {
-        var scrolled = key switch
+        var scrolled = keyInfo.Key switch
         {
             ConsoleKey.UpArrow   => _paginator.MoveUp(),
             ConsoleKey.DownArrow => _paginator.MoveDown(),

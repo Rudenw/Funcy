@@ -1,4 +1,5 @@
 using System.Text;
+using Funcy.Console.Ui.Input;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -37,11 +38,11 @@ public class TopPanel : IPanelController
         return _table;
     }
 
-    public void HandleInput(ConsoleKey key)
+    public void HandleInput(ConsoleKeyInfo keyInfo)
     {
         if (_searchMode)
         {
-            switch (key)
+            switch (keyInfo.Key)
             {
                 case ConsoleKey.Backspace:
                     if (_searchText.Length > 1)
@@ -54,14 +55,14 @@ public class TopPanel : IPanelController
                     _searchMode = false;
                     break;
                 default:
-                    var keyToChar = KeyToChar(key).ToString() ?? "";
+                    var keyToChar = TextInputInterpreter.Interpret(keyInfo) ?? null;
                     _searchText.Insert(_searchText.Length - 1, keyToChar);
                     break;
             }
         }
         else
         {
-            switch (key)
+            switch (keyInfo.Key)
             {
                 case ConsoleKey.S:
                     _searchMode = true;
@@ -71,16 +72,6 @@ public class TopPanel : IPanelController
         }
 
         UpdateSearchCell();
-    }
-    private char? KeyToChar(ConsoleKey key)
-    {
-        return key switch
-        {
-            >= ConsoleKey.A and <= ConsoleKey.Z => key.ToString()[0],
-            >= ConsoleKey.D0 and <= ConsoleKey.D9 => key.ToString()[1],
-            ConsoleKey.Spacebar => ' ',
-            _ => null
-        };
     }
     
     private void UpdateSearchCell()

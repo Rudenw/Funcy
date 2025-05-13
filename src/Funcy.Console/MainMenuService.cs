@@ -61,7 +61,7 @@ public class MainMenuService(
 
                     if (inputHandler.IsTriggered)
                     {
-                        _mainContainer.HandleInput(inputHandler.TriggeredKey);
+                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
                         inputHandler.ResetTrigger();
                     }
                     

@@ -4,7 +4,7 @@ public class InputHandler
 {
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     public bool IsTriggered { get; set; }
-    public ConsoleKey TriggeredKey { get; set; }
+    public ConsoleKeyInfo TriggeredKeyInfo { get; set; }
 
     public async Task StartListeningAsync(CancellationToken token)
     {
@@ -12,7 +12,7 @@ public class InputHandler
         {
             while (!token.IsCancellationRequested)
             {
-                TriggeredKey = System.Console.ReadKey(true).Key;
+                TriggeredKeyInfo = System.Console.ReadKey(true);
                 System.Console.SetCursorPosition(0, System.Console.CursorTop);
                 
                 IsTriggered = true;

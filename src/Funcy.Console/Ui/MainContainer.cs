@@ -21,10 +21,10 @@ public class MainContainer
         return new Rows(_topPanel.Panel, _functionListPanel.Panel);
     }
 
-    public void HandleInput(ConsoleKey triggeredKey)
+    public void HandleInput(ConsoleKeyInfo triggeredKeyInfo)
     {
-        _topPanel.HandleInput(triggeredKey);
-        _functionListPanel.HandleInput(triggeredKey);
+        _topPanel.HandleInput(triggeredKeyInfo);
+        _functionListPanel.HandleInput(triggeredKeyInfo);
     }
 
     public void UpdateData(List<FunctionAppDetails> functionApps)

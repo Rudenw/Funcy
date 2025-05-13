@@ -2,5 +2,5 @@ namespace Funcy.Console.Ui.Panels;
 
 public interface IPanelController
 {
-    void HandleInput(ConsoleKey key);
+    void HandleInput(ConsoleKeyInfo keyInfo);
 }
