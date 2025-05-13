@@ -1,5 +1,4 @@
 using System.Text;
-using Funcy.Console.Ui.Input;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -16,26 +15,25 @@ public class TopPanel : IPanelController
     public TopPanel(string subscriptionName)
     {
         _subscriptionName = subscriptionName;
-        Panel = new Panel(RenderLeftLayout());
+        
+        _table = new Table();
+        RenderTableLayout();
+            
+        Panel = new Panel(_table);
         Panel.Border(BoxBorder.None);
     }
 
-    private IRenderable RenderLeftLayout()
+    private void RenderTableLayout()
     {
-        _table = new Table();
         _table.Border(TableBorder.None);
         _table.ShowHeaders = false;
-
-        // Add some columns
-        _table.AddColumn("col1");
-        _table.AddColumn("col2");
-
-        // Add some rows
+        
+        _table.AddColumn("");
+        _table.AddColumn("");
+        
         _table.AddRow(new Markup($"[bold yellow]Subscription:[/]"),
             new Markup($"{_subscriptionName}"));
         _table.AddRow(new Markup($"[bold purple_2]S[/][bold yellow]earch: [/]"), new Markup(_searchText.ToString()));
-        
-        return _table;
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
@@ -53,9 +51,13 @@ public class TopPanel : IPanelController
                     break;
                 case ConsoleKey.Enter:
                     _searchMode = false;
+                    if (_searchText.Length > 1)
+                    {
+                        _searchText.Remove(_searchText.Length - 2, 1);
+                    }
                     break;
                 default:
-                    var keyToChar = TextInputInterpreter.Interpret(keyInfo) ?? null;
+                    var keyToChar = Interpret(keyInfo) ?? null;
                     _searchText.Insert(_searchText.Length - 1, keyToChar);
                     break;
             }
@@ -72,6 +74,13 @@ public class TopPanel : IPanelController
         }
 
         UpdateSearchCell();
+    }
+
+    private char? Interpret(ConsoleKeyInfo keyInfo)
+    {
+        return !char.IsControl(keyInfo.KeyChar) 
+            ? keyInfo.KeyChar 
+            : null;
     }
     
     private void UpdateSearchCell()
