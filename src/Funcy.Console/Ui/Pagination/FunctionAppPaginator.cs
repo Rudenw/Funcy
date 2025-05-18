@@ -9,23 +9,21 @@ public class FunctionAppPaginator()
     private int _amountOfRows;
     public int MaxVisibleRows { get; private set; }
 
-    public void OnDataUpdated(List<FunctionAppDetails> functionAppDetails)
+    public void UpdateTotalRows(int amountOfRows)
     {
-        _amountOfRows = functionAppDetails.Count;
+        _amountOfRows = amountOfRows;
         UpdateMaxVisibleRows();
         
-        
-        //Från gippy
-        // if (_selectedIndex + _visibleStartIndex >= _amountOfRows)
-        // {
-        //     // Sätt markeringen på sista raden
-        //     _selectedIndex = Math.Min(_selectedIndex, _amountOfRows - _visibleStartIndex - 1);
-        //     if (_selectedIndex < 0)
-        //     {
-        //         _selectedIndex = 0;
-        //         _visibleStartIndex = 0;
-        //     }
-        // }
+        if (SelectedIndex + VisibleStartIndex >= _amountOfRows)
+        {
+            // Sätt markeringen på sista raden
+            SelectedIndex = Math.Min(SelectedIndex, _amountOfRows - VisibleStartIndex - 1);
+            if (SelectedIndex < 0)
+            {
+                SelectedIndex = 0;
+                VisibleStartIndex = 0;
+            }
+        }
         // EnsureSelectionVisible();
     }
     
@@ -94,6 +92,6 @@ public class FunctionAppPaginator()
     
     public void UpdateMaxVisibleRows()
     {
-        MaxVisibleRows = Math.Min(System.Console.WindowHeight - 8, _amountOfRows);
+        MaxVisibleRows = System.Console.WindowHeight - 10;
     }
 }

@@ -7,7 +7,6 @@ namespace Funcy.Console.Ui.Panels;
 public class TopPanel : IPanelController
 {
     private readonly string _subscriptionName;
-    private readonly StringBuilder _searchText = new();
     private bool _searchMode;
     private Table _table;
     public Panel Panel { get; }
@@ -20,7 +19,8 @@ public class TopPanel : IPanelController
         RenderTableLayout();
             
         Panel = new Panel(_table);
-        Panel.Border(BoxBorder.None);
+        Panel.Width = 104;
+        Panel.Border(BoxBorder.Ascii);
     }
 
     private void RenderTableLayout()
@@ -28,63 +28,36 @@ public class TopPanel : IPanelController
         _table.Border(TableBorder.None);
         _table.ShowHeaders = false;
         
-        _table.AddColumn("");
-        _table.AddColumn("");
+        _table.AddColumn("", column => column.Width = 15);
+        _table.AddColumn("", column =>
+        {
+            column.Width = 30;
+            column.LeftAligned();
+        });
+        _table.AddColumn("", column =>
+        {
+            column.Width = 30;
+            column.LeftAligned();
+        });
         
         _table.AddRow(new Markup($"[bold yellow]Subscription:[/]"),
-            new Markup($"{_subscriptionName}"));
-        _table.AddRow(new Markup($"[bold purple_2]S[/][bold yellow]earch: [/]"), new Markup(_searchText.ToString()));
+            new Markup($"{_subscriptionName}"), new Markup("[bold purple_2]<F>[/] [gray]Filter[/]"));
+        _table.AddRow(new Markup($"[bold yellow]Filter: [/]"), new Markup(""), new Markup("[bold purple_2]<S>[/] [gray]Start[/]"));
+        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<T>[/] [gray]Stop[/]"));
+        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<W>[/] [gray]Swap[/]"));
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
     {
-        if (_searchMode)
-        {
-            switch (keyInfo.Key)
-            {
-                case ConsoleKey.Backspace:
-                    if (_searchText.Length > 1)
-                    {
-                        _searchText.Remove(_searchText.Length - 2, 1);
-                    }
-                    
-                    break;
-                case ConsoleKey.Enter:
-                    _searchMode = false;
-                    if (_searchText.Length > 1)
-                    {
-                        _searchText.Remove(_searchText.Length - 2, 1);
-                    }
-                    break;
-                default:
-                    var keyToChar = Interpret(keyInfo) ?? null;
-                    _searchText.Insert(_searchText.Length - 1, keyToChar);
-                    break;
-            }
-        }
-        else
-        {
-            switch (keyInfo.Key)
-            {
-                case ConsoleKey.S:
-                    _searchMode = true;
-                    _searchText.Append('_');
-                    break;
-            }
-        }
-
-        UpdateSearchCell();
-    }
-
-    private char? Interpret(ConsoleKeyInfo keyInfo)
-    {
-        return !char.IsControl(keyInfo.KeyChar) 
-            ? keyInfo.KeyChar 
-            : null;
     }
     
-    private void UpdateSearchCell()
+    public void SetSearchText(Markup searchMarkup)
     {
-        _table.Rows.Update(1, 1, new Markup(_searchText.ToString()));
+        UpdateSearchCell(searchMarkup);
+    }
+    
+    private void UpdateSearchCell(Markup searchText)
+    {
+        _table.Rows.Update(1, 1, searchText);
     }
 }

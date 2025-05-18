@@ -26,14 +26,14 @@ public class MainMenuService(
         var cts = new CancellationTokenSource();
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);
-        var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
+        //var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
         await cts.CancelAsync();
         await inputTask;
-        await functionTask;
+        //await functionTask;
         await resizeTask;
     }
     

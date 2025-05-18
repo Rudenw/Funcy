@@ -19,6 +19,7 @@ public class FunctionAppPanel : IPanelController
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
     private readonly Lock _lock = new();
+    private string _searchText;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
@@ -35,7 +36,7 @@ public class FunctionAppPanel : IPanelController
     public void UpdateData(List<FunctionAppDetails> functionAppDetails)
     {
         _dataStore.UpdateData(functionAppDetails);
-        _paginator.OnDataUpdated(_dataStore.FunctionAppDetails);
+        _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
         BuildCache(_dataStore.FunctionAppDetails);
         RefreshView();
     }
@@ -65,15 +66,46 @@ public class FunctionAppPanel : IPanelController
         }
     }
     
+    public void SetSearchText(string searchText)
+    {
+        _searchText = searchText.Trim();
+        RefreshView();
+    }
+    
     private void RefreshView()
     {
-        _visibleRows = _dataStore.FunctionAppDetails
-            .Skip(_paginator.VisibleStartIndex)
-            .Take(_paginator.MaxVisibleRows)
+        var (appsToShow, totalCount) = GetVisibleFunctionApps();
+
+        _visibleRows = appsToShow
             .Select(app => _markupCache[app.Name])
             .ToList();
-        
+
+        _paginator.UpdateTotalRows(totalCount);
         _renderer.Render(_visibleRows, _paginator.SelectedIndex);
+    }
+    
+    private (IEnumerable<FunctionAppDetails> appsToShow, int totalCount) GetVisibleFunctionApps()
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+        {
+            var all = _dataStore.FunctionAppDetails;
+            return (
+                all.Skip(_paginator.VisibleStartIndex).Take(_paginator.MaxVisibleRows),
+                all.Count
+            );
+        }
+
+        var filtered = _dataStore.FunctionAppDetails
+            .Select(app => new { App = app, Match = FunctionAppMatcher.Match(app, _searchText) })
+            .Where(x => x.Match.IsMatch)
+            .ToList();
+        
+        var skip = filtered.Count < _paginator.MaxVisibleRows ? 0 : _paginator.VisibleStartIndex;
+
+        return (
+            filtered.Skip(skip).Take(_paginator.MaxVisibleRows).Select(x => x.App),
+            filtered.Count
+        );
     }
     
     private void BuildCache(IEnumerable<FunctionAppDetails> apps)
