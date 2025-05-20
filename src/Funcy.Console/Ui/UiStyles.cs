@@ -9,16 +9,14 @@ public static class UiStyles
     public const string Danger = "bold red";
     public const string Hint = "gray";
 
-    public static Markup CreateLabel(string text) => new($"[{Label}]{text}[/]");
+    public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
-    public static Markup CreateShortcut(string shortcut, string description)
+    public static Markup CreateShortcutMarkup(string shortcut, string description)
         => new($"[{Shortcut}]<{shortcut}>[/] [{Hint}]{description}[/]");
 
-    public static Markup CreateDanger(string text) => new($"[{Danger}]{text}[/]");
+    public static string CreateDangerText(string text) => $"[{Danger}]{text}[/]";
 
-    public static Markup CreateHint(string text) => new($"[{Hint}]{text}[/]");
-
-    public static Markup CreateHeader(string text) => new($"[bold]{text}[/]");
+    public static string CreateHeaderText(string text) => $"[bold]{text}[/]";
 
     public static Markup CreateSelectedCell(string text)
         => new("[black on yellow]" + text + "[/]");

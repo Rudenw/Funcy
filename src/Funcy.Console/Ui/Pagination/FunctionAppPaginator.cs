@@ -92,6 +92,6 @@ public class FunctionAppPaginator()
     
     public void UpdateMaxVisibleRows()
     {
-        MaxVisibleRows = System.Console.WindowHeight - 10;
+        MaxVisibleRows = System.Console.WindowHeight - 7;
     }
 }

@@ -55,7 +55,7 @@ public class SearchInputManager
         {
             switch (keyInfo.Key)
             {
-                case ConsoleKey.S:
+                case var key when key == Shortcuts.Filter.Key:
                     _searchMode = true;
                     _searchText.Append(' ');
                     break;
@@ -78,7 +78,7 @@ public class SearchInputManager
 
         if (!_searchMode)
         {
-            markupText += " " + UiStyles.CreateDanger("del").ToString();
+            markupText += " " + UiStyles.CreateDangerText("del");
         }
         else
         {

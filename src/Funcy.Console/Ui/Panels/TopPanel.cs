@@ -40,12 +40,15 @@ public class TopPanel : IPanelController
             column.Width = 30;
             column.LeftAligned();
         });
+        _table.AddColumn("", column =>
+        {
+            column.Width = 30;
+            column.LeftAligned();
+        });
         
-        _table.AddRow(UiStyles.CreateLabel("Subscription:"),
-            new Markup($"{_subscriptionName}"), UiStyles.CreateShortcut("F", "Filter"));
-        _table.AddRow(UiStyles.CreateLabel("Filter:"), new Markup(""), UiStyles.CreateShortcut("S", "Start"));
-        _table.AddRow(new Markup(""), new Markup(""), UiStyles.CreateShortcut("T", "Stop"));
-        _table.AddRow(new Markup(""), new Markup(""), UiStyles.CreateShortcut("W", "Swap"));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"),
+            new Markup($"{_subscriptionName}"), UiStyles.CreateShortcutMarkup(Shortcuts.Filter.DisplayChar, Shortcuts.Filter.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Swap.DisplayChar, Shortcuts.Swap.Label));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Stop.DisplayChar, Shortcuts.Stop.Label));
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)

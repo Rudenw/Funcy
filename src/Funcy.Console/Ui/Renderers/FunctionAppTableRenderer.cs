@@ -15,9 +15,9 @@ public class FunctionAppTableRenderer
         Table.Border(TableBorder.None);
         Table.Width(width);
         Table.AddColumn(" ");
-        Table.AddColumn(UiStyles.CreateHeader("Name").ToString());
-        Table.AddColumn(UiStyles.CreateHeader("Status").ToString());
-        Table.AddColumn(UiStyles.CreateHeader("System").ToString());
+        Table.AddColumn(UiStyles.CreateHeaderText("Name"));
+        Table.AddColumn(UiStyles.CreateHeaderText("Status"));
+        Table.AddColumn(UiStyles.CreateHeaderText("System"));
     }
 
     public void Render(IEnumerable<TableRowMarkup> rows, int selectedIndex)
