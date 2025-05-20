@@ -1,6 +1,7 @@
 using System.Text;
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using Funcy.Console.Ui;
 
 namespace Funcy.Console.Ui.Panels;
 
@@ -40,11 +41,11 @@ public class TopPanel : IPanelController
             column.LeftAligned();
         });
         
-        _table.AddRow(new Markup($"[bold yellow]Subscription:[/]"),
-            new Markup($"{_subscriptionName}"), new Markup("[bold purple_2]<F>[/] [gray]Filter[/]"));
-        _table.AddRow(new Markup($"[bold yellow]Filter: [/]"), new Markup(""), new Markup("[bold purple_2]<S>[/] [gray]Start[/]"));
-        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<T>[/] [gray]Stop[/]"));
-        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<W>[/] [gray]Swap[/]"));
+        _table.AddRow(UiStyles.CreateLabel("Subscription:"),
+            new Markup($"{_subscriptionName}"), UiStyles.CreateShortcut("F", "Filter"));
+        _table.AddRow(UiStyles.CreateLabel("Filter:"), new Markup(""), UiStyles.CreateShortcut("S", "Start"));
+        _table.AddRow(new Markup(""), new Markup(""), UiStyles.CreateShortcut("T", "Stop"));
+        _table.AddRow(new Markup(""), new Markup(""), UiStyles.CreateShortcut("W", "Swap"));
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)

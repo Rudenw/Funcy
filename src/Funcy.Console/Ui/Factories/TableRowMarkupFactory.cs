@@ -1,6 +1,7 @@
 using Funcy.Console.Models;
 using Funcy.Infrastructure.Model;
 using Spectre.Console;
+using Funcy.Console.Ui;
 
 namespace Funcy.Console.Ui.Factories;
 
@@ -13,12 +14,12 @@ public static class TableRowMarkupFactory
         {
             CanExpand = canExpand,
             Expanded = new Markup(canExpand ? "▾" : " "),
-            SelectedName = new Markup(app.Name, new Style(Color.Black, Color.Yellow)),
-            SelectedState = new Markup(app.State, new Style(Color.Black, Color.Yellow)),
-            SelectedSystem = new Markup(app.System, new Style(Color.Black, Color.Yellow)),
+            SelectedName = UiStyles.CreateSelectedCell(app.Name),
+            SelectedState = UiStyles.CreateSelectedCell(app.State),
+            SelectedSystem = UiStyles.CreateSelectedCell(app.System),
             Unexpanded = new Markup(canExpand ? "▸" : " "),
             UnselectedName = new Markup(app.Name),
-            UnselectedState = new Markup(app.State, new Style(UiHelper.GetStatusColor(app.State), decoration: Decoration.Bold)),
+            UnselectedState = UiStyles.CreateStatusCell(app.State),
             UnselectedSystem = new Markup(app.System)
         };
         return tableRowMarkup;
