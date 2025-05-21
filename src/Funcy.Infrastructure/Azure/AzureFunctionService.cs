@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
+using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
+using Azure.ResourceManager.AppService.Models;
 using Funcy.Data;
 using Funcy.Data.Entities;
 using Funcy.Infrastructure.Mappers;
@@ -32,7 +34,6 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
             {
                 continue;
             }
-
             var task = Task.Run(async () =>
             {
                 try
@@ -123,5 +124,24 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
         var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Select(x => x.Map()).ToList();
         functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
         return functionAppList;
+    }
+
+    public async Task StartFunction(FunctionAppDetails functionAppDetails)
+    {
+        var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
+        await webSiteResource.StartAsync();
+        logger.LogInformation("Started Function App: {FunctionAppName}", functionAppDetails.Name);
+    }
+
+    public async Task StopFunction(FunctionAppDetails functionAppDetails)
+    {
+        var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
+        await webSiteResource.StopAsync();
+        logger.LogInformation("Stopped Function App: {FunctionAppName}", functionAppDetails.Name);
+    }
+
+    public async Task SwapFunction(FunctionAppDetails functionAppDetails)
+    {
+        throw new NotImplementedException();
     }
 }

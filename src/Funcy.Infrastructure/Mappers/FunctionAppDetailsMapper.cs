@@ -13,6 +13,7 @@ public static class FunctionAppDetailsMapper
             State = functionApp.State,
             System = functionApp.System,
             ResourceGroup = functionApp.ResourceGroup,
+            Subscription = functionApp.Subscription,
             Functions = functionApp.Functions.Select(x => x.Map()).ToList()
         };
     }

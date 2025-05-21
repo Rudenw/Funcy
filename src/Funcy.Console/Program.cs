@@ -3,6 +3,7 @@ using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Funcy.Console;
+using Funcy.Console.Dispatching;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Triggers;
 using Funcy.Data;
@@ -44,6 +45,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<ResizeHandler>();
         services.AddTransient<MainMenuService>();
         services.AddTransient<AzureFunctionService>();
+        services.AddTransient<FunctionActionDispatcher>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
         services.AddHttpClient<KuduApiClient>();

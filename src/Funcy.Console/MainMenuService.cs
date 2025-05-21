@@ -1,3 +1,5 @@
+using Funcy.Console.Dispatching;
+using Funcy.Console.Input;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Triggers;
@@ -12,11 +14,10 @@ public class MainMenuService(
     IAzureSubscriptionService subscriptionService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
-    FunctionAppUpdateHandler functionAppUpdateHandler)
+    FunctionAppUpdateHandler functionAppUpdateHandler,
+    FunctionActionDispatcher actionDispatcher)
 {
     private MainContainer _mainContainer = null!;
-    
-    private readonly List<IPanelController> _panelControllers = [];
 
     public async Task StartAsync()
     {
@@ -26,7 +27,7 @@ public class MainMenuService(
         var cts = new CancellationTokenSource();
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);
-        //var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
+        var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
@@ -61,8 +62,13 @@ public class MainMenuService(
 
                     if (inputHandler.IsTriggered)
                     {
-                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
+                        var inputResult = _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
                         inputHandler.ResetTrigger();
+
+                        if (inputResult is not null)
+                        {
+                            actionDispatcher.Dispatch(inputResult);
+                        }
                     }
                     
                     if (functionAppUpdateHandler.IsTriggered)

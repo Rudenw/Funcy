@@ -1,4 +1,6 @@
 using System.Text;
+using Funcy.Console.Input;
+using Funcy.Infrastructure.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
@@ -12,7 +14,7 @@ public class SearchInputManager
     public string SearchText => _searchText.ToString();
     public Markup SearchMarkup => GetMarkup();
 
-    public void HandleInput(ConsoleKeyInfo keyInfo)
+    public FunctionAction? HandleInput(ConsoleKeyInfo keyInfo)
     {
         if (_searchMode)
         {
@@ -59,12 +61,20 @@ public class SearchInputManager
                     _searchMode = true;
                     _searchText.Append(' ');
                     break;
+                case var key when key == Shortcuts.Start.Key:
+                    return FunctionAction.Start;
+                case var key when key == Shortcuts.Stop.Key:
+                    return FunctionAction.Stop;
+                case var key when key == Shortcuts.Swap.Key:
+                    return FunctionAction.Swap;
                 case ConsoleKey.Delete:
                     _searchText.Clear();
                     _searchIndex = 0;
                     break;
             }
         }
+
+        return null;
     }
 
     private Markup GetMarkup()
