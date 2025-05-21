@@ -1,6 +1,7 @@
 using Funcy.Console.Models;
 using Funcy.Infrastructure.Model;
 using Spectre.Console;
+using Funcy.Console.Ui;
 
 namespace Funcy.Console.Ui.Renderers;
 
@@ -14,9 +15,9 @@ public class FunctionAppTableRenderer
         Table.Border(TableBorder.None);
         Table.Width(width);
         Table.AddColumn(" ");
-        Table.AddColumn("[bold]Name[/]");
-        Table.AddColumn("[bold]Status[/]");
-        Table.AddColumn("[bold]System[/]");
+        Table.AddColumn(UiStyles.CreateHeaderText("Name"));
+        Table.AddColumn(UiStyles.CreateHeaderText("Status"));
+        Table.AddColumn(UiStyles.CreateHeaderText("System"));
     }
 
     public void Render(IEnumerable<TableRowMarkup> rows, int selectedIndex)

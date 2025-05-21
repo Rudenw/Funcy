@@ -1,6 +1,7 @@
 using System.Text;
 using Spectre.Console;
 using Spectre.Console.Rendering;
+using Funcy.Console.Ui;
 
 namespace Funcy.Console.Ui.Panels;
 
@@ -39,12 +40,15 @@ public class TopPanel : IPanelController
             column.Width = 30;
             column.LeftAligned();
         });
+        _table.AddColumn("", column =>
+        {
+            column.Width = 30;
+            column.LeftAligned();
+        });
         
-        _table.AddRow(new Markup($"[bold yellow]Subscription:[/]"),
-            new Markup($"{_subscriptionName}"), new Markup("[bold purple_2]<F>[/] [gray]Filter[/]"));
-        _table.AddRow(new Markup($"[bold yellow]Filter: [/]"), new Markup(""), new Markup("[bold purple_2]<S>[/] [gray]Start[/]"));
-        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<T>[/] [gray]Stop[/]"));
-        _table.AddRow(new Markup(""), new Markup(""), new Markup("[bold purple_2]<W>[/] [gray]Swap[/]"));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"),
+            new Markup($"{_subscriptionName}"), UiStyles.CreateShortcutMarkup(Shortcuts.Filter.DisplayChar, Shortcuts.Filter.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Swap.DisplayChar, Shortcuts.Swap.Label));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Stop.DisplayChar, Shortcuts.Stop.Label));
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
