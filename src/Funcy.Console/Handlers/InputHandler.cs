@@ -1,4 +1,4 @@
-namespace Funcy.Console.Ui;
+namespace Funcy.Console.Handlers;
 
 public class InputHandler
 {

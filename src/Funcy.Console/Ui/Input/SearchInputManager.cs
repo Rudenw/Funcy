@@ -1,9 +1,7 @@
 using System.Text;
-using Funcy.Console.Input;
-using Funcy.Infrastructure.Model;
 using Spectre.Console;
 
-namespace Funcy.Console.Ui;
+namespace Funcy.Console.Ui.Input;
 
 public class SearchInputManager
 {

@@ -4,8 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Funcy.Console;
 using Funcy.Console.Dispatching;
+using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
-using Funcy.Console.Ui.Triggers;
+using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
 using Microsoft.EntityFrameworkCore;
@@ -43,8 +44,10 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<InputHandler>();
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
+        services.AddTransient<FunctionActionHandler>();
         services.AddTransient<MainMenuService>();
-        services.AddTransient<AzureFunctionService>();
+        services.AddTransient<IAzureFunctionService, AzureFunctionService>();
+        services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddTransient<FunctionActionDispatcher>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
@@ -57,3 +60,8 @@ var mainMenuService = host.Services.GetRequiredService<MainMenuService>();
 await mainMenuService.StartAsync();
 
 await host.RunAsync();
+
+// 1. Keep `AzureFunctionService` focused on fetching function-app details and updating the local database.
+// 2. Introduce a new service (e.g., `FunctionAppManagementService`) within `Funcy.Infrastructure/Azure` that handles runtime operations such as starting, stopping, and swapping slots.
+// 3. Update DI registration in `src/Funcy.Console/Program.cs` to add the new service and adjust existing references.
+// 4. Let the console UI or handlers use `FunctionAppManagementService` when invoking management commands, while still calling `AzureFunctionService` to refresh data.

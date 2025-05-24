@@ -1,5 +1,3 @@
-using Funcy.Infrastructure.Model;
-
 namespace Funcy.Console.Ui.Pagination;
 
 public class FunctionAppPaginator()

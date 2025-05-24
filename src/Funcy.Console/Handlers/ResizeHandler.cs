@@ -1,4 +1,4 @@
-namespace Funcy.Console.Ui.Triggers;
+namespace Funcy.Console.Handlers;
 
 public class ResizeHandler
 {

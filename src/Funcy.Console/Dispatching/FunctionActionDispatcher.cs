@@ -1,30 +1,22 @@
-using Funcy.Console.Input;
-using Funcy.Infrastructure.Azure;
-using Funcy.Infrastructure.Model;
+using Funcy.Console.Ui.Input;
+using Funcy.Core.Interfaces;
 
 namespace Funcy.Console.Dispatching;
 
-public class FunctionActionDispatcher
+public class FunctionActionDispatcher(IFunctionAppManagementService functionAppManagement)
 {
-    private readonly AzureFunctionService _functionService;
-
-    public FunctionActionDispatcher(AzureFunctionService functionService)
-    {
-        _functionService = functionService;
-    }
-
     public void Dispatch(InputActionResult inputResult)
     {
         switch (inputResult.Action)
         {
             case FunctionAction.Start:
-                _functionService.StartFunction(inputResult.FunctionAppDetails);
+                functionAppManagement.StartFunction(inputResult.FunctionAppDetails);
                 break;
             case FunctionAction.Stop:
-                _functionService.StopFunction(inputResult.FunctionAppDetails);
+                functionAppManagement.StopFunction(inputResult.FunctionAppDetails);
                 break;
             case FunctionAction.Swap:
-                _functionService.SwapFunction(inputResult.FunctionAppDetails);
+                functionAppManagement.SwapFunction(inputResult.FunctionAppDetails);
                 break;
         }
     }

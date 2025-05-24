@@ -1,5 +1,5 @@
 using Funcy.Console.Ui.Pagination.Models;
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Pagination;
 

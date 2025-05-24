@@ -1,9 +1,9 @@
 using Funcy.Console.Data;
-using Funcy.Console.Models;
 using Funcy.Console.Ui.Factories;
+using Funcy.Console.Ui.Factories.Models;
 using Funcy.Console.Ui.Pagination;
 using Funcy.Console.Ui.Renderers;
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels;
@@ -36,6 +36,14 @@ public class FunctionAppPanel : IPanelController
     public void UpdateData(List<FunctionAppDetails> functionAppDetails)
     {
         _dataStore.UpdateData(functionAppDetails);
+        _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
+        BuildCache(_dataStore.FunctionAppDetails);
+        RefreshView();
+    }
+    
+    public void UpdatePartialData(List<FunctionAppDetails> functionAppDetails)
+    {
+        _dataStore.UpdatePartialData(functionAppDetails);
         _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
         BuildCache(_dataStore.FunctionAppDetails);
         RefreshView();

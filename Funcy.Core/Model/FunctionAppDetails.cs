@@ -1,4 +1,4 @@
-namespace Funcy.Infrastructure.Model;
+namespace Funcy.Core.Model;
 
 public record FunctionAppDetails
 {

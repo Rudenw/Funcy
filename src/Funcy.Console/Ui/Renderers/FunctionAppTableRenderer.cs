@@ -1,7 +1,6 @@
-using Funcy.Console.Models;
-using Funcy.Infrastructure.Model;
 using Spectre.Console;
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.Factories.Models;
 
 namespace Funcy.Console.Ui.Renderers;
 

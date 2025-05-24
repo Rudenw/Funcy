@@ -1,6 +1,8 @@
-using Funcy.Console.Input;
+using System.Collections.Concurrent;
+using Funcy.Console.Handlers.Models;
+using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -42,5 +44,16 @@ public class MainContainer(string subscriptionName, List<FunctionAppDetails> fun
     public void HandleResize()
     {
         _functionListPanel.HandleResize();
+    }
+    
+    public void UpdatePartialData(List<FunctionAppDetails> functionApps)
+    {
+        _functionListPanel.UpdatePartialData(functionApps);
+    }
+
+    public void UpdateFunctionsInDispatch(ConcurrentDictionary<string, DispatchedFunction> actionHandlerCurrentTasks)
+    {
+        var functionAppDetails = actionHandlerCurrentTasks.Values.Select(x => x.FunctionAppDetails with { State = x.Action.GetActivatingState() }).ToList();
+        _functionListPanel.UpdatePartialData(functionAppDetails);
     }
 }

@@ -1,5 +1,5 @@
+using Funcy.Core.Model;
 using Funcy.Data.Entities;
-using Funcy.Infrastructure.Model;
 
 namespace Funcy.Infrastructure.Mappers;
 
