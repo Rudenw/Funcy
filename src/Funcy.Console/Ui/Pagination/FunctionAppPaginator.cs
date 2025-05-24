@@ -1,5 +1,3 @@
-using Funcy.Infrastructure.Model;
-
 namespace Funcy.Console.Ui.Pagination;
 
 public class FunctionAppPaginator()
@@ -16,7 +14,6 @@ public class FunctionAppPaginator()
         
         if (SelectedIndex + VisibleStartIndex >= _amountOfRows)
         {
-            // Sätt markeringen på sista raden
             SelectedIndex = Math.Min(SelectedIndex, _amountOfRows - VisibleStartIndex - 1);
             if (SelectedIndex < 0)
             {
@@ -24,29 +21,6 @@ public class FunctionAppPaginator()
                 VisibleStartIndex = 0;
             }
         }
-        // EnsureSelectionVisible();
-    }
-    
-    private void EnsureSelectionVisible()
-    {
-        // Om markeringen ligger ovanför viewport: skrolla upp
-        if (SelectedIndex < 0)
-            SelectedIndex = 0;
-
-        if (SelectedIndex < 0 || SelectedIndex >= MaxVisibleRows) {
-            // Flytta window så markeringen hamnar längst upp
-            VisibleStartIndex = Math.Max(0, VisibleStartIndex + (SelectedIndex - 0));
-            SelectedIndex = 0;
-        }
-        // Om markeringen ligger under viewport: skrolla ner
-        else if (SelectedIndex >= MaxVisibleRows)
-        {
-            VisibleStartIndex += (SelectedIndex - (MaxVisibleRows - 1));
-            SelectedIndex = MaxVisibleRows - 1;
-        }
-    
-        // Slutligen: om VisibleStartIndex är utanför range
-        VisibleStartIndex = Math.Clamp(VisibleStartIndex, 0, Math.Max(0, _amountOfRows - MaxVisibleRows));
     }
 
     public bool MoveUp()

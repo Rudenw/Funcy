@@ -1,5 +1,5 @@
+using Funcy.Core.Model;
 using Funcy.Data.Entities;
-using Funcy.Infrastructure.Model;
 
 namespace Funcy.Infrastructure.Mappers;
 
@@ -13,6 +13,7 @@ public static class FunctionAppDetailsMapper
             State = functionApp.State,
             System = functionApp.System,
             ResourceGroup = functionApp.ResourceGroup,
+            Subscription = functionApp.Subscription,
             Functions = functionApp.Functions.Select(x => x.Map()).ToList()
         };
     }

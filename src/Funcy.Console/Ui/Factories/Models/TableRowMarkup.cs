@@ -1,6 +1,6 @@
 using Spectre.Console;
 
-namespace Funcy.Console.Models;
+namespace Funcy.Console.Ui.Factories.Models;
 
 public record TableRowMarkup
 {

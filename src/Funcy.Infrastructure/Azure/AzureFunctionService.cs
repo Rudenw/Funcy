@@ -1,20 +1,25 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
+using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
+using Funcy.Core.Interfaces;
+using Funcy.Core.Model;
 using Funcy.Data;
 using Funcy.Data.Entities;
 using Funcy.Infrastructure.Mappers;
-using Funcy.Infrastructure.Model;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSubscriptionService subscriptionService, KuduApiClient kuduApiClient, IDbContextFactory<FunctionAppDbContext> dbContextFactory)
+public class AzureFunctionService(
+    ILogger<AzureFunctionService> logger,
+    IAzureSubscriptionService subscriptionService,
+    KuduApiClient kuduApiClient,
+    IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
 
@@ -22,17 +27,37 @@ public class AzureFunctionService(ILogger<AzureFunctionService> logger, IAzureSu
     {
         var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
         var subscription = _client.GetSubscriptionResource(new ResourceIdentifier($"/subscriptions/{subscriptionId}"));
+        var webSites = subscription.GetWebSitesAsync();
+        
+        await foreach (var item in GetFunctionAppDetailsAsync(subscriptionId, webSites, cancellationToken))
+        {
+            yield return item;
+        }
+    }
+    
+    public async IAsyncEnumerable<FunctionAppDetails> FetchSpecificFunctionAppDetailsAsync(IEnumerable<FunctionAppDetails> functionAppDetails, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var webSites = functionAppDetails.Select(d => _client.GetWebSiteResource(ResourceIdentifier.Parse(d.Id)).Get().Value);
+        
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        await foreach (var item in GetFunctionAppDetailsAsync(subscriptionId, webSites.ToAsyncEnumerable(), cancellationToken))
+        {
+            yield return item;
+        }
+    }
 
+    private async IAsyncEnumerable<FunctionAppDetails> GetFunctionAppDetailsAsync(string subscriptionId,
+        IAsyncEnumerable<WebSiteResource> webSites, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         var channel = Channel.CreateUnbounded<FunctionAppDetails>();
         var tasks = new List<Task>();
         var throttler = new SemaphoreSlim(5);
-        await foreach (var webSite in subscription.GetWebSitesAsync())
+        await foreach (var webSite in webSites)
         {
             if (!webSite.Data.Name.StartsWith("func-sp-weeu-ais"))
             {
                 continue;
             }
-
             var task = Task.Run(async () =>
             {
                 try

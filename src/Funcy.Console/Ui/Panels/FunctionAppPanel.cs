@@ -1,9 +1,9 @@
 using Funcy.Console.Data;
-using Funcy.Console.Models;
 using Funcy.Console.Ui.Factories;
+using Funcy.Console.Ui.Factories.Models;
 using Funcy.Console.Ui.Pagination;
 using Funcy.Console.Ui.Renderers;
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels;
@@ -41,6 +41,14 @@ public class FunctionAppPanel : IPanelController
         RefreshView();
     }
     
+    public void UpdatePartialData(List<FunctionAppDetails> functionAppDetails)
+    {
+        _dataStore.UpdatePartialData(functionAppDetails);
+        _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
+        BuildCache(_dataStore.FunctionAppDetails);
+        RefreshView();
+    }
+    
     public void HandleResize()
     {
         _paginator.UpdateMaxVisibleRows();
@@ -70,6 +78,12 @@ public class FunctionAppPanel : IPanelController
     {
         _searchText = searchText.Trim();
         RefreshView();
+    }
+
+    public FunctionAppDetails GetSelectedFunctionAppDetails()
+    {
+        var selectedFunctionApp = _dataStore.FunctionAppDetails[_paginator.VisibleStartIndex + _paginator.SelectedIndex];
+        return selectedFunctionApp;
     }
     
     private void RefreshView()
@@ -115,21 +129,4 @@ public class FunctionAppPanel : IPanelController
             _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
         }
     }
-    
-    // public void UpdateSelectedTableRow()
-    // {
-    //     if (Table.Rows.Count > _oldSelectedIndex)
-    //     {
-    //         Table.Rows.Update(_oldSelectedIndex, 1, _visibleRows[_oldSelectedIndex].UnselectedName);
-    //         Table.Rows.Update(_oldSelectedIndex, 2, _visibleRows[_oldSelectedIndex].UnselectedState);
-    //         Table.Rows.Update(_oldSelectedIndex, 3, _visibleRows[_oldSelectedIndex].UnselectedSystem);
-    //     }
-    //
-    //     if (Table.Rows.Count > _selectedIndex)
-    //     {
-    //         Table.Rows.Update(_selectedIndex, 1, _visibleRows[_selectedIndex].SelectedName);
-    //         Table.Rows.Update(_selectedIndex, 2, _visibleRows[_selectedIndex].SelectedState);
-    //         Table.Rows.Update(_selectedIndex, 3, _visibleRows[_selectedIndex].SelectedSystem);
-    //     }
-    // }
 }

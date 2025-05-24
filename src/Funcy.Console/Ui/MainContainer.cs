@@ -1,5 +1,8 @@
+using System.Collections.Concurrent;
+using Funcy.Console.Handlers.Models;
+using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 
@@ -16,13 +19,21 @@ public class MainContainer(string subscriptionName, List<FunctionAppDetails> fun
         return new Rows(_topPanel.Panel, _functionListPanel.Panel);
     }
 
-    public void HandleInput(ConsoleKeyInfo keyInfo)
+    public InputActionResult? HandleInput(ConsoleKeyInfo keyInfo)
     {
-        _searchInput.HandleInput(keyInfo);
+        var action = _searchInput.HandleInput(keyInfo);
+
+        if (action is not null)
+        {
+            var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
+            return new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails);
+        }
 
         _topPanel.SetSearchText(_searchInput.SearchMarkup);
         _functionListPanel.SetSearchText(_searchInput.SearchText);
         _functionListPanel.HandleInput(keyInfo);
+
+        return null;
     }
 
     public void UpdateData(List<FunctionAppDetails> functionApps)
@@ -33,5 +44,16 @@ public class MainContainer(string subscriptionName, List<FunctionAppDetails> fun
     public void HandleResize()
     {
         _functionListPanel.HandleResize();
+    }
+    
+    public void UpdatePartialData(List<FunctionAppDetails> functionApps)
+    {
+        _functionListPanel.UpdatePartialData(functionApps);
+    }
+
+    public void UpdateFunctionsInDispatch(ConcurrentDictionary<string, DispatchedFunction> actionHandlerCurrentTasks)
+    {
+        var functionAppDetails = actionHandlerCurrentTasks.Values.Select(x => x.FunctionAppDetails with { State = x.Action.GetActivatingState() }).ToList();
+        _functionListPanel.UpdatePartialData(functionAppDetails);
     }
 }

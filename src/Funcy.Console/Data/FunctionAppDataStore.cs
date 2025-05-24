@@ -1,4 +1,4 @@
-using Funcy.Infrastructure.Model;
+using Funcy.Core.Model;
 
 namespace Funcy.Console.Data;
 
@@ -12,6 +12,25 @@ public class FunctionAppDataStore
         lock (_lock)
         {
             FunctionAppDetails = functionAppDetails.ToList();
+            SortFunctionAppDetails();
+        }
+    }
+    
+    public void UpdatePartialData(List<FunctionAppDetails> functionAppDetails)
+    {
+        lock (_lock)
+        {
+            foreach (var functionAppDetail in functionAppDetails)
+            {
+                var existing = FunctionAppDetails.FirstOrDefault(x => x.Name == functionAppDetail.Name);
+                if (existing is not null)
+                {
+                    FunctionAppDetails.Remove(existing);
+                }
+
+                FunctionAppDetails.Add(functionAppDetail);
+            }
+            
             SortFunctionAppDetails();
         }
     }

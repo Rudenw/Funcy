@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Funcy.Infrastructure", "src
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Funcy.Data", "src\Funcy.Data\Funcy.Data.csproj", "{8C1F9685-1836-4145-9B9F-8E9CA067F778}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Funcy.Core", "Funcy.Core\Funcy.Core.csproj", "{EDB4C58D-E1F6-42F5-B0FB-0E86201A70A4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,5 +30,9 @@ Global
 		{8C1F9685-1836-4145-9B9F-8E9CA067F778}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8C1F9685-1836-4145-9B9F-8E9CA067F778}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8C1F9685-1836-4145-9B9F-8E9CA067F778}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EDB4C58D-E1F6-42F5-B0FB-0E86201A70A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EDB4C58D-E1F6-42F5-B0FB-0E86201A70A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EDB4C58D-E1F6-42F5-B0FB-0E86201A70A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EDB4C58D-E1F6-42F5-B0FB-0E86201A70A4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

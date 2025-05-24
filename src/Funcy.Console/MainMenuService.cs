@@ -1,6 +1,7 @@
+using Funcy.Console.Dispatching;
+using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Panels;
-using Funcy.Console.Ui.Triggers;
 using Funcy.Infrastructure.Azure;
 using Spectre.Console.Rendering;
 
@@ -12,29 +13,30 @@ public class MainMenuService(
     IAzureSubscriptionService subscriptionService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
-    FunctionAppUpdateHandler functionAppUpdateHandler)
+    FunctionAppUpdateHandler functionAppUpdateHandler,
+    FunctionActionHandler actionHandler)
 {
     private MainContainer _mainContainer = null!;
-    
-    private readonly List<IPanelController> _panelControllers = [];
 
     public async Task StartAsync()
     {
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
-        _mainContainer = new MainContainer(subscriptionName, functionAppUpdateHandler.FunctionApps);
+        _mainContainer = new MainContainer(subscriptionName, functionAppUpdateHandler.ConsumeChanges());
 
         var cts = new CancellationTokenSource();
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);
-        //var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
+        var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
+        var actionTask = actionHandler.StartListeningAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
         await cts.CancelAsync();
         await inputTask;
-        //await functionTask;
+        await functionTask;
         await resizeTask;
+        await actionTask;
     }
     
     private async Task WaitForAnyTriggerAsync()
@@ -42,7 +44,8 @@ public class MainMenuService(
         await Task.WhenAny(
             resizeHandler.WaitForTriggerAsync(),
             inputHandler.WaitForTriggerAsync(),
-            functionAppUpdateHandler.WaitForTriggerAsync());
+            functionAppUpdateHandler.WaitForTriggerAsync(),
+            actionHandler.WaitForTriggerAsync());
     }
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
@@ -61,14 +64,30 @@ public class MainMenuService(
 
                     if (inputHandler.IsTriggered)
                     {
-                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
+                        var inputResult = _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
                         inputHandler.ResetTrigger();
+
+                        if (inputResult is not null)
+                        {
+                            actionHandler.Dispatch(inputResult);
+                        }
+                    }
+
+                    if (actionHandler.IsTriggered)
+                    {
+                        _mainContainer.UpdateFunctionsInDispatch(actionHandler.UncompletedTasks);
+                        actionHandler.UncompletedTasks.Clear();
+                        
+                        var completedTasks = actionHandler.GetAndClearFunctionApps();
+                        _mainContainer.UpdatePartialData(completedTasks);
+                        
+                        actionHandler.ResetTrigger();
                     }
                     
                     if (functionAppUpdateHandler.IsTriggered)
                     {
-                        _mainContainer.UpdateData(functionAppUpdateHandler.FunctionApps);
-                        functionAppUpdateHandler.ResetTrigger();
+                        var changes = functionAppUpdateHandler.ConsumeChanges();
+                        _mainContainer.UpdatePartialData(changes);
                     }
                     
                     if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
