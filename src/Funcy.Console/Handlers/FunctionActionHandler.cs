@@ -51,9 +51,10 @@ public class FunctionActionHandler(IAzureFunctionService functionService, IFunct
             {
                 if (!_completedTasks.IsEmpty)
                 {
+                    var current = _completedTasks.ToArray();
                     var functionAppDetails =
                         functionService.FetchSpecificFunctionAppDetailsAsync(
-                            _completedTasks.Values.Select(x => x.FunctionAppDetails), token);
+                            current.Select(x => x.Value.FunctionAppDetails), token);
 
                     await foreach (var functionAppDetail in functionAppDetails)
                     {
@@ -62,7 +63,11 @@ public class FunctionActionHandler(IAzureFunctionService functionService, IFunct
 
                     IsTriggered = true;
                     _tcs.TrySetResult();
-                    _completedTasks.Clear();
+                    
+                    foreach (var item in current)
+                    {
+                        _completedTasks.TryRemove(item.Key, out _);
+                    }
                 }
             }
         }, token);

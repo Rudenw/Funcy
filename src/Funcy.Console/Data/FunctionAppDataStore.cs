@@ -35,6 +35,16 @@ public class FunctionAppDataStore
         }
     }
     
+    public void RemoveFunctionApps(List<FunctionAppDetails> removed)
+    {
+        lock (_lock)
+        {
+            FunctionAppDetails.RemoveAll(x => removed.Any(y => y.Name == x.Name));
+            
+            SortFunctionAppDetails();
+        }
+    }
+    
     private void SortFunctionAppDetails()
     {
         FunctionAppDetails.Sort((a, b) =>

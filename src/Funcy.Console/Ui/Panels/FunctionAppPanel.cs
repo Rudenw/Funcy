@@ -19,7 +19,7 @@ public class FunctionAppPanel : IPanelController
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
     private readonly Lock _lock = new();
-    private string _searchText;
+    private string _searchText = "";
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
@@ -44,6 +44,14 @@ public class FunctionAppPanel : IPanelController
     public void UpdatePartialData(List<FunctionAppDetails> functionAppDetails)
     {
         _dataStore.UpdatePartialData(functionAppDetails);
+        _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
+        BuildCache(_dataStore.FunctionAppDetails);
+        RefreshView();
+    }
+    
+    public void RemoveFunctionApps(List<FunctionAppDetails> removed)
+    {
+        _dataStore.RemoveFunctionApps(removed);
         _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
         BuildCache(_dataStore.FunctionAppDetails);
         RefreshView();

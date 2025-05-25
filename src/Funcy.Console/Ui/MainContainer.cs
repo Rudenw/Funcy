@@ -56,4 +56,9 @@ public class MainContainer(string subscriptionName, List<FunctionAppDetails> fun
         var functionAppDetails = actionHandlerCurrentTasks.Values.Select(x => x.FunctionAppDetails with { State = x.Action.GetActivatingState() }).ToList();
         _functionListPanel.UpdatePartialData(functionAppDetails);
     }
+
+    public void RemoveFunctionApps(List<FunctionAppDetails> removed)
+    {
+        _functionListPanel.RemoveFunctionApps(removed);
+    }
 }

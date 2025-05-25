@@ -12,6 +12,7 @@ public class FunctionAppUpdateHandler
     private readonly Lock _lock = new();
     private readonly ConcurrentDictionary<string, FunctionAppDetails> _cache = [];
     private readonly List<FunctionAppDetails> _changedFunctionApps;
+    private readonly List<FunctionAppDetails> _removedFunctionApps = [];
 
     public FunctionAppUpdateHandler(IAzureFunctionService functionService)
     {
@@ -39,18 +40,33 @@ public class FunctionAppUpdateHandler
 
     private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppDetails> functionAppDetailsToUpdate)
     {
+        List<string> existingFunctionAppNames = [];
         await foreach (var newApp in functionAppDetailsToUpdate)
         {
+            existingFunctionAppNames.Add(newApp.Name);
             if (!_cache.TryGetValue(newApp.Name, out var old) || !newApp.Equals(old)) {
                 lock (_lock)
                 {
                     _changedFunctionApps.Add(newApp);
                 }
-                
             }
 
             IsTriggered = true;
             _tcs.TrySetResult();
+        }
+        
+        _cache.Keys.Except(existingFunctionAppNames).ToList().ForEach(x =>
+        {
+            lock (_lock)
+            {
+                _removedFunctionApps.Add(_cache[x]);
+            }
+        });
+        if (_removedFunctionApps.Count > 0)
+        {
+            IsTriggered = true;
+            _tcs.TrySetResult();
+            await _functionService.RemoveFunctionsFromDatabase(_removedFunctionApps);
         }
     }
 
@@ -65,6 +81,18 @@ public class FunctionAppUpdateHandler
         {
             var snapshot = new List<FunctionAppDetails>(_changedFunctionApps);
             _changedFunctionApps.Clear();
+            IsTriggered = false;
+            _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            return snapshot;
+        }
+    }
+    
+    public List<FunctionAppDetails> ConsumeRemovedFunctionApps()
+    {
+        lock(_lock)
+        {
+            var snapshot = new List<FunctionAppDetails>(_removedFunctionApps);
+            _removedFunctionApps.Clear();
             IsTriggered = false;
             _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             return snapshot;

@@ -46,6 +46,21 @@ public class AzureFunctionService(
         }
     }
 
+    public async Task RemoveFunctionsFromDatabase(List<FunctionAppDetails> removedFunctionApps)
+    {
+        var dbContext = await dbContextFactory.CreateDbContextAsync();
+        foreach (var functionApp in removedFunctionApps)
+        {
+            var functionAppEntity = await dbContext.FunctionApps.FirstOrDefaultAsync(x => x.Name == functionApp.Name && x.ResourceGroup == functionApp.ResourceGroup && x.Subscription == functionApp.Subscription);
+            if (functionAppEntity is not null)
+            {
+                dbContext.FunctionApps.Remove(functionAppEntity);
+            }
+        }
+        
+        await dbContext.SaveChangesAsync();
+    }
+
     private async IAsyncEnumerable<FunctionAppDetails> GetFunctionAppDetailsAsync(string subscriptionId,
         IAsyncEnumerable<WebSiteResource> webSites, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -72,7 +87,17 @@ public class AzureFunctionService(
                             f.Name == webSite.Data.Name && f.ResourceGroup == webSite.Data.ResourceGroup &&
                             f.Subscription == subscriptionId, cancellationToken: cancellationToken);
 
-                    var functionList = await FetchFunctionListFromKudu(webSite);
+                    List<Function>? functionList = null;
+                    try
+                    {
+                        functionList = await FetchFunctionListFromKudu(webSite);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "Error while fetching function list details {FunctionAppName}",
+                            webSite.Data.Name);
+                    }
+                    
                     var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, dbContext);
                     await dbContext.SaveChangesAsync(cancellationToken);
                     await channel.Writer.WriteAsync(functionApp.Map(), cancellationToken);
@@ -80,7 +105,8 @@ public class AzureFunctionService(
                 catch (Exception e)
                 {
                     //TODO: if error when getting function details, perhaps add to a list and then retry? or use polly
-                    logger.LogError(e, "Error while fetching function app details");;
+                    logger.LogError(e, "Error while fetching function app details {FunctionAppName}",
+                        webSite.Data.Name);
                 }
                 finally
                 {
@@ -107,7 +133,7 @@ public class AzureFunctionService(
         }
     }
 
-    private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, WebSiteResource webSite, List<Function> functionList, FunctionAppDbContext dbContext)
+    private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, WebSiteResource webSite, List<Function>? functionList, FunctionAppDbContext dbContext)
     {
         if (functionApp is null)
         {
@@ -119,15 +145,19 @@ public class AzureFunctionService(
                 System = systemName ?? string.Empty,
                 Subscription = webSite.Id?.SubscriptionId ?? string.Empty,
                 ResourceGroup = webSite.Data.ResourceGroup,
-                Functions = functionList
+                Functions = functionList ?? []
             };
             dbContext.FunctionApps.Add(functionApp);
         }
         else
         {
             functionApp.State = webSite.Data.State;
-            dbContext.Functions.RemoveRange(functionApp.Functions);
-            functionApp.Functions = functionList;
+
+            if (functionList is not null)
+            {
+                dbContext.Functions.RemoveRange(functionApp.Functions);
+                functionApp.Functions = functionList;
+            }
         }
 
         return functionApp;

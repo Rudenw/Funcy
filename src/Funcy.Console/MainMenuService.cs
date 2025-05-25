@@ -88,6 +88,9 @@ public class MainMenuService(
                     {
                         var changes = functionAppUpdateHandler.ConsumeChanges();
                         _mainContainer.UpdatePartialData(changes);
+
+                        var removed = functionAppUpdateHandler.ConsumeRemovedFunctionApps();
+                        _mainContainer.RemoveFunctionApps(removed);
                     }
                     
                     if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
