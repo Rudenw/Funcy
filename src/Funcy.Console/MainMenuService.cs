@@ -1,4 +1,3 @@
-using Funcy.Console.Dispatching;
 using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Panels;
