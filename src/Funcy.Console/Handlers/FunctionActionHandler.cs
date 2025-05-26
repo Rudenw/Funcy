@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
 using Funcy.Core.Interfaces;
@@ -7,10 +8,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Handlers;
 
-public class FunctionActionHandler(IAzureFunctionService functionService, IFunctionAppManagementService functionAppManagement)
+public class FunctionActionHandler(
+    IAzureFunctionService functionService,
+    IFunctionAppManagementService functionAppManagement,
+    FunctionStateCoordinator functionStateCoordinator)
 {
-    private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    public bool IsTriggered { get; set; }
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
     private readonly ConcurrentDictionary<string, DispatchedFunction> _completedTasks = [];
 
@@ -19,7 +21,7 @@ public class FunctionActionHandler(IAzureFunctionService functionService, IFunct
 
     public async Task StartListeningAsync(CancellationToken token)
     {
-        var firstTask = Task.Run(() =>
+        var firstTask = Task.Run(async () =>
         {
             while (!token.IsCancellationRequested)
             {
@@ -29,98 +31,71 @@ public class FunctionActionHandler(IAzureFunctionService functionService, IFunct
                     {
                         if (task.RunningTask.IsCompleted)
                         {
-                            _completedTasks.TryAdd(key, task);
+                            if (task.RunningTask.IsCompletedSuccessfully)
+                            {
+                                await functionStateCoordinator.PublishUpdateAsync(task.FunctionAppDetails with {State = task.Action.GetActivatedState()});
+                                // _currentTasks.TryRemove(key, out _);
+                            }
+                            else
+                            {
+                                //TODO: handle errors
+                            }
+                            
+                            // _completedTasks.TryAdd(key, task);
                             _currentTasks.TryRemove(key, out _);
                         }
-                        else
-                        {
-                            if (UncompletedTasks.TryAdd(key, task)) //true = New task
-                            {
-                                IsTriggered = true;
-                                _tcs.TrySetResult();
-                            }
-                        }
                     }
                 }
             }
         }, token);
 
-        var secondTask = Task.Run(async () =>
+        // var secondTask = Task.Run(async () =>
+        // {
+        //     while (!token.IsCancellationRequested)
+        //     {
+        //         if (!_completedTasks.IsEmpty)
+        //         {
+        //             var current = _completedTasks.ToArray();
+        //             var functionAppDetails =
+        //                 functionService.FetchSpecificFunctionAppDetailsAsync(
+        //                     current.Select(x => x.Value.FunctionAppDetails), token);
+        //
+        //             await foreach (var functionAppDetail in functionAppDetails)
+        //             {
+        //                 await functionStateCoordinator.PublishUpdateAsync(functionAppDetail);
+        //             }
+        //             
+        //             foreach (var item in current)
+        //             {
+        //                 _completedTasks.TryRemove(item.Key, out _);
+        //             }
+        //         }
+        //     }
+        // }, token);
+
+        await Task.WhenAll(firstTask);
+    }
+
+    private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
+    {
+        _currentTasks.TryAdd(name, dispatchedFunction);
+        await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails with {State = dispatchedFunction.Action.GetActivatingState()});
+    }
+    
+    public async Task Dispatch(InputActionResult inputResult)
+    {
+        Task dispatchedTask = inputResult.Action switch
         {
-            while (!token.IsCancellationRequested)
-            {
-                if (!_completedTasks.IsEmpty)
-                {
-                    var current = _completedTasks.ToArray();
-                    var functionAppDetails =
-                        functionService.FetchSpecificFunctionAppDetailsAsync(
-                            current.Select(x => x.Value.FunctionAppDetails), token);
+            FunctionAction.Start => functionAppManagement.StartFunction(inputResult.FunctionAppDetails),
+            FunctionAction.Stop => functionAppManagement.StopFunction(inputResult.FunctionAppDetails),
+            FunctionAction.Swap => functionAppManagement.SwapFunction(inputResult.FunctionAppDetails),
+            _ => null!
+        };
 
-                    await foreach (var functionAppDetail in functionAppDetails)
-                    {
-                        FunctionApps.Add(functionAppDetail);
-                    }
-
-                    IsTriggered = true;
-                    _tcs.TrySetResult();
-                    
-                    foreach (var item in current)
-                    {
-                        _completedTasks.TryRemove(item.Key, out _);
-                    }
-                }
-            }
-        }, token);
-
-        await Task.WhenAll(firstTask, secondTask);
-    }
-    
-    public List<FunctionAppDetails> GetAndClearFunctionApps()
-    {
-        var snapshot = FunctionApps.ToList();
-        FunctionApps.Clear();
-        return snapshot;
-    }
-
-    public Task WaitForTriggerAsync()
-    {
-        return _tcs.Task;
-    }
-    
-    public void ResetTrigger()
-    {
-        IsTriggered = false;
-        _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-    }
-    
-    public void Dispatch(InputActionResult inputResult)
-    {
-        switch (inputResult.Action)
+        if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
         {
-            case FunctionAction.Start:
-                if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
-                {
-                    _currentTasks.TryAdd(inputResult.FunctionAppDetails.Name,
-                        new DispatchedFunction(FunctionAction.Start, inputResult.FunctionAppDetails,
-                            functionAppManagement.StartFunction(inputResult.FunctionAppDetails)));
-                }
-                break;
-            case FunctionAction.Stop:
-                if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
-                {
-                    _currentTasks.TryAdd(inputResult.FunctionAppDetails.Name,
-                        new DispatchedFunction(FunctionAction.Stop, inputResult.FunctionAppDetails,
-                            functionAppManagement.StopFunction(inputResult.FunctionAppDetails)));
-                }
-                break;
-            case FunctionAction.Swap:
-                if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
-                {
-                    _currentTasks.TryAdd(inputResult.FunctionAppDetails.Name,
-                        new DispatchedFunction(FunctionAction.Swap, inputResult.FunctionAppDetails,
-                            functionAppManagement.SwapFunction(inputResult.FunctionAppDetails)));
-                }
-                break;
+            await AddNewTask(inputResult.FunctionAppDetails.Name,
+                new DispatchedFunction(inputResult.Action, inputResult.FunctionAppDetails, dispatchedTask));
         }
     }
 }

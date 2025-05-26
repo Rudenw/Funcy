@@ -1,3 +1,4 @@
+using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Panels;
@@ -13,14 +14,15 @@ public class MainMenuService(
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler,
-    FunctionActionHandler actionHandler)
+    FunctionActionHandler actionHandler,
+    FunctionStateCoordinator functionStateCoordinator)
 {
     private MainContainer _mainContainer = null!;
 
     public async Task StartAsync()
     {
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
-        _mainContainer = new MainContainer(subscriptionName, functionAppUpdateHandler.ConsumeChanges());
+        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator);
 
         var cts = new CancellationTokenSource();
         
@@ -43,8 +45,7 @@ public class MainMenuService(
         await Task.WhenAny(
             resizeHandler.WaitForTriggerAsync(),
             inputHandler.WaitForTriggerAsync(),
-            functionAppUpdateHandler.WaitForTriggerAsync(),
-            actionHandler.WaitForTriggerAsync());
+            _mainContainer.WaitForTriggerAsync());
     }
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
@@ -60,6 +61,7 @@ public class MainMenuService(
                 {
                     ctx.Refresh();
                     await WaitForAnyTriggerAsync();
+                    
 
                     if (inputHandler.IsTriggered)
                     {
@@ -68,35 +70,20 @@ public class MainMenuService(
 
                         if (inputResult is not null)
                         {
-                            actionHandler.Dispatch(inputResult);
+                            _ = actionHandler.Dispatch(inputResult);
                         }
                     }
-
-                    if (actionHandler.IsTriggered)
-                    {
-                        _mainContainer.UpdateFunctionsInDispatch(actionHandler.UncompletedTasks);
-                        actionHandler.UncompletedTasks.Clear();
-                        
-                        var completedTasks = actionHandler.GetAndClearFunctionApps();
-                        _mainContainer.UpdatePartialData(completedTasks);
-                        
-                        actionHandler.ResetTrigger();
-                    }
                     
-                    if (functionAppUpdateHandler.IsTriggered)
-                    {
-                        var changes = functionAppUpdateHandler.ConsumeChanges();
-                        _mainContainer.UpdatePartialData(changes);
-
-                        var removed = functionAppUpdateHandler.ConsumeRemovedFunctionApps();
-                        _mainContainer.RemoveFunctionApps(removed);
-                    }
-                    
-                    if (resizeHandler.IsTriggered || functionAppUpdateHandler.IsTriggered)
+                    if (resizeHandler.IsTriggered)
                     {
                         _mainContainer.HandleResize();
                         resizeHandler.ResetTrigger();
                         break;
+                    }
+
+                    if (_mainContainer.WaitForTriggerAsync().IsCompleted)
+                    {
+                        _mainContainer.ResetTrigger();
                     }
                 }
 

@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
@@ -8,11 +9,42 @@ using Spectre.Console.Rendering;
 
 namespace Funcy.Console.Ui;
 
-public class MainContainer(string subscriptionName, List<FunctionAppDetails> functionApps)
+public class MainContainer
 {
-    private readonly TopPanel _topPanel = new(subscriptionName);
-    private readonly FunctionAppPanel _functionListPanel = new(functionApps);
+    private readonly TopPanel _topPanel;
+    private readonly FunctionAppPanel _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
+    private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    public MainContainer(string subscriptionName,
+        List<FunctionAppDetails> functionApps,
+        FunctionStateCoordinator functionStateCoordinator)
+    {
+        _topPanel = new TopPanel(subscriptionName);
+        _functionListPanel = new FunctionAppPanel(functionApps);
+        
+        functionStateCoordinator.OnFunctionAppUpdated += details =>
+        {
+            UpdatePartialData([details]);
+            _tcs.TrySetResult();
+        };
+        
+        functionStateCoordinator.OnFunctionAppRemoved += details =>
+        {
+            RemoveFunctionApps([details]);
+            _tcs.TrySetResult();
+        };
+    }
+    
+    public Task WaitForTriggerAsync()
+    {
+        return _tcs.Task;
+    }
+
+    public void ResetTrigger()
+    {
+        _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+    }
 
     public IRenderable BuildMainLayout()
     {

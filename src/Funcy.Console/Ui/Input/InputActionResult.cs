@@ -23,4 +23,15 @@ public static class FunctionActionExtensions
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
         };
     }
+    
+    public static string GetActivatedState(this FunctionAction action)
+    {
+        return action switch
+        {
+            FunctionAction.Start => "Running",
+            FunctionAction.Stop => "Stopped",
+            FunctionAction.Swap => "Running",
+            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
+        };
+    }
 }

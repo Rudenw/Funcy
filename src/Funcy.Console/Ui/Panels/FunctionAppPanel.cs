@@ -45,7 +45,7 @@ public class FunctionAppPanel : IPanelController
     {
         _dataStore.UpdatePartialData(functionAppDetails);
         _paginator.UpdateTotalRows(_dataStore.FunctionAppDetails.Count);
-        BuildCache(_dataStore.FunctionAppDetails);
+        BuildCache(functionAppDetails);
         RefreshView();
     }
     

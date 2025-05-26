@@ -46,7 +46,7 @@ public class AzureFunctionService(
         }
     }
 
-    public async Task RemoveFunctionsFromDatabase(List<FunctionAppDetails> removedFunctionApps)
+    public async Task RemoveFunctionsFromDatabase(IEnumerable<FunctionAppDetails> removedFunctionApps)
     {
         var dbContext = await dbContextFactory.CreateDbContextAsync();
         foreach (var functionApp in removedFunctionApps)

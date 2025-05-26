@@ -11,5 +11,5 @@ public interface IAzureFunctionService
     IAsyncEnumerable<FunctionAppDetails> FetchSpecificFunctionAppDetailsAsync(
         IEnumerable<FunctionAppDetails> functionAppDetails, CancellationToken cancellationToken);
 
-    Task RemoveFunctionsFromDatabase(List<FunctionAppDetails> removedFunctionApps);
+    Task RemoveFunctionsFromDatabase(IEnumerable<FunctionAppDetails> removedFunctionApps);
 }

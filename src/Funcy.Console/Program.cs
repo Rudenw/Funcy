@@ -3,6 +3,7 @@ using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Funcy.Console;
+using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
@@ -44,6 +45,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
         services.AddTransient<FunctionActionHandler>();
+        services.AddSingleton<FunctionStateCoordinator>();
         services.AddTransient<MainMenuService>();
         services.AddTransient<IAzureFunctionService, AzureFunctionService>();
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();

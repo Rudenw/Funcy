@@ -20,18 +20,25 @@ public class FunctionAppDataStore
     {
         lock (_lock)
         {
+            var needsSorting = false;
             foreach (var functionAppDetail in functionAppDetails)
             {
-                var existing = FunctionAppDetails.FirstOrDefault(x => x.Name == functionAppDetail.Name);
-                if (existing is not null)
+                var findIndex = FunctionAppDetails.FindIndex(x => x.Name == functionAppDetail.Name);
+                if (findIndex >= 0)
                 {
-                    FunctionAppDetails.Remove(existing);
+                    FunctionAppDetails[findIndex] = functionAppDetail;
                 }
-
-                FunctionAppDetails.Add(functionAppDetail);
+                else
+                {
+                    needsSorting = true;
+                    FunctionAppDetails.Add(functionAppDetail);
+                }
             }
-            
-            SortFunctionAppDetails();
+
+            if (needsSorting)
+            {
+                SortFunctionAppDetails();                
+            }
         }
     }
     
@@ -40,8 +47,6 @@ public class FunctionAppDataStore
         lock (_lock)
         {
             FunctionAppDetails.RemoveAll(x => removed.Any(y => y.Name == x.Name));
-            
-            SortFunctionAppDetails();
         }
     }
     
