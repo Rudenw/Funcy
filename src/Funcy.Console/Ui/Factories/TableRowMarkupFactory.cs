@@ -20,7 +20,8 @@ public static class TableRowMarkupFactory
             Unexpanded = new Markup(canExpand ? "▸" : " "),
             UnselectedName = new Markup(app.Name),
             UnselectedState = UiStyles.CreateStatusCell(app.State),
-            UnselectedSystem = new Markup(app.System)
+            UnselectedSystem = new Markup(app.System),
+            FunctionAppDetails = app
         };
         return tableRowMarkup;
         

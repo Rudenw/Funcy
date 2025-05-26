@@ -1,3 +1,4 @@
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui.Factories.Models;
@@ -16,4 +17,6 @@ public record TableRowMarkup
     public bool CanExpand { get; set; }
     public required Markup Expanded { get; set; }
     public required Markup Unexpanded { get; set; }
+    
+    public required FunctionAppDetails FunctionAppDetails { get; set; }
 }

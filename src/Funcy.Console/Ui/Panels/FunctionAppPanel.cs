@@ -90,7 +90,7 @@ public class FunctionAppPanel : IPanelController
 
     public FunctionAppDetails GetSelectedFunctionAppDetails()
     {
-        var selectedFunctionApp = _dataStore.FunctionAppDetails[_paginator.VisibleStartIndex + _paginator.SelectedIndex];
+        var selectedFunctionApp = _visibleRows[_paginator.SelectedIndex].FunctionAppDetails;
         return selectedFunctionApp;
     }
     
