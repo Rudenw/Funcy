@@ -9,6 +9,7 @@ using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
+using Funcy.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -47,6 +48,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<FunctionActionHandler>();
         services.AddSingleton<FunctionStateCoordinator>();
         services.AddTransient<MainMenuService>();
+        services.AddTransient<IFunctionAppRepository, FunctionAppRepository>();
         services.AddTransient<IAzureFunctionService, AzureFunctionService>();
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();

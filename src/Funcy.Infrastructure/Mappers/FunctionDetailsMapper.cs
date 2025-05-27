@@ -13,4 +13,13 @@ public static class FunctionDetailsMapper
             Trigger = function.Trigger
         };
     }
+
+    public static Function MapToEntity(this FunctionDetails details)
+    {
+        return new Function
+        {
+            Name = details.Name,
+            Trigger = details.Trigger
+        };
+    }
 }

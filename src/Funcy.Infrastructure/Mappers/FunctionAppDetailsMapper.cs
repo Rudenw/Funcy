@@ -17,4 +17,17 @@ public static class FunctionAppDetailsMapper
             Functions = functionApp.Functions.Select(x => x.Map()).ToList()
         };
     }
+
+    public static FunctionApp MapToEntity(this FunctionAppDetails details)
+    {
+        return new FunctionApp
+        {
+            Name = details.Name,
+            State = details.State,
+            System = details.System,
+            ResourceGroup = details.ResourceGroup,
+            Subscription = details.Subscription,
+            Functions = details.Functions.Select(x => x.MapToEntity()).ToList()
+        };
+    }
 }

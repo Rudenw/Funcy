@@ -7,10 +7,8 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
-using Funcy.Data;
-using Funcy.Data.Entities;
 using Funcy.Infrastructure.Mappers;
-using Microsoft.EntityFrameworkCore;
+using Funcy.Infrastructure.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace Funcy.Infrastructure.Azure;
@@ -19,9 +17,10 @@ public class AzureFunctionService(
     ILogger<AzureFunctionService> logger,
     IAzureSubscriptionService subscriptionService,
     KuduApiClient kuduApiClient,
-    IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
+    IFunctionAppRepository repository) : IAzureFunctionService
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
+    private readonly IFunctionAppRepository _repository = repository;
 
     public async IAsyncEnumerable<FunctionAppDetails> FetchFunctionAppDetailsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -48,17 +47,10 @@ public class AzureFunctionService(
 
     public async Task RemoveFunctionsFromDatabase(IEnumerable<FunctionAppDetails> removedFunctionApps)
     {
-        var dbContext = await dbContextFactory.CreateDbContextAsync();
         foreach (var functionApp in removedFunctionApps)
         {
-            var functionAppEntity = await dbContext.FunctionApps.FirstOrDefaultAsync(x => x.Name == functionApp.Name && x.ResourceGroup == functionApp.ResourceGroup && x.Subscription == functionApp.Subscription);
-            if (functionAppEntity is not null)
-            {
-                dbContext.FunctionApps.Remove(functionAppEntity);
-            }
+            await _repository.RemoveAsync(functionApp, CancellationToken.None);
         }
-        
-        await dbContext.SaveChangesAsync();
     }
 
     private async IAsyncEnumerable<FunctionAppDetails> GetFunctionAppDetailsAsync(string subscriptionId,
@@ -78,16 +70,8 @@ public class AzureFunctionService(
                 try
                 {
                     await throttler.WaitAsync(cancellationToken);
-                    
-                    await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
-                    var existing = await dbContext.FunctionApps
-                        .Include(f => f.Functions)
-                        .FirstOrDefaultAsync(f =>
-                            f.Name == webSite.Data.Name && f.ResourceGroup == webSite.Data.ResourceGroup &&
-                            f.Subscription == subscriptionId, cancellationToken: cancellationToken);
-
-                    List<Function>? functionList = null;
+                    List<FunctionDetails>? functionList = null;
                     try
                     {
                         functionList = await FetchFunctionListFromKudu(webSite);
@@ -97,10 +81,20 @@ public class AzureFunctionService(
                         logger.LogError(e, "Error while fetching function list details {FunctionAppName}",
                             webSite.Data.Name);
                     }
-                    
-                    var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, dbContext);
-                    await dbContext.SaveChangesAsync(cancellationToken);
-                    await channel.Writer.WriteAsync(functionApp.Map(), cancellationToken);
+
+                    webSite.Data.Tags.TryGetValue("System", out var systemName);
+                    var details = new FunctionAppDetails
+                    {
+                        Name = webSite.Data.Name,
+                        State = webSite.Data.State,
+                        System = systemName ?? string.Empty,
+                        Subscription = subscriptionId,
+                        ResourceGroup = webSite.Data.ResourceGroup,
+                        Functions = functionList ?? []
+                    };
+
+                    var updated = await _repository.UpsertAsync(details, functionList, cancellationToken);
+                    await channel.Writer.WriteAsync(updated, cancellationToken);
                 }
                 catch (Exception e)
                 {
@@ -113,7 +107,7 @@ public class AzureFunctionService(
                     throttler.Release();
                 }
             }, cancellationToken);
-            
+
             tasks.Add(task);
         }
 
@@ -133,49 +127,17 @@ public class AzureFunctionService(
         }
     }
 
-    private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, WebSiteResource webSite, List<Function>? functionList, FunctionAppDbContext dbContext)
-    {
-        if (functionApp is null)
-        {
-            webSite.Data.Tags.TryGetValue("System", out var systemName);
-            functionApp = new FunctionApp()
-            {
-                Name = webSite.Data.Name,
-                State = webSite.Data.State,
-                System = systemName ?? string.Empty,
-                Subscription = webSite.Id?.SubscriptionId ?? string.Empty,
-                ResourceGroup = webSite.Data.ResourceGroup,
-                Functions = functionList ?? []
-            };
-            dbContext.FunctionApps.Add(functionApp);
-        }
-        else
-        {
-            functionApp.State = webSite.Data.State;
-
-            if (functionList is not null)
-            {
-                dbContext.Functions.RemoveRange(functionApp.Functions);
-                functionApp.Functions = functionList;
-            }
-        }
-
-        return functionApp;
-    }
-
-    private async Task<List<Function>> FetchFunctionListFromKudu(WebSiteResource webSite)
+    private async Task<List<FunctionDetails>> FetchFunctionListFromKudu(WebSiteResource webSite)
     {
         var kuduInfoList = await kuduApiClient.GetFunctionsAsync(webSite.Data.Name);
-
-        var functionList = kuduInfoList.Select(kuduFunctionInfo => new Function()
+        var functionList = kuduInfoList.Select(kuduFunctionInfo => new FunctionDetails
             { Name = kuduFunctionInfo.Name, Trigger = kuduFunctionInfo.TriggerType }).ToList();
         return functionList;
     }
 
     public List<FunctionAppDetails> GetFunctionsFromDatabase()
     {
-        using var dbContext = dbContextFactory.CreateDbContext(); 
-        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Select(x => x.Map()).ToList();
+        var functionAppList = _repository.GetAllAsync(CancellationToken.None).GetAwaiter().GetResult();
         functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
         return functionAppList;
     }
