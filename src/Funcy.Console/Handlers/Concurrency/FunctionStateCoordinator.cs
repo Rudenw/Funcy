@@ -9,7 +9,6 @@ public class FunctionStateCoordinator
     private readonly Channel<FunctionAppDetails> _updateChannel = Channel.CreateUnbounded<FunctionAppDetails>();
     private readonly Channel<FunctionAppDetails> _removeChannel = Channel.CreateUnbounded<FunctionAppDetails>();
     
-    private readonly ConcurrentDictionary<string, FunctionAppDetails> _functionApps = new();
     private readonly ConcurrentDictionary<string, FunctionAppDetails> _cache = new();
     
     private readonly SemaphoreSlim _uiUpdateLock = new(1, 1);
@@ -58,11 +57,8 @@ public class FunctionStateCoordinator
 
     private async Task ProcessUpdatesAsync()
     {
-        ConcurrentBag<string> existingFunctionAppNames = [];
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            existingFunctionAppNames.Add(update.Name);
-            
             if (_cache.TryGetValue(update.Name, out var old) && update.Equals(old)) continue;
             
             _cache[update.Name] = update;
@@ -82,7 +78,7 @@ public class FunctionStateCoordinator
     {
         await foreach (var removedApp in _removeChannel.Reader.ReadAllAsync())
         {
-            _functionApps.TryRemove(removedApp.Name, out _);
+            _cache.TryRemove(removedApp.Name, out _);
 
             await _uiUpdateLock.WaitAsync();
             try

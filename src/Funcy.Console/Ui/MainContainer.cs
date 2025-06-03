@@ -15,6 +15,7 @@ public class MainContainer
     private readonly FunctionAppPanel _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly SlotPanel _slotPanel;
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
@@ -22,6 +23,7 @@ public class MainContainer
     {
         _topPanel = new TopPanel(subscriptionName);
         _functionListPanel = new FunctionAppPanel(functionApps);
+        _slotPanel = new SlotPanel([new DeploymentSlotDetails { Name = "Test", State = "Running" }]);
         
         functionStateCoordinator.OnFunctionAppUpdated += details =>
         {
@@ -68,11 +70,6 @@ public class MainContainer
         return null;
     }
 
-    public void UpdateData(List<FunctionAppDetails> functionApps)
-    {
-        _functionListPanel.UpdateData(functionApps);
-    }
-
     public void HandleResize()
     {
         _functionListPanel.HandleResize();
@@ -81,12 +78,6 @@ public class MainContainer
     public void UpdatePartialData(List<FunctionAppDetails> functionApps)
     {
         _functionListPanel.UpdatePartialData(functionApps);
-    }
-
-    public void UpdateFunctionsInDispatch(ConcurrentDictionary<string, DispatchedFunction> actionHandlerCurrentTasks)
-    {
-        var functionAppDetails = actionHandlerCurrentTasks.Values.Select(x => x.FunctionAppDetails with { State = x.Action.GetActivatingState() }).ToList();
-        _functionListPanel.UpdatePartialData(functionAppDetails);
     }
 
     public void RemoveFunctionApps(List<FunctionAppDetails> removed)

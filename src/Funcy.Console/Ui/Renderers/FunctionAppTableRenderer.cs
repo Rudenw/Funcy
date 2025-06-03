@@ -1,22 +1,25 @@
 using Spectre.Console;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factories.Models;
+using Spectre.Console.Rendering;
 
 namespace Funcy.Console.Ui.Renderers;
 
 public class FunctionAppTableRenderer
 {
+    private readonly List<(Func<TableRowMarkup, bool, Markup> selector, string columnName)> _columns;
     public Table Table { get; set; }
-
-    public FunctionAppTableRenderer(int width = 100)
+    
+    public FunctionAppTableRenderer(List<(Func<TableRowMarkup, bool, Markup> selector, string columnName)> columns, int width = 100)
     {
         Table = new Table();
         Table.Border(TableBorder.None);
         Table.Width(width);
-        Table.AddColumn(" ");
-        Table.AddColumn(UiStyles.CreateHeaderText("Name"));
-        Table.AddColumn(UiStyles.CreateHeaderText("Status"));
-        Table.AddColumn(UiStyles.CreateHeaderText("System"));
+        _columns = columns;
+        foreach (var column in columns)
+        {
+            Table.AddColumn(UiStyles.CreateHeaderText(column.columnName));
+        }
     }
 
     public void Render(IEnumerable<TableRowMarkup> rows, int selectedIndex)
@@ -26,21 +29,14 @@ public class FunctionAppTableRenderer
         var i = 0;
         foreach (var row in rows)
         {
-            var marker = row.CanExpand
-                ? (i == selectedIndex ? row.Expanded : row.Unexpanded)
-                : row.Expanded;
+            List<IRenderable> markupsToRender = [];
+            foreach (var columnFunc in _columns)
+            {
+                markupsToRender.Add(columnFunc.selector(row, i == selectedIndex));
+            }
 
-            var name = i == selectedIndex ? row.SelectedName : row.UnselectedName;
-            var state = i == selectedIndex ? row.SelectedState : row.UnselectedState;
-            var system = i == selectedIndex ? row.SelectedSystem : row.UnselectedSystem;
-
-            Table.AddRow(marker, name, state, system);
+            Table.AddRow(markupsToRender);
             i++;
         }
-    }
-    
-    public void Resize(int newWidth)
-    {
-        Table.Width(newWidth);
     }
 }

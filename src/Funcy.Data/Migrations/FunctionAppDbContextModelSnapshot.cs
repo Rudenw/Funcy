@@ -22,7 +22,11 @@ namespace Funcy.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<long>("FunctionAppId")
+                    b.Property<string>("AzureId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("FunctionAppId")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Name")
@@ -45,6 +49,10 @@ namespace Funcy.Data.Migrations
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("AzureId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -71,13 +79,52 @@ namespace Funcy.Data.Migrations
                     b.ToTable("FunctionApps");
                 });
 
+            modelBuilder.Entity("Funcy.Data.Entities.FunctionAppSlot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AzureId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("FunctionAppId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FunctionAppId");
+
+                    b.ToTable("FunctionAppSlots");
+                });
+
             modelBuilder.Entity("Funcy.Data.Entities.Function", b =>
                 {
                     b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
                         .WithMany("Functions")
-                        .HasForeignKey("FunctionAppId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("FunctionAppId");
+
+                    b.Navigation("FunctionApp");
+                });
+
+            modelBuilder.Entity("Funcy.Data.Entities.FunctionAppSlot", b =>
+                {
+                    b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
+                        .WithMany("Slots")
+                        .HasForeignKey("FunctionAppId");
 
                     b.Navigation("FunctionApp");
                 });
@@ -85,6 +132,8 @@ namespace Funcy.Data.Migrations
             modelBuilder.Entity("Funcy.Data.Entities.FunctionApp", b =>
                 {
                     b.Navigation("Functions");
+
+                    b.Navigation("Slots");
                 });
 #pragma warning restore 612, 618
         }

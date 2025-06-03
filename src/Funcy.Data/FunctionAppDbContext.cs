@@ -11,4 +11,5 @@ public class FunctionAppDbContext : DbContext
     
     public DbSet<FunctionApp> FunctionApps { get; set; }
     public DbSet<Function> Functions { get; set; }
+    public DbSet<FunctionAppSlot> FunctionAppSlots { get; set; }
 }

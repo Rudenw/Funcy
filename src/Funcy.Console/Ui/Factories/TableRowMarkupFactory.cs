@@ -13,15 +13,39 @@ public static class TableRowMarkupFactory
         var tableRowMarkup = new TableRowMarkup
         {
             CanExpand = canExpand,
-            Expanded = new Markup(canExpand ? "▾" : " "),
+            SelectedExpanded = new Markup(canExpand ? "▾" : " "),
+            SelectedUnexpanded = UiStyles.CreateSelectedCell(canExpand ? "▸" : " "),
             SelectedName = UiStyles.CreateSelectedCell(app.Name),
             SelectedState = UiStyles.CreateSelectedCell(app.State),
             SelectedSystem = UiStyles.CreateSelectedCell(app.System),
-            Unexpanded = new Markup(canExpand ? "▸" : " "),
+            UnselectedExpanded = new Markup(canExpand ? "▾" : " "),
+            UnselectedUnexpanded = new Markup(canExpand ? "▸" : " "),
             UnselectedName = new Markup(app.Name),
             UnselectedState = UiStyles.CreateStatusCell(app.State),
             UnselectedSystem = new Markup(app.System),
             FunctionAppDetails = app
+        };
+        return tableRowMarkup;
+        
+    }
+    
+    public static TableRowMarkup Create(DeploymentSlotDetails slotDetails)
+    {
+        var tableRowMarkup = new TableRowMarkup
+        {
+            CanExpand = false,
+            SelectedExpanded = new Markup(""),
+            SelectedUnexpanded = UiStyles.CreateSelectedCell(""),
+            SelectedName = UiStyles.CreateSelectedCell(slotDetails.Name),
+            SelectedState = UiStyles.CreateSelectedCell(slotDetails.State),
+            SelectedSystem = new Markup(""),
+            UnselectedExpanded = new Markup(""),
+            UnselectedUnexpanded = new Markup(""),
+            UnselectedName = new Markup(slotDetails.Name),
+            UnselectedState = UiStyles.CreateStatusCell(slotDetails.State),
+            UnselectedSystem = new Markup(""),
+            FunctionAppDetails = null!,
+            
         };
         return tableRowMarkup;
         

@@ -9,6 +9,7 @@ using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
+using LazyCache;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -51,7 +52,10 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
-        services.AddHttpClient<KuduApiClient>();
+        
+        services.AddHttpClient();
+        services.AddSingleton<KuduApiClient>();
+        services.AddLazyCache();
     })
     .Build();
 

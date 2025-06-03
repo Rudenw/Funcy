@@ -3,8 +3,9 @@ namespace Funcy.Data.Entities;
 public class Function
 {
     public long Id { get; set; }
-    public string Name { get; set; }
-    public string Trigger { get; set; }
+    public required string AzureId { get; set; }
+    public required string Name { get; init; }
+    public required string Trigger { get; init; }
     
-    public FunctionApp FunctionApp { get; set; }
+    public FunctionApp? FunctionApp { get; set; }
 }

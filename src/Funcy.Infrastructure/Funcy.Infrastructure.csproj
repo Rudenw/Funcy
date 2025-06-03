@@ -10,12 +10,20 @@
       <PackageReference Include="Azure.Identity" Version="1.13.1" />
       <PackageReference Include="Azure.ResourceManager" Version="1.13.0" />
       <PackageReference Include="Azure.ResourceManager.AppService" Version="1.2.0" />
+      <PackageReference Include="LazyCache" Version="2.4.0" />
+      <PackageReference Include="LazyCache.AspNetCore" Version="2.4.0" />
       <PackageReference Include="System.Linq.Async" Version="6.0.1" />
     </ItemGroup>
 
     <ItemGroup>
       <ProjectReference Include="..\..\Funcy.Core\Funcy.Core.csproj" />
       <ProjectReference Include="..\Funcy.Data\Funcy.Data.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Reference Include="Microsoft.Extensions.Http">
+        <HintPath>..\..\..\..\.nuget\packages\microsoft.extensions.http\9.0.4\lib\net9.0\Microsoft.Extensions.Http.dll</HintPath>
+      </Reference>
     </ItemGroup>
 
 </Project>

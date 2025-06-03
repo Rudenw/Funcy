@@ -1,16 +1,21 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Azure.Core;
+using LazyCache;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class KuduApiClient(TokenCredential credential, HttpClient httpClient, IMemoryCache cache)
+public class KuduApiClient(ILogger<KuduApiClient> logger, TokenCredential credential, IHttpClientFactory httpClientFactory, IAppCache cache)
 {
     public async Task<List<KuduFunctionInfo>> GetFunctionsAsync(string functionAppName, CancellationToken ct = default)
     {
 
-        var token = await cache.GetOrCreateAsync("Token", async entry =>
+        var tokenStopwatch = new Stopwatch();
+        tokenStopwatch.Start();
+        var token = await cache.GetOrAddAsync("Token", async entry =>
         {
             var newToken = await credential.GetTokenAsync(
                 new TokenRequestContext(["https://management.azure.com/.default"]), ct);
@@ -19,14 +24,19 @@ public class KuduApiClient(TokenCredential credential, HttpClient httpClient, IM
 
             return newToken;
         });
+        tokenStopwatch.Stop();
 
+        var httpClient = httpClientFactory.CreateClient();
         httpClient.DefaultRequestHeaders.Authorization =
             new AuthenticationHeaderValue("Bearer", token.Token);
 
         var scmHost = $"{functionAppName}.scm.azurewebsites.net";
         var url = $"https://{scmHost}/api/functions";
 
+        var httpStopwatch = new Stopwatch();
+        httpStopwatch.Start();
         var response = await httpClient.GetAsync(url, ct);
+        httpStopwatch.Stop();
         response.EnsureSuccessStatusCode();
 
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
@@ -34,6 +44,8 @@ public class KuduApiClient(TokenCredential credential, HttpClient httpClient, IM
 
         var results = new List<KuduFunctionInfo>();
 
+        var enumStopwatch = new Stopwatch();
+        enumStopwatch.Start();
         foreach (var element in doc.RootElement.EnumerateArray())
         {
             var name = element.GetProperty("name").GetString() ?? "unknown";
@@ -53,6 +65,11 @@ public class KuduApiClient(TokenCredential credential, HttpClient httpClient, IM
                 TriggerType = triggerType
             });
         }
+        enumStopwatch.Stop();
+        
+        logger.LogInformation("Getting token took {Milliseconds}ms", tokenStopwatch.ElapsedMilliseconds);
+        logger.LogInformation("Getting functions took {Milliseconds}ms", httpStopwatch.ElapsedMilliseconds);
+        logger.LogInformation("Enumerating functions took {Milliseconds}ms", enumStopwatch.ElapsedMilliseconds);
 
         return results;
     }

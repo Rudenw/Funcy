@@ -18,19 +18,28 @@ public class FunctionAppPanel : IPanelController
     private readonly FunctionAppDataStore _dataStore;
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
-    private readonly Lock _lock = new();
     private string _searchText = "";
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
         _dataStore = new FunctionAppDataStore();
         _paginator = new FunctionAppPaginator();
-        _renderer = new FunctionAppTableRenderer();
+        _renderer = new FunctionAppTableRenderer(CreateTableColumns());
         Panel = new Panel(_renderer.Table)
             .Header("Azure Function Apps", Justify.Center)
             .BorderColor(Color.Orange1);
-        
         UpdateData(functionAppDetails);
+    }
+    
+    private List<(Func<TableRowMarkup, bool, Markup> selector, string columnName)> CreateTableColumns()
+    {
+        return
+        [
+            ((t, isSelected) => t.GetExpanded(isSelected), " "),
+            ((t, isSelected) => t.GetName(isSelected), "Name"),
+            ((t, isSelected) => t.GetState(isSelected), "Status"),
+            ((t, isSelected) => t.GetSystem(isSelected), "System")
+        ];
     }
     
     public void UpdateData(List<FunctionAppDetails> functionAppDetails)

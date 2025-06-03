@@ -41,7 +41,8 @@ public class FunctionAppUpdateHandler
             await _functionStateCoordinator.PublishUpdateAsync(newApp);
         }
 
-        //var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
-        //await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
+        //TODO: do something to make sure we dont empty the list if we get no functions back
+        // var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
+        // await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
     }
 }
