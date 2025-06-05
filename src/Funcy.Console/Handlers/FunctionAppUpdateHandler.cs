@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Funcy.Console.Concurrency;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
@@ -32,17 +31,19 @@ public class FunctionAppUpdateHandler
         }, token);
     }
 
-    private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppDetails> functionAppDetailsToUpdate)
+    private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate)
     {
         List<string> existingFunctionAppNames = [];
         await foreach (var newApp in functionAppDetailsToUpdate)
         {
             existingFunctionAppNames.Add(newApp.Name);
-            await _functionStateCoordinator.PublishUpdateAsync(newApp);
+            if (newApp.IsSuccess)
+            {
+                await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!);                
+            }
         }
-
-        //TODO: do something to make sure we dont empty the list if we get no functions back
-        // var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
-        // await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
+        
+         var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
+         await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
     }
 }

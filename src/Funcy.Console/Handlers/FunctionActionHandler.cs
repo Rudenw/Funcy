@@ -9,15 +9,10 @@ using Microsoft.Extensions.Logging;
 namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
-    IAzureFunctionService functionService,
     IFunctionAppManagementService functionAppManagement,
     FunctionStateCoordinator functionStateCoordinator)
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
-    private readonly ConcurrentDictionary<string, DispatchedFunction> _completedTasks = [];
-
-    public readonly ConcurrentDictionary<string, DispatchedFunction> UncompletedTasks = [];
-    public readonly List<FunctionAppDetails> FunctionApps = [];
 
     public async Task StartListeningAsync(CancellationToken token)
     {
@@ -33,15 +28,14 @@ public class FunctionActionHandler(
                         {
                             if (task.RunningTask.IsCompletedSuccessfully)
                             {
-                                await functionStateCoordinator.PublishUpdateAsync(task.FunctionAppDetails with {State = task.Action.GetActivatedState()});
-                                // _currentTasks.TryRemove(key, out _);
+                                task.FunctionAppDetails.State = task.Action.GetActivatedState();
+                                await functionStateCoordinator.PublishUpdateAsync(task.FunctionAppDetails);
                             }
                             else
                             {
                                 //TODO: handle errors
                             }
                             
-                            // _completedTasks.TryAdd(key, task);
                             _currentTasks.TryRemove(key, out _);
                         }
                     }
@@ -49,37 +43,14 @@ public class FunctionActionHandler(
             }
         }, token);
 
-        // var secondTask = Task.Run(async () =>
-        // {
-        //     while (!token.IsCancellationRequested)
-        //     {
-        //         if (!_completedTasks.IsEmpty)
-        //         {
-        //             var current = _completedTasks.ToArray();
-        //             var functionAppDetails =
-        //                 functionService.FetchSpecificFunctionAppDetailsAsync(
-        //                     current.Select(x => x.Value.FunctionAppDetails), token);
-        //
-        //             await foreach (var functionAppDetail in functionAppDetails)
-        //             {
-        //                 await functionStateCoordinator.PublishUpdateAsync(functionAppDetail);
-        //             }
-        //             
-        //             foreach (var item in current)
-        //             {
-        //                 _completedTasks.TryRemove(item.Key, out _);
-        //             }
-        //         }
-        //     }
-        // }, token);
-
         await Task.WhenAll(firstTask);
     }
 
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
         _currentTasks.TryAdd(name, dispatchedFunction);
-        await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails with {State = dispatchedFunction.Action.GetActivatingState()});
+        dispatchedFunction.FunctionAppDetails.State = dispatchedFunction.Action.GetActivatedState();
+        await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails);
     }
     
     public async Task Dispatch(InputActionResult inputResult)

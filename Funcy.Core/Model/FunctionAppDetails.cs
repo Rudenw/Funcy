@@ -1,13 +1,13 @@
 namespace Funcy.Core.Model;
 
-public record FunctionAppDetails
+public class FunctionAppDetails
 {
-    public required string Name { get; set; }
+    public required string Name { get; init; }
     public required string State { get; set; }
-    public required string System { get; set; }
-    public List<FunctionDetails> Functions { get; set; } = [];
-    public required string ResourceGroup { get; set; }
-    public required string Subscription { get; set; }
+    public required string System { get; init; }
+    public List<FunctionDetails> Functions { get; init; } = [];
+    public required string ResourceGroup { get; init; }
+    public required string Subscription { get; init; }
     
     public string Id => $"/subscriptions/{Subscription}/resourceGroups/{ResourceGroup}/providers/Microsoft.Web/sites/{Name}";
 }

@@ -32,11 +32,11 @@ public class AzureFunctionService(
         return functionAppList;
     }
     
-    public async IAsyncEnumerable<FunctionAppDetails> FetchFunctionAppDetailsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<FunctionAppFetchResult> FetchFunctionAppDetailsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
         var subscription = _client.GetSubscriptionResource(new ResourceIdentifier($"/subscriptions/{subscriptionId}"));
-        var webSites = subscription.GetWebSitesAsync();
+        var webSites = subscription.GetWebSitesAsync(cancellationToken: cancellationToken);
         
         await foreach (var item in GetFunctionAppDetailsAsync(subscriptionId, webSites, cancellationToken))
         {
@@ -44,7 +44,7 @@ public class AzureFunctionService(
         }
     }
     
-    public async IAsyncEnumerable<FunctionAppDetails> FetchSpecificFunctionAppDetailsAsync(IEnumerable<FunctionAppDetails> functionAppDetails, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<FunctionAppFetchResult> FetchSpecificFunctionAppDetailsAsync(IEnumerable<FunctionAppDetails> functionAppDetails, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var webSites = functionAppDetails.Select(d => _client.GetWebSiteResource(ResourceIdentifier.Parse(d.Id)).Get().Value);
         
@@ -70,12 +70,12 @@ public class AzureFunctionService(
         await dbContext.SaveChangesAsync();
     }
 
-    private async IAsyncEnumerable<FunctionAppDetails> GetFunctionAppDetailsAsync(string subscriptionId,
+    private async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(string subscriptionId,
         IAsyncEnumerable<WebSiteResource> webSites, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var stopwatch = new Stopwatch();
         stopwatch.Start();
-        var channel = Channel.CreateUnbounded<FunctionAppDetails>();
+        var channel = Channel.CreateUnbounded<FunctionAppFetchResult>();
         var tasks = new List<Task>();
         var throttler = new SemaphoreSlim(5);
         await foreach (var webSite in webSites.WithCancellation(cancellationToken))
@@ -102,7 +102,7 @@ public class AzureFunctionService(
 
                     var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, slotList, dbContext);
                     await dbContext.SaveChangesAsync(cancellationToken);
-                    await channel.Writer.WriteAsync(functionApp.Map(), cancellationToken);
+                    await channel.Writer.WriteAsync(new FunctionAppFetchResult(webSite.Id.Name, functionApp.Map()), cancellationToken);
                     functionAppStopwatch.Stop();
                     
                     logger.LogInformation("Processed {FunctionAppName} in {ElapsedMilliseconds}ms", webSite.Data.Name, functionAppStopwatch.ElapsedMilliseconds);
@@ -112,6 +112,7 @@ public class AzureFunctionService(
                 {
                     logger.LogError(e, "Error while fetching function app details {FunctionAppName}",
                         webSite.Data.Name);
+                    await channel.Writer.WriteAsync(new FunctionAppFetchResult(webSite.Id.Name, null, e.Message), cancellationToken);
                 }
                 finally
                 {

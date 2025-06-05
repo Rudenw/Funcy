@@ -5,10 +5,10 @@ namespace Funcy.Core.Interfaces;
 
 public interface IAzureFunctionService
 {
-    IAsyncEnumerable<FunctionAppDetails> FetchFunctionAppDetailsAsync(CancellationToken cancellationToken);
+    IAsyncEnumerable<FunctionAppFetchResult> FetchFunctionAppDetailsAsync(CancellationToken cancellationToken);
     List<FunctionAppDetails> GetFunctionsFromDatabase();
 
-    IAsyncEnumerable<FunctionAppDetails> FetchSpecificFunctionAppDetailsAsync(
+    IAsyncEnumerable<FunctionAppFetchResult> FetchSpecificFunctionAppDetailsAsync(
         IEnumerable<FunctionAppDetails> functionAppDetails, CancellationToken cancellationToken);
 
     Task RemoveFunctionsFromDatabase(IEnumerable<FunctionAppDetails> removedFunctionApps);
