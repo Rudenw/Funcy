@@ -1,15 +1,13 @@
 using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
 using Funcy.Console.Ui;
-using Funcy.Console.Ui.Panels;
 using Funcy.Infrastructure.Azure;
-using Spectre.Console.Rendering;
 
 namespace Funcy.Console;
 
 using Spectre.Console;
 
-public class MainMenuService(
+public class AppOrchestrator(
     IAzureSubscriptionService subscriptionService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
@@ -50,7 +48,7 @@ public class MainMenuService(
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
     {
-        var mainLayout = _mainContainer.BuildMainLayout();
+        var mainLayout = _mainContainer.MainLayout;
 
         while (true)
         {

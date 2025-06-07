@@ -29,6 +29,9 @@ namespace Funcy.Data.Migrations
                     b.Property<long?>("FunctionAppId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("FunctionAppId1")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -40,6 +43,8 @@ namespace Funcy.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FunctionAppId");
+
+                    b.HasIndex("FunctionAppId1");
 
                     b.ToTable("Functions");
                 });
@@ -96,6 +101,9 @@ namespace Funcy.Data.Migrations
                     b.Property<long?>("FunctionAppId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("FunctionAppId1")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -108,23 +116,35 @@ namespace Funcy.Data.Migrations
 
                     b.HasIndex("FunctionAppId");
 
+                    b.HasIndex("FunctionAppId1");
+
                     b.ToTable("FunctionAppSlots");
                 });
 
             modelBuilder.Entity("Funcy.Data.Entities.Function", b =>
                 {
-                    b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
+                    b.HasOne("Funcy.Data.Entities.FunctionApp", null)
                         .WithMany("Functions")
-                        .HasForeignKey("FunctionAppId");
+                        .HasForeignKey("FunctionAppId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
+                        .WithMany()
+                        .HasForeignKey("FunctionAppId1");
 
                     b.Navigation("FunctionApp");
                 });
 
             modelBuilder.Entity("Funcy.Data.Entities.FunctionAppSlot", b =>
                 {
-                    b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
+                    b.HasOne("Funcy.Data.Entities.FunctionApp", null)
                         .WithMany("Slots")
-                        .HasForeignKey("FunctionAppId");
+                        .HasForeignKey("FunctionAppId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.HasOne("Funcy.Data.Entities.FunctionApp", "FunctionApp")
+                        .WithMany()
+                        .HasForeignKey("FunctionAppId1");
 
                     b.Navigation("FunctionApp");
                 });

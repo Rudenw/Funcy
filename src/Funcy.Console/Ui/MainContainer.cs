@@ -15,7 +15,9 @@ public class MainContainer
     private readonly FunctionAppPanel _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private readonly SlotPanel _slotPanel;
+    private SlotPanel? _slotPanel;
+    private readonly Stack<IPanelController> _bodyPanelStack = new();
+    public readonly Layout MainLayout;
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
@@ -23,7 +25,15 @@ public class MainContainer
     {
         _topPanel = new TopPanel(subscriptionName);
         _functionListPanel = new FunctionAppPanel(functionApps);
-        _slotPanel = new SlotPanel([new DeploymentSlotDetails { Name = "Test", State = "Running" }]);
+        _bodyPanelStack.Push(_functionListPanel);
+        
+        MainLayout = new Layout("Main Layout")
+            .SplitRows(
+                new Layout("TopPanel").Size(4),
+                new Layout("BodyPanel")
+            );
+
+        RefreshMainLayout();
         
         functionStateCoordinator.OnFunctionAppUpdated += details =>
         {
@@ -48,9 +58,10 @@ public class MainContainer
         _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    public IRenderable BuildMainLayout()
+    public void RefreshMainLayout()
     {
-        return new Rows(_topPanel.Panel, _functionListPanel.Panel);
+        MainLayout["TopPanel"].Update(_topPanel.Panel);
+        MainLayout["BodyPanel"].Update(_bodyPanelStack.Peek().Panel);
     }
 
     public InputActionResult? HandleInput(ConsoleKeyInfo keyInfo)
@@ -59,8 +70,19 @@ public class MainContainer
 
         if (action is not null)
         {
-            var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
-            return new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails);
+            if (action == FunctionAction.Swap)
+            {
+                var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
+                _slotPanel = new SlotPanel(selectedFunctionAppDetails.Slots);
+                _bodyPanelStack.Push(_slotPanel);
+                RefreshMainLayout();
+                return null;
+            }
+            else
+            {
+                var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
+                return new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails);
+            }
         }
 
         _topPanel.SetSearchText(_searchInput.SearchMarkup);

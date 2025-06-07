@@ -27,7 +27,7 @@ public class AzureFunctionService(
     public List<FunctionAppDetails> GetFunctionsFromDatabase()
     {
         using var dbContext = dbContextFactory.CreateDbContext(); 
-        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Select(x => x.Map()).ToList();
+        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots).Select(x => x.Map()).ToList();
         functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
         return functionAppList;
     }

@@ -47,7 +47,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<ResizeHandler>();
         services.AddTransient<FunctionActionHandler>();
         services.AddSingleton<FunctionStateCoordinator>();
-        services.AddTransient<MainMenuService>();
+        services.AddTransient<AppOrchestrator>();
         services.AddTransient<IAzureFunctionService, AzureFunctionService>();
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
@@ -60,7 +60,7 @@ var host = Host.CreateDefaultBuilder(args)
     .Build();
 
 // Hämta vår service från DI-containern
-var mainMenuService = host.Services.GetRequiredService<MainMenuService>();
+var mainMenuService = host.Services.GetRequiredService<AppOrchestrator>();
 await mainMenuService.StartAsync();
 
 await host.RunAsync();

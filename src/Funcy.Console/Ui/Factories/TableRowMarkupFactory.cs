@@ -29,7 +29,7 @@ public static class TableRowMarkupFactory
         
     }
     
-    public static TableRowMarkup Create(DeploymentSlotDetails slotDetails)
+    public static TableRowMarkup Create(FunctionAppSlotDetails slotDetails)
     {
         var tableRowMarkup = new TableRowMarkup
         {

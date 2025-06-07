@@ -43,7 +43,7 @@ public class FunctionAppUpdateHandler
             }
         }
         
-         var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
-         await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
+        var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
+        await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
     }
 }

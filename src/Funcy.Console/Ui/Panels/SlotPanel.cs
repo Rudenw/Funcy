@@ -19,7 +19,7 @@ public class SlotPanel : IPanelController
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
 
-    public SlotPanel(List<DeploymentSlotDetails> slotDetails)
+    public SlotPanel(List<FunctionAppSlotDetails> slotDetails)
     {
         // _dataStore = new FunctionAppDataStore();
         _paginator = new FunctionAppPaginator();
@@ -38,7 +38,7 @@ public class SlotPanel : IPanelController
         ];
     }
     
-    public void UpdateData(List<DeploymentSlotDetails> slotDetails)
+    public void UpdateData(List<FunctionAppSlotDetails> slotDetails)
     {
         // _dataStore.UpdateData(functionAppDetails);
         _paginator.UpdateTotalRows(slotDetails.Count);
@@ -64,7 +64,7 @@ public class SlotPanel : IPanelController
         _renderer.Render(_visibleRows, _paginator.SelectedIndex);
     }
     
-    private void BuildCache(IEnumerable<DeploymentSlotDetails> slotDetails)
+    private void BuildCache(IEnumerable<FunctionAppSlotDetails> slotDetails)
     {
         foreach (var app in slotDetails)
         {
