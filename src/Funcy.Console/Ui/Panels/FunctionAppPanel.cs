@@ -8,7 +8,7 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels;
 
-public class FunctionAppPanel : IPanelController
+public class FunctionAppPanel : IBodyPanelController
 {
     private readonly Dictionary<string, TableRowMarkup> _markupCache = [];
     private List<TableRowMarkup> _visibleRows = [];
@@ -19,6 +19,7 @@ public class FunctionAppPanel : IPanelController
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
     private string _searchText = "";
+    public event Action OnSwap;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
@@ -101,6 +102,11 @@ public class FunctionAppPanel : IPanelController
     {
         var selectedFunctionApp = _visibleRows[_paginator.SelectedIndex].FunctionAppDetails;
         return selectedFunctionApp;
+    }
+
+    public void SwapFunction()
+    {
+        OnSwap();
     }
     
     private void RefreshView()

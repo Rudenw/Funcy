@@ -7,5 +7,6 @@ public class FunctionAppSlot
     public required string Name { get; set; }
     public required string AzureId { get; set; }
     public required string State { get; set; }
+    public long FunctionAppId { get; set; }
     public FunctionApp? FunctionApp { get; set; }
 }

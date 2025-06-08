@@ -8,7 +8,7 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels;
 
-public class SlotPanel : IPanelController
+public class SlotPanel : IBodyPanelController
 {
     private readonly Dictionary<string, TableRowMarkup> _markupCache = [];
     private List<TableRowMarkup> _visibleRows = [];
@@ -34,7 +34,8 @@ public class SlotPanel : IPanelController
     {
         return
         [
-            ((t, isSelected) => t.GetName(isSelected), "Name")
+            ((t, isSelected) => t.GetName(isSelected), "Name"),
+            ((t, isSelected) => t.GetState(isSelected), "State")
         ];
     }
     
@@ -44,6 +45,11 @@ public class SlotPanel : IPanelController
         _paginator.UpdateTotalRows(slotDetails.Count);
         BuildCache(slotDetails);
         RefreshView();
+    }
+
+    public void SetSearchText(string searchText)
+    {
+        throw new NotImplementedException();
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
@@ -57,7 +63,12 @@ public class SlotPanel : IPanelController
 
         _renderer.Render(_visibleRows, _paginator.SelectedIndex);
     }
-    
+
+    public void SwapFunction()
+    {
+        throw new NotImplementedException();
+    }
+
     private void RefreshView()
     {
         _visibleRows = _markupCache.Values.ToList();

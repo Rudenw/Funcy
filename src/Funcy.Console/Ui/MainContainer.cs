@@ -16,8 +16,9 @@ public class MainContainer
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private SlotPanel? _slotPanel;
-    private readonly Stack<IPanelController> _bodyPanelStack = new();
+    private readonly Stack<IBodyPanelController> _bodyPanelStack = new();
     public readonly Layout MainLayout;
+    private bool _searchMode;
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
@@ -46,6 +47,14 @@ public class MainContainer
             RemoveFunctionApps([details]);
             _tcs.TrySetResult();
         };
+        
+        _functionListPanel.OnSwap += () =>
+        {
+            var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
+            _slotPanel = new SlotPanel(selectedFunctionAppDetails.SlotsExtra);
+            _bodyPanelStack.Push(_slotPanel);
+            RefreshMainLayout();
+        };
     }
     
     public Task WaitForTriggerAsync()
@@ -66,17 +75,41 @@ public class MainContainer
 
     public InputActionResult? HandleInput(ConsoleKeyInfo keyInfo)
     {
-        var action = _searchInput.HandleInput(keyInfo);
+        FunctionAction? action = null;
+        if (_searchMode)
+        {
+            _searchMode = _searchInput.HandleInput(keyInfo);
+        }
+        else
+        {
+            switch (keyInfo.Key)
+            {
+                case var key when key == Shortcuts.Filter.Key:
+                    _searchMode = true;
+                    _searchInput.InitializeSearchMode();
+                    break;
+                case var key when key == Shortcuts.Start.Key:
+                    action =  FunctionAction.Start;
+                    break;
+                case var key when key == Shortcuts.Stop.Key:
+                    action =  FunctionAction.Stop;
+                    break;
+                case var key when key == Shortcuts.Swap.Key:
+                    action =  FunctionAction.Swap;
+                    break;
+                case ConsoleKey.Delete:
+                    _searchInput.ClearSearchText();
+                    break;
+            }
+        }
+        _topPanel.SetSearchText(_searchInput.SearchMarkup);
+        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText);
 
         if (action is not null)
         {
             if (action == FunctionAction.Swap)
             {
-                var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
-                _slotPanel = new SlotPanel(selectedFunctionAppDetails.Slots);
-                _bodyPanelStack.Push(_slotPanel);
-                RefreshMainLayout();
-                return null;
+                _bodyPanelStack.Peek().SwapFunction();
             }
             else
             {
@@ -85,9 +118,13 @@ public class MainContainer
             }
         }
 
-        _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _functionListPanel.SetSearchText(_searchInput.SearchText);
-        _functionListPanel.HandleInput(keyInfo);
+        if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.Spacebar && _bodyPanelStack.Count > 1)
+        {
+            _bodyPanelStack.Pop();
+            RefreshMainLayout();
+        }
+        
+        _bodyPanelStack.Peek().HandleInput(keyInfo);
 
         return null;
     }

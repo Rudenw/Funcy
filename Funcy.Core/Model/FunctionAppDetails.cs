@@ -9,6 +9,9 @@ public class FunctionAppDetails
     public List<FunctionDetails> Functions { get; init; } = [];
     public required string ResourceGroup { get; init; }
     public required string Subscription { get; init; }
+
+    public List<FunctionAppSlotDetails> SlotsExtra =>
+        [new() { Name = $"{Name} (Production)", State = State }, ..Slots];
     
     public string Id => $"/subscriptions/{Subscription}/resourceGroups/{ResourceGroup}/providers/Microsoft.Web/sites/{Name}";
 }

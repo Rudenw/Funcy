@@ -5,7 +5,7 @@ using Funcy.Console.Ui;
 
 namespace Funcy.Console.Ui.Panels;
 
-public class TopPanel : IPanelController
+public class TopPanel
 {
     private readonly string _subscriptionName;
     private bool _searchMode;

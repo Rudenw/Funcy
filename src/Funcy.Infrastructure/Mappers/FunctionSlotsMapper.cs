@@ -9,7 +9,7 @@ public static class FunctionSlotsMapper
     {
         return new FunctionAppSlotDetails
         {
-            Name = slot.Name,
+            Name = slot.FullName,
             State = slot.State
         };
     }
