@@ -19,7 +19,7 @@ public class FunctionAppPanel : IBodyPanelController
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
     private string _searchText = "";
-    public event Action OnSwap;
+    public event Action? OnSwap;
 
     public FunctionAppPanel(List<FunctionAppDetails> functionAppDetails)
     {
@@ -94,8 +94,11 @@ public class FunctionAppPanel : IBodyPanelController
     
     public void SetSearchText(string searchText)
     {
-        _searchText = searchText.Trim();
-        RefreshView();
+        if (!_searchText.Equals(searchText.Trim()))
+        {
+            _searchText = searchText.Trim();
+            RefreshView();    
+        }
     }
 
     public FunctionAppDetails GetSelectedFunctionAppDetails()
@@ -106,7 +109,7 @@ public class FunctionAppPanel : IBodyPanelController
 
     public void SwapFunction()
     {
-        OnSwap();
+        OnSwap?.Invoke();
     }
     
     private void RefreshView()

@@ -49,7 +49,7 @@ public class FunctionActionHandler(
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
         _currentTasks.TryAdd(name, dispatchedFunction);
-        dispatchedFunction.FunctionAppDetails.State = dispatchedFunction.Action.GetActivatedState();
+        dispatchedFunction.FunctionAppDetails.State = dispatchedFunction.Action.GetActivatingState();
         await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails);
     }
     

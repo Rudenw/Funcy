@@ -15,13 +15,13 @@ public class SlotPanel : IBodyPanelController
     
     public Panel Panel { get; private set; }
     
-    // private readonly FunctionAppDataStore _dataStore;
     private readonly FunctionAppPaginator _paginator;
     private readonly FunctionAppTableRenderer _renderer;
+    
+    public event Action? OnSwap;
 
     public SlotPanel(List<FunctionAppSlotDetails> slotDetails)
     {
-        // _dataStore = new FunctionAppDataStore();
         _paginator = new FunctionAppPaginator();
         _renderer = new FunctionAppTableRenderer(CreateTableColumns());
         Panel = new Panel(_renderer.Table)
@@ -41,15 +41,9 @@ public class SlotPanel : IBodyPanelController
     
     public void UpdateData(List<FunctionAppSlotDetails> slotDetails)
     {
-        // _dataStore.UpdateData(functionAppDetails);
         _paginator.UpdateTotalRows(slotDetails.Count);
         BuildCache(slotDetails);
         RefreshView();
-    }
-
-    public void SetSearchText(string searchText)
-    {
-        throw new NotImplementedException();
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
@@ -66,7 +60,7 @@ public class SlotPanel : IBodyPanelController
 
     public void SwapFunction()
     {
-        throw new NotImplementedException();
+        OnSwap?.Invoke();
     }
 
     private void RefreshView()

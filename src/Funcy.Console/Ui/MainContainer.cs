@@ -15,7 +15,7 @@ public class MainContainer
     private readonly FunctionAppPanel _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    private SlotPanel? _slotPanel;
+    private readonly SlotPanel _slotPanel;
     private readonly Stack<IBodyPanelController> _bodyPanelStack = new();
     public readonly Layout MainLayout;
     private bool _searchMode;
@@ -26,6 +26,8 @@ public class MainContainer
     {
         _topPanel = new TopPanel(subscriptionName);
         _functionListPanel = new FunctionAppPanel(functionApps);
+        _slotPanel = new SlotPanel([]);
+        
         _bodyPanelStack.Push(_functionListPanel);
         
         MainLayout = new Layout("Main Layout")
@@ -51,9 +53,14 @@ public class MainContainer
         _functionListPanel.OnSwap += () =>
         {
             var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
-            _slotPanel = new SlotPanel(selectedFunctionAppDetails.SlotsExtra);
+            _slotPanel.UpdateData(selectedFunctionAppDetails.SlotsExtra);
             _bodyPanelStack.Push(_slotPanel);
             RefreshMainLayout();
+        };
+        
+        _slotPanel.OnSwap += () =>
+        {
+
         };
     }
     
@@ -102,8 +109,9 @@ public class MainContainer
                     break;
             }
         }
+        
         _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText);
+        _functionListPanel.SetSearchText(_searchInput.SearchText);
 
         if (action is not null)
         {
@@ -133,13 +141,13 @@ public class MainContainer
     {
         _functionListPanel.HandleResize();
     }
-    
-    public void UpdatePartialData(List<FunctionAppDetails> functionApps)
+
+    private void UpdatePartialData(List<FunctionAppDetails> functionApps)
     {
         _functionListPanel.UpdatePartialData(functionApps);
     }
 
-    public void RemoveFunctionApps(List<FunctionAppDetails> removed)
+    private void RemoveFunctionApps(List<FunctionAppDetails> removed)
     {
         _functionListPanel.RemoveFunctionApps(removed);
     }
