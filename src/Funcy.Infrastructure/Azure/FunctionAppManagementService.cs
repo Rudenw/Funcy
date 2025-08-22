@@ -1,10 +1,13 @@
+using Azure;
 using Azure.Core;
 using Azure.Identity;
 using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
+using Azure.ResourceManager.AppService.Models;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Funcy.Data;
+using Funcy.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +21,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StartAsync();
-        await UpdateFunctionApp(functionAppDetails, "Running");
+        await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetRealState());
         logger.LogInformation("Started Function App: {FunctionAppName}", functionAppDetails.Name);
     }
 
@@ -26,11 +29,11 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StopAsync();
-        await UpdateFunctionApp(functionAppDetails, "Stopped");
+        await UpdateFunctionApp(functionAppDetails, FunctionAction.Stop.GetRealState());
         logger.LogInformation("Stopped Function App: {FunctionAppName}", functionAppDetails.Name);
     }
 
-    private async Task UpdateFunctionApp(FunctionAppDetails functionAppDetails, string state)
+    private async Task UpdateFunctionApp(FunctionAppDetails functionAppDetails, RealState state)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
@@ -47,8 +50,30 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
         }
     }
 
-    public async Task SwapFunction(FunctionAppDetails functionAppDetails)
+    public async Task SwapFunction(FunctionAppDetails functionAppDetails, FunctionAppSlotDetails functionAppSlot)
     {
-        throw new NotImplementedException();
+        try
+        {
+            var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
+            
+            var stagingResource = _client.GetWebSiteSlotResource(ResourceIdentifier.Parse(functionAppSlot.Id));
+
+            //StartSlotAsync doesn't always return and can sit and idle forever. Use non-async method
+            stagingResource.StartSlot();
+        
+            await webSiteResource.SwapSlotWithProductionAsync(WaitUntil.Completed,
+                new CsmSlotEntity(functionAppSlot.Name, true));
+            
+            await stagingResource.StopSlotAsync();
+        
+            await UpdateFunctionApp(functionAppDetails, FunctionAction.Swap.GetRealState());
+            logger.LogInformation("Swapped Function App: {FunctionAppName}", functionAppDetails.Name);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error while swapping {FunctionAppName}",  functionAppDetails.Name);
+            throw;
+        }
+
     }
 }

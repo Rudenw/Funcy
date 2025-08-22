@@ -10,7 +10,7 @@ public static class FunctionAppDetailsMapper
         return new FunctionAppDetails
         {
             Name = functionApp.Name,
-            State = functionApp.State,
+            State = new FunctionState { RealState = functionApp.State },
             System = functionApp.System,
             ResourceGroup = functionApp.ResourceGroup,
             Subscription = functionApp.Subscription,

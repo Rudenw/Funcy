@@ -9,8 +9,10 @@ public static class FunctionSlotsMapper
     {
         return new FunctionAppSlotDetails
         {
-            Name = slot.FullName,
-            State = slot.State
+            Id = slot.AzureId,
+            FullName = slot.FullName,
+            Name = slot.Name,
+            State = new FunctionState { RealState = slot.State }
         };
     }
 }

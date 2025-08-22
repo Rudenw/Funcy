@@ -1,7 +1,6 @@
-using System.Text;
 using Spectre.Console;
-using Spectre.Console.Rendering;
-using Funcy.Console.Ui;
+using Funcy.Core.Model;
+
 
 namespace Funcy.Console.Ui.Panels;
 
@@ -9,7 +8,7 @@ public class TopPanel
 {
     private readonly string _subscriptionName;
     private bool _searchMode;
-    private Table _table;
+    private readonly Table _table;
     public Panel Panel { get; }
 
     public TopPanel(string subscriptionName)
@@ -59,9 +58,34 @@ public class TopPanel
     {
         UpdateSearchCell(searchMarkup);
     }
+
+    public void FunctionAppState(FunctionState state)
+    {
+        SwitchStartShortcut(state.CanStart());
+        SwitchStopShortcut(state.CanStop());
+        SwitchSwapShortcut(state.CanSwap());
+    }
     
     private void UpdateSearchCell(Markup searchText)
     {
         _table.Rows.Update(1, 1, searchText);
+    }
+
+    private void SwitchStartShortcut(bool isEnabled)
+    {
+        _table.Rows.Update(1, 2,
+            UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label, isEnabled));
+    }
+    
+    private void SwitchStopShortcut(bool isEnabled)
+    {
+        _table.Rows.Update(1, 3,
+            UiStyles.CreateShortcutMarkup(Shortcuts.Stop.DisplayChar, Shortcuts.Stop.Label, isEnabled));
+    }
+    
+    private void SwitchSwapShortcut(bool isEnabled)
+    {
+        _table.Rows.Update(0, 3,
+            UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label, isEnabled));
     }
 }

@@ -20,7 +20,7 @@ public class AppOrchestrator(
     public async Task StartAsync()
     {
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
-        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator);
+        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator, actionHandler);
 
         var cts = new CancellationTokenSource();
         
@@ -63,13 +63,8 @@ public class AppOrchestrator(
 
                     if (inputHandler.IsTriggered)
                     {
-                        var inputResult = _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
+                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
                         inputHandler.ResetTrigger();
-
-                        if (inputResult is not null)
-                        {
-                            _ = actionHandler.Dispatch(inputResult);
-                        }
                     }
                     
                     if (resizeHandler.IsTriggered)

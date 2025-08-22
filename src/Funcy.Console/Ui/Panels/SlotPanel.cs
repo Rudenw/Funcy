@@ -57,6 +57,12 @@ public class SlotPanel : IBodyPanelController
 
         _renderer.Render(_visibleRows, _paginator.SelectedIndex);
     }
+    
+    public FunctionAppSlotDetails GetSelectedSlot()
+    {
+        var selectedSlot = _visibleRows[_paginator.SelectedIndex].SlotDetails;
+        return selectedSlot;
+    }
 
     public void SwapFunction()
     {
@@ -73,7 +79,7 @@ public class SlotPanel : IBodyPanelController
     {
         foreach (var app in slotDetails)
         {
-            _markupCache[app.Name] = TableRowMarkupFactory.Create(app);
+            _markupCache[app.FullName] = TableRowMarkupFactory.Create(app);
         }
     }
 }

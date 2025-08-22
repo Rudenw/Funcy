@@ -6,5 +6,5 @@ public interface IFunctionAppManagementService
 {
     Task StartFunction(FunctionAppDetails functionAppDetails);
     Task StopFunction(FunctionAppDetails functionAppDetails);
-    Task SwapFunction(FunctionAppDetails functionAppDetails);
+    Task SwapFunction(FunctionAppDetails functionAppDetails, FunctionAppSlotDetails functionAppSlot);
 }

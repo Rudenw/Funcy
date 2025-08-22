@@ -16,14 +16,15 @@ public static class TableRowMarkupFactory
             SelectedExpanded = new Markup(canExpand ? "▾" : " "),
             SelectedUnexpanded = UiStyles.CreateSelectedCell(canExpand ? "▸" : " "),
             SelectedName = UiStyles.CreateSelectedCell(app.Name),
-            SelectedState = UiStyles.CreateSelectedCell(app.State),
+            SelectedState = UiStyles.CreateSelectedCell(app.State.ToDisplayLabel()),
             SelectedSystem = UiStyles.CreateSelectedCell(app.System),
             UnselectedExpanded = new Markup(canExpand ? "▾" : " "),
             UnselectedUnexpanded = new Markup(canExpand ? "▸" : " "),
             UnselectedName = new Markup(app.Name),
-            UnselectedState = UiStyles.CreateStatusCell(app.State),
+            UnselectedState = UiStyles.CreateStatusCell(app.State.ToDisplayLabel()),
             UnselectedSystem = new Markup(app.System),
-            FunctionAppDetails = app
+            FunctionAppDetails = app,
+            SlotDetails = null!
         };
         return tableRowMarkup;
         
@@ -36,15 +37,16 @@ public static class TableRowMarkupFactory
             CanExpand = false,
             SelectedExpanded = new Markup(""),
             SelectedUnexpanded = UiStyles.CreateSelectedCell(""),
-            SelectedName = UiStyles.CreateSelectedCell(slotDetails.Name),
-            SelectedState = UiStyles.CreateSelectedCell(slotDetails.State),
+            SelectedName = UiStyles.CreateSelectedCell(slotDetails.FullName),
+            SelectedState = UiStyles.CreateSelectedCell(slotDetails.State.ToDisplayLabel()),
             SelectedSystem = new Markup(""),
             UnselectedExpanded = new Markup(""),
             UnselectedUnexpanded = new Markup(""),
-            UnselectedName = new Markup(slotDetails.Name),
-            UnselectedState = UiStyles.CreateStatusCell(slotDetails.State),
+            UnselectedName = new Markup(slotDetails.FullName),
+            UnselectedState = UiStyles.CreateStatusCell(slotDetails.State.ToDisplayLabel()),
             UnselectedSystem = new Markup(""),
             FunctionAppDetails = null!,
+            SlotDetails = slotDetails
             
         };
         return tableRowMarkup;

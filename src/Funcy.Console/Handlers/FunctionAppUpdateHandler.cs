@@ -1,4 +1,5 @@
 using Funcy.Console.Concurrency;
+using Funcy.Console.Handlers.Models;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 
@@ -39,11 +40,21 @@ public class FunctionAppUpdateHandler
             existingFunctionAppNames.Add(newApp.Name);
             if (newApp.IsSuccess)
             {
-                await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!);                
+                await _functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp.Details!));                
             }
         }
         
         var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
         await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
+    }
+    
+    private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
+    {
+        return new FunctionAppUpdate()
+        {
+            FunctionAppDetails = functionAppDetails,
+            Source = UpdateSource.Update,
+            IsSwapping = functionAppDetails.State.TransientState == TransientState.Swapping
+        };
     }
 }

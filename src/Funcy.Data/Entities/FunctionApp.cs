@@ -1,3 +1,5 @@
+using Funcy.Core.Model;
+
 namespace Funcy.Data.Entities;
 
 public class FunctionApp
@@ -8,7 +10,7 @@ public class FunctionApp
     public string System { get; set; }
     public string ResourceGroup { get; set; }
     public string Subscription { get; set; }
-    public string State { get; set; }
+    public RealState State { get; set; }
     public List<Function> Functions { get; set; } = [];
     public List<FunctionAppSlot> Slots { get; set; } = [];
 }

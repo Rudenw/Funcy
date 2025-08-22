@@ -1,13 +1,14 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using Funcy.Console.Handlers.Models;
 using Funcy.Core.Model;
 
 namespace Funcy.Console.Concurrency;
 
 public class FunctionStateCoordinator
 {
-    private readonly Channel<FunctionAppDetails> _updateChannel = Channel.CreateUnbounded<FunctionAppDetails>();
-    private readonly Channel<FunctionAppDetails> _removeChannel = Channel.CreateUnbounded<FunctionAppDetails>();
+    private readonly Channel<FunctionAppUpdate> _updateChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
+    private readonly Channel<FunctionAppUpdate> _removeChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
     
     private readonly ConcurrentDictionary<string, FunctionAppDetails> _cache = new();
     
@@ -34,12 +35,12 @@ public class FunctionStateCoordinator
         return _cache.Values.ToList();
     }
 
-    public async Task PublishUpdateAsync(FunctionAppDetails details)
+    public async Task PublishUpdateAsync(FunctionAppUpdate details)
     {
         await _updateChannel.Writer.WriteAsync(details);
     }
 
-    private async Task PublishRemoveAsync(FunctionAppDetails removedApp)
+    private async Task PublishRemoveAsync(FunctionAppUpdate removedApp)
     {
         await _removeChannel.Writer.WriteAsync(removedApp);
     }
@@ -49,7 +50,11 @@ public class FunctionStateCoordinator
         var removedFunctions = _cache.Keys.Except(existingFunctionAppNames).Select(functionApp => _cache[functionApp]).ToList();
         foreach (var removedFunction in removedFunctions)
         {
-            await PublishRemoveAsync(removedFunction);
+            await PublishRemoveAsync(new FunctionAppUpdate
+            {
+                FunctionAppDetails = removedFunction,
+                Source = UpdateSource.Update
+            });
         }
 
         return removedFunctions;
@@ -59,13 +64,17 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            if (_cache.TryGetValue(update.Name, out var old) && update.Equals(old)) continue;
+            var isSwapping = _cache[update.FunctionAppDetails.Name].State.TransientState == TransientState.Swapping;
+            if (isSwapping && update.Source == UpdateSource.Update)
+            {
+                continue;
+            }
             
-            _cache[update.Name] = update;
+            _cache[update.FunctionAppDetails.Name] = update.FunctionAppDetails;
             await _uiUpdateLock.WaitAsync();
             try
             {
-                OnFunctionAppUpdated?.Invoke(update);
+                OnFunctionAppUpdated?.Invoke(update.FunctionAppDetails);
             }
             finally
             {
@@ -78,12 +87,12 @@ public class FunctionStateCoordinator
     {
         await foreach (var removedApp in _removeChannel.Reader.ReadAllAsync())
         {
-            _cache.TryRemove(removedApp.Name, out _);
+            _cache.TryRemove(removedApp.FunctionAppDetails.Name, out _);
 
             await _uiUpdateLock.WaitAsync();
             try
             {
-                OnFunctionAppRemoved?.Invoke(removedApp);
+                OnFunctionAppRemoved?.Invoke(removedApp.FunctionAppDetails);
             }
             finally
             {

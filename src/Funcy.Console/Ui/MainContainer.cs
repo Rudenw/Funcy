@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Funcy.Console.Concurrency;
+using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
@@ -11,6 +12,7 @@ namespace Funcy.Console.Ui;
 
 public class MainContainer
 {
+    private readonly FunctionActionHandler _functionActionHandler;
     private readonly TopPanel _topPanel;
     private readonly FunctionAppPanel _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
@@ -22,8 +24,10 @@ public class MainContainer
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
-        FunctionStateCoordinator functionStateCoordinator)
+        FunctionStateCoordinator functionStateCoordinator,
+        FunctionActionHandler functionActionHandler)
     {
+        _functionActionHandler = functionActionHandler;
         _topPanel = new TopPanel(subscriptionName);
         _functionListPanel = new FunctionAppPanel(functionApps);
         _slotPanel = new SlotPanel([]);
@@ -52,15 +56,25 @@ public class MainContainer
         
         _functionListPanel.OnSwap += () =>
         {
-            var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
-            _slotPanel.UpdateData(selectedFunctionAppDetails.SlotsExtra);
-            _bodyPanelStack.Push(_slotPanel);
-            RefreshMainLayout();
+            var selectedFunctionApp = _functionListPanel.GetSelectedFunctionAppDetails();
+            if (selectedFunctionApp.Slots.Count == 1)
+            {
+                var slotDetails = selectedFunctionApp.Slots[0];
+                _ = _functionActionHandler.Dispatch(new InputActionResult(FunctionAction.Swap, selectedFunctionApp, slotDetails));
+            }
+            else
+            {
+                _slotPanel.UpdateData(selectedFunctionApp.SlotsExtra);
+                _bodyPanelStack.Push(_slotPanel);
+                RefreshMainLayout();
+            }
         };
         
         _slotPanel.OnSwap += () =>
         {
-
+            var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
+            var selectedSlotDetails = _slotPanel.GetSelectedSlot();
+            _ = _functionActionHandler.Dispatch(new InputActionResult(FunctionAction.Swap, selectedFunctionAppDetails, selectedSlotDetails));
         };
     }
     
@@ -74,13 +88,13 @@ public class MainContainer
         _tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
-    public void RefreshMainLayout()
+    private void RefreshMainLayout()
     {
         MainLayout["TopPanel"].Update(_topPanel.Panel);
         MainLayout["BodyPanel"].Update(_bodyPanelStack.Peek().Panel);
     }
 
-    public InputActionResult? HandleInput(ConsoleKeyInfo keyInfo)
+    public void HandleInput(ConsoleKeyInfo keyInfo)
     {
         FunctionAction? action = null;
         if (_searchMode)
@@ -122,7 +136,7 @@ public class MainContainer
             else
             {
                 var selectedFunctionAppDetails = _functionListPanel.GetSelectedFunctionAppDetails();
-                return new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails);
+                _ = _functionActionHandler.Dispatch(new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails));
             }
         }
 
@@ -133,8 +147,6 @@ public class MainContainer
         }
         
         _bodyPanelStack.Peek().HandleInput(keyInfo);
-
-        return null;
     }
 
     public void HandleResize()

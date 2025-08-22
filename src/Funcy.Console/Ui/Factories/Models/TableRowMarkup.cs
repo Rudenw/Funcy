@@ -24,5 +24,6 @@ public record TableRowMarkup
     public Markup GetExpanded(bool isSelected) => isSelected ? SelectedExpanded : UnselectedExpanded;
     public Markup GetUnexpanded(bool isSelected) => isSelected ? SelectedUnexpanded : UnselectedUnexpanded;
     
-    public required FunctionAppDetails FunctionAppDetails { get; set; }
+    public required FunctionAppDetails FunctionAppDetails { get; init; }
+    public required FunctionAppSlotDetails SlotDetails { get; init; }
 }

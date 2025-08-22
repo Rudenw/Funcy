@@ -28,8 +28,13 @@ public class FunctionActionHandler(
                         {
                             if (task.RunningTask.IsCompletedSuccessfully)
                             {
-                                task.FunctionAppDetails.State = task.Action.GetActivatedState();
-                                await functionStateCoordinator.PublishUpdateAsync(task.FunctionAppDetails);
+                                if (task.Action != FunctionAction.Swap)
+                                {
+                                    task.FunctionAppDetails.State.RealState = task.Action.GetRealState();
+                                }
+                                
+                                task.FunctionAppDetails.State.TransientState = TransientState.None;
+                                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(task.FunctionAppDetails));
                             }
                             else
                             {
@@ -49,8 +54,22 @@ public class FunctionActionHandler(
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
         _currentTasks.TryAdd(name, dispatchedFunction);
-        dispatchedFunction.FunctionAppDetails.State = dispatchedFunction.Action.GetActivatingState();
-        await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails);
+        var transientState = dispatchedFunction.Action.GetTransientState();
+        if (dispatchedFunction.FunctionAppDetails.State.TransientState != transientState)
+        {
+            dispatchedFunction.FunctionAppDetails.State.TransientState = transientState;
+            await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
+        }
+    }
+
+    private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
+    {
+        return new FunctionAppUpdate()
+        {
+            FunctionAppDetails = functionAppDetails,
+            Source = UpdateSource.Action,
+            IsSwapping = functionAppDetails.State.TransientState == TransientState.Swapping
+        };
     }
     
     public async Task Dispatch(InputActionResult inputResult)
@@ -59,7 +78,7 @@ public class FunctionActionHandler(
         {
             FunctionAction.Start => functionAppManagement.StartFunction(inputResult.FunctionAppDetails),
             FunctionAction.Stop => functionAppManagement.StopFunction(inputResult.FunctionAppDetails),
-            FunctionAction.Swap => functionAppManagement.SwapFunction(inputResult.FunctionAppDetails),
+            FunctionAction.Swap => functionAppManagement.SwapFunction(inputResult.FunctionAppDetails, inputResult.SlotDetails),
             _ => null!
         };
 

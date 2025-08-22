@@ -11,8 +11,8 @@ public static class UiStyles
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
-    public static Markup CreateShortcutMarkup(string shortcut, string description)
-        => new($"[{Shortcut}]<{shortcut}>[/] [{Hint}]{description}[/]");
+    public static Markup CreateShortcutMarkup(string shortcut, string description, bool isEnabled = true)
+        => new($"[{(isEnabled ? Shortcut : Hint)}]<{shortcut}>[/] [{Hint}]{description}[/]");
 
     public static string CreateDangerText(string text) => $"[{Danger}]{text}[/]";
 
