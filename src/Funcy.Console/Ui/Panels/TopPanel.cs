@@ -7,7 +7,6 @@ namespace Funcy.Console.Ui.Panels;
 public class TopPanel
 {
     private readonly string _subscriptionName;
-    private bool _searchMode;
     private readonly Table _table;
     public Panel Panel { get; }
 

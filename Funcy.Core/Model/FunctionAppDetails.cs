@@ -1,8 +1,9 @@
 namespace Funcy.Core.Model;
 
-public class FunctionAppDetails
+public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
 {
     public required string Name { get; init; }
+    public string Key => Name;
     public required FunctionState State { get; set; }
     public required string System { get; init; }
     public List<FunctionAppSlotDetails> Slots { get; init; } = [];
@@ -14,6 +15,16 @@ public class FunctionAppDetails
         [new() { FullName = $"{Name} (Production)", Name = "Production", State = State, Id = ""}, ..Slots];
     
     public string Id => $"/subscriptions/{Subscription}/resourceGroups/{ResourceGroup}/providers/Microsoft.Web/sites/{Name}";
-    
-    
+
+
+    public int CompareTo(FunctionAppDetails? other)
+    {
+        if (other is null)
+        {
+            return 1;
+        }
+        
+        var bySystem = StringComparer.Ordinal.Compare(System, other.System);
+        return bySystem != 0 ? bySystem : StringComparer.Ordinal.Compare(Name, other.Name);
+    }
 }

@@ -1,6 +1,6 @@
 namespace Funcy.Console.Ui.Pagination;
 
-public class FunctionAppPaginator()
+public class ListPanelPaginator()
 {
     public int SelectedIndex { get; private set; }
     public int VisibleStartIndex{ get; private set; }
