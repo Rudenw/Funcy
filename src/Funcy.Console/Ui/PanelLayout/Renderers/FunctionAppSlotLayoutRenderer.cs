@@ -12,7 +12,7 @@ public class FunctionAppSlotLayoutRenderer: ILayoutRenderer<FunctionAppSlotDetai
             Key = item.Key
         };
         rowMarkup.Add("Name", new RowCell(UiStyles.CreateSelectedCell(item.Name), new Markup(item.Name)));
-        rowMarkup.Add("State", new RowCell(UiStyles.CreateSelectedCell(item.State.ToDisplayLabel()), UiStyles.CreateStatusCell(item.State.ToDisplayLabel())));
+        rowMarkup.Add("State", new RowCell(UiStyles.CreateSelectedCell(item.State.ToDisplayLabel()), UiStyles.CreateStateCell(item.State)));
         
         return rowMarkup;
     }

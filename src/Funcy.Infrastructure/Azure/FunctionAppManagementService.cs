@@ -21,7 +21,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StartAsync();
-        await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetRealState());
+        await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetFunctionState());
         logger.LogInformation("Started Function App: {FunctionAppName}", functionAppDetails.Name);
     }
 
@@ -29,11 +29,11 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StopAsync();
-        await UpdateFunctionApp(functionAppDetails, FunctionAction.Stop.GetRealState());
+        await UpdateFunctionApp(functionAppDetails, FunctionAction.Stop.GetFunctionState());
         logger.LogInformation("Stopped Function App: {FunctionAppName}", functionAppDetails.Name);
     }
 
-    private async Task UpdateFunctionApp(FunctionAppDetails functionAppDetails, RealState state)
+    private async Task UpdateFunctionApp(FunctionAppDetails functionAppDetails, FunctionState state)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
 
@@ -66,7 +66,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
             
             await stagingResource.StopSlotAsync();
         
-            await UpdateFunctionApp(functionAppDetails, FunctionAction.Swap.GetRealState());
+            await UpdateFunctionApp(functionAppDetails, FunctionAction.Swap.GetFunctionState());
             logger.LogInformation("Swapped Function App: {FunctionAppName}", functionAppDetails.Name);
         }
         catch (Exception e)

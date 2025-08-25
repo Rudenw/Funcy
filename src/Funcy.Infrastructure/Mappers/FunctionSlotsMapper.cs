@@ -12,7 +12,7 @@ public static class FunctionSlotsMapper
             Id = slot.AzureId,
             FullName = slot.FullName,
             Name = slot.Name,
-            State = new FunctionState { RealState = slot.State }
+            State = slot.State
         };
     }
 }

@@ -184,7 +184,7 @@ public class AzureFunctionService(
             var sw = Stopwatch.StartNew();
             var slots = webSite.GetWebSiteSlots();
             slotList = Enumerable.Select(slots,
-                slot => new FunctionAppSlot { FullName = slot.Data.Name, Name = slot.Id.Name, AzureId = slot.Id.ToString(), State = Enum.Parse<RealState>(slot.Data.State) }).ToList();
+                slot => new FunctionAppSlot { FullName = slot.Data.Name, Name = slot.Id.Name, AzureId = slot.Id.ToString(), State = Enum.Parse<FunctionState>(slot.Data.State) }).ToList();
             sw.Stop();
             logger.LogInformation("Fetched slot list for {FunctionAppName} in {ElapsedMilliseconds}ms", webSite.Data.Name, sw.ElapsedMilliseconds);
         }
@@ -205,7 +205,7 @@ public class AzureFunctionService(
             {
                 AzureId = webSite.Id.ToString(),
                 Name = webSite.Data.Name,
-                State = Enum.Parse<RealState>(webSite.Data.State),
+                State = Enum.Parse<FunctionState>(webSite.Data.State),
                 System = systemName ?? string.Empty,
                 Subscription = webSite.Id?.SubscriptionId ?? string.Empty,
                 ResourceGroup = webSite.Data.ResourceGroup,
@@ -217,7 +217,7 @@ public class AzureFunctionService(
         else
         {
             functionApp.AzureId = webSite.Id.ToString();
-            functionApp.State = Enum.Parse<RealState>(webSite.Data.State);
+            functionApp.State = Enum.Parse<FunctionState>(webSite.Data.State);
 
             if (functionList is not null)
             {

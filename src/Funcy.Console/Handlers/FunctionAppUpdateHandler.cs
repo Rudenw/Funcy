@@ -53,8 +53,7 @@ public class FunctionAppUpdateHandler
         return new FunctionAppUpdate()
         {
             FunctionAppDetails = functionAppDetails,
-            Source = UpdateSource.Update,
-            IsSwapping = functionAppDetails.State.TransientState == TransientState.Swapping
+            Source = UpdateSource.Database
         };
     }
 }

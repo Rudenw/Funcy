@@ -9,23 +9,12 @@ public enum FunctionAction
 
 public static class FunctionActionExtensions
 {
-    public static TransientState GetTransientState(this FunctionAction action)
+    public static FunctionState GetFunctionState(this FunctionAction action)
     {
         return action switch
         {
-            FunctionAction.Start => TransientState.Starting,
-            FunctionAction.Stop => TransientState.Stopping,
-            FunctionAction.Swap => TransientState.Swapping,
-            _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
-        };
-    }
-    
-    public static RealState GetRealState(this FunctionAction action)
-    {
-        return action switch
-        {
-            FunctionAction.Start => RealState.Running,
-            FunctionAction.Stop => RealState.Stopped,
+            FunctionAction.Start => FunctionState.Running,
+            FunctionAction.Stop => FunctionState.Stopped,
             _ => throw new ArgumentOutOfRangeException(nameof(action), action, null)
         };
     }

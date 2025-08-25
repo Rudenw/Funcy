@@ -1,3 +1,4 @@
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
@@ -21,6 +22,11 @@ public static class UiStyles
     public static Markup CreateSelectedCell(string text)
         => new("[black on yellow]" + text + "[/]");
 
-    public static Markup CreateStatusCell(string state)
-        => new($"[bold {UiHelper.GetStatusColor(state)}]{state}[/]");
+    public static Markup CreateStateCell(FunctionState state)
+        => new($"[bold {UiHelper.GetStateColor(state)}]{state.ToDisplayLabel()}[/]");
+
+    public static Markup CreateStatusCell(FunctionStatus status)
+    {
+        return new Markup($"[bold {UiHelper.GetStatusColor(status)}]{status.ToDisplayLabel()}[/]");
+    }
 }

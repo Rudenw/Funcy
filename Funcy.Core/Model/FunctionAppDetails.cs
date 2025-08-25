@@ -5,6 +5,7 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
     public required string Name { get; init; }
     public string Key => Name;
     public required FunctionState State { get; set; }
+    public FunctionStatus Status { get; set; } = new();
     public required string System { get; init; }
     public List<FunctionAppSlotDetails> Slots { get; init; } = [];
     public List<FunctionDetails> Functions { get; init; } = [];

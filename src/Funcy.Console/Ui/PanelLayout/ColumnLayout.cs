@@ -2,8 +2,7 @@ namespace Funcy.Console.Ui.PanelLayout;
 
 public sealed record Column(string Header);
 
-public sealed class ColumnLayout
+public sealed class ColumnLayout(params Column[] columns)
 {
-    public IReadOnlyList<Column> Columns { get; }
-    public ColumnLayout(params Column[] columns) => Columns = columns;
+    public IReadOnlyList<Column> Columns { get; } = columns;
 }

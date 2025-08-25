@@ -53,7 +53,7 @@ public class FunctionStateCoordinator
             await PublishRemoveAsync(new FunctionAppUpdate
             {
                 FunctionAppDetails = removedFunction,
-                Source = UpdateSource.Update
+                Source = UpdateSource.Database
             });
         }
 
@@ -64,8 +64,8 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            var isSwapping = _cache[update.FunctionAppDetails.Name].State.TransientState == TransientState.Swapping;
-            if (isSwapping && update.Source == UpdateSource.Update)
+            var isSwapping = _cache[update.FunctionAppDetails.Name].Status.IsSwapping;
+            if (isSwapping && update.Source == UpdateSource.Database)
             {
                 continue;
             }

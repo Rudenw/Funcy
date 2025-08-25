@@ -28,17 +28,19 @@ public class FunctionActionHandler(
                         {
                             if (task.RunningTask.IsCompletedSuccessfully)
                             {
-                                if (task.Action != FunctionAction.Swap)
-                                {
-                                    task.FunctionAppDetails.State.RealState = task.Action.GetRealState();
-                                }
+                                task.FunctionAppDetails.State = task.Action.GetFunctionState();
                                 
-                                task.FunctionAppDetails.State.TransientState = TransientState.None;
+                                task.FunctionAppDetails.Status.Status = StatusType.Success;
+                                task.FunctionAppDetails.Status.Action = null;
+                                
                                 await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(task.FunctionAppDetails));
                             }
                             else
                             {
-                                //TODO: handle errors
+                                task.FunctionAppDetails.Status.Status = StatusType.Error;
+                                task.FunctionAppDetails.Status.Action = null;
+                                
+                                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(task.FunctionAppDetails));
                             }
                             
                             _currentTasks.TryRemove(key, out _);
@@ -54,21 +56,21 @@ public class FunctionActionHandler(
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
         _currentTasks.TryAdd(name, dispatchedFunction);
-        var transientState = dispatchedFunction.Action.GetTransientState();
-        if (dispatchedFunction.FunctionAppDetails.State.TransientState != transientState)
+        if (dispatchedFunction.FunctionAppDetails.Status.Status != StatusType.InProgress)
         {
-            dispatchedFunction.FunctionAppDetails.State.TransientState = transientState;
+            dispatchedFunction.FunctionAppDetails.Status.Status = StatusType.InProgress;
+            dispatchedFunction.FunctionAppDetails.Status.Action = dispatchedFunction.Action;
+            
             await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
         }
     }
 
     private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
     {
-        return new FunctionAppUpdate()
+        return new FunctionAppUpdate
         {
             FunctionAppDetails = functionAppDetails,
-            Source = UpdateSource.Action,
-            IsSwapping = functionAppDetails.State.TransientState == TransientState.Swapping
+            Source = UpdateSource.Action
         };
     }
     

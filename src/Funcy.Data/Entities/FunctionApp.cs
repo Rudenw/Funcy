@@ -10,7 +10,7 @@ public class FunctionApp
     public string System { get; set; }
     public string ResourceGroup { get; set; }
     public string Subscription { get; set; }
-    public RealState State { get; set; }
+    public FunctionState State { get; set; }
     public List<Function> Functions { get; set; } = [];
     public List<FunctionAppSlot> Slots { get; set; } = [];
 }

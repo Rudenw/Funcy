@@ -1,11 +1,29 @@
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
 
 public static class UiHelper
 {
-    public static Color GetStatusColor(string state)
+    public static Color GetStateColor(FunctionState state)
     {
-        return state == "Running" ? Color.Green : Color.Red;
+        return state switch
+        {
+            FunctionState.Running => Color.Green,
+            FunctionState.Stopped => Color.Red,
+            _ => Color.White
+        };
     }
+    
+    public static Color GetStatusColor(FunctionStatus status)
+    {
+        return status.Status switch
+        {
+            StatusType.Success => Color.Green,
+            StatusType.Error => Color.Red,
+            _ => Color.White
+        };
+    }
+    
+    
 }

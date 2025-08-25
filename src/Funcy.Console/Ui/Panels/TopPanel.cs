@@ -60,9 +60,9 @@ public class TopPanel
 
     public void FunctionAppState(FunctionState state)
     {
-        SwitchStartShortcut(state.CanStart());
-        SwitchStopShortcut(state.CanStop());
-        SwitchSwapShortcut(state.CanSwap());
+        // SwitchStartShortcut(state.CanStart());
+        // SwitchStopShortcut(state.CanStop());
+        // SwitchSwapShortcut(state.CanSwap());
     }
     
     private void UpdateSearchCell(Markup searchText)
