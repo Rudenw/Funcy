@@ -54,6 +54,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         try
         {
+            await Task.Yield();
             var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
             
             var stagingResource = _client.GetWebSiteSlotResource(ResourceIdentifier.Parse(functionAppSlot.Id));
@@ -65,8 +66,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
                 new CsmSlotEntity(functionAppSlot.Name, true));
             
             await stagingResource.StopSlotAsync();
-        
-            await UpdateFunctionApp(functionAppDetails, FunctionAction.Swap.GetFunctionState());
+            
             logger.LogInformation("Swapped Function App: {FunctionAppName}", functionAppDetails.Name);
         }
         catch (Exception e)

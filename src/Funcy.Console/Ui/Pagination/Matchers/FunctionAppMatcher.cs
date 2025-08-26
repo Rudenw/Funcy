@@ -7,16 +7,19 @@ public class FunctionAppMatcher : ISearchMatcher<FunctionAppDetails>
 {
     public bool TryMatch(FunctionAppDetails app, string input)
     {
-        if (app.Name.Contains(input, StringComparison.OrdinalIgnoreCase))
+        foreach (string searchTerm in input.Split(' '))
         {
-            return true;
+            var match = false;
+            match |= app.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+            match |= !string.IsNullOrWhiteSpace(app.System) && app.System.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+            match |= app.Functions.Any(f => f.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+
+            if (!match)
+            {
+                return false;
+            }
         }
 
-        if (!string.IsNullOrWhiteSpace(app.System) && app.System.Contains(input, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return app.Functions.Any(f => f.Name.Contains(input, StringComparison.OrdinalIgnoreCase));
+        return true;
     }
 }

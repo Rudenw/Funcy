@@ -21,6 +21,6 @@ public class FunctionAppLayoutRenderer: ILayoutRenderer<FunctionAppDetails>
 
     public ColumnLayout CreateColumnLayout()
     {
-        return new ColumnLayout(new Column("Name"), new Column("System"), new Column("State"), new Column("Status"));
+        return new ColumnLayout(new Column("Name", 40), new Column("System", 10), new Column("State", 10), new Column("Status", 20));
     }
 }

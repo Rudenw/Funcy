@@ -14,11 +14,14 @@ public class MainContainer
 {
     private readonly FunctionActionHandler _functionActionHandler;
     private readonly TopPanel _topPanel;
-    private readonly ListPanel<FunctionAppDetails> _functionListPanel;
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    
+    private readonly ListPanel<FunctionAppDetails> _functionAppListPanel;
+    private readonly ListPanel<FunctionDetails> _functionListPanel;
     private readonly ListPanel<FunctionAppSlotDetails> _slotPanel;
     private readonly Stack<IListPanel> _bodyPanelStack = new();
+    
     public readonly Layout MainLayout;
     private bool _searchMode;
 
@@ -29,12 +32,14 @@ public class MainContainer
     {
         _functionActionHandler = functionActionHandler;
         _topPanel = new TopPanel(subscriptionName);
-        _functionListPanel = new ListPanel<FunctionAppDetails>(functionApps, new FunctionAppMatcher(),
+        _functionAppListPanel = new ListPanel<FunctionAppDetails>(functionApps, new FunctionAppMatcher(),
             new FunctionAppLayoutRenderer(), "Azure Function Apps");
         _slotPanel = new ListPanel<FunctionAppSlotDetails>([], new FunctionAppSlotMatcher(),
             new FunctionAppSlotLayoutRenderer(), "Azure Function Apps Slots");
+        _functionListPanel = new ListPanel<FunctionDetails>([], new FunctionMatcher(),
+            new FunctionLayoutRenderer(), "Azure Function");
         
-        _bodyPanelStack.Push(_functionListPanel);
+        _bodyPanelStack.Push(_functionAppListPanel);
         
         MainLayout = new Layout("Main Layout")
             .SplitRows(
@@ -100,11 +105,14 @@ public class MainContainer
                 case ConsoleKey.Delete:
                     _searchInput.ClearSearchText();
                     break;
+                case ConsoleKey.Enter:
+                    PushNextPanel();
+                    break;
             }
         }
         
         _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _functionListPanel.SetSearchText(_searchInput.SearchText);
+        _functionAppListPanel.SetSearchText(_searchInput.SearchText);
 
         if (action is not null)
         {
@@ -114,7 +122,7 @@ public class MainContainer
             }
             else
             {
-                var selectedFunctionAppDetails = _functionListPanel.GetSelectedItem();
+                var selectedFunctionAppDetails = _functionAppListPanel.GetSelectedItem();
                 ArgumentNullException.ThrowIfNull(selectedFunctionAppDetails);
                 _ = _functionActionHandler.Dispatch(new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails));
             }
@@ -129,11 +137,22 @@ public class MainContainer
         _bodyPanelStack.Peek().HandleInput(keyInfo);
     }
 
+    private void PushNextPanel()
+    {
+        //TODO: should work for all panels obv
+        var selectedFunctionApp = _functionAppListPanel.GetSelectedItem();
+        _functionListPanel.UpdateData(selectedFunctionApp.Functions);
+        _bodyPanelStack.Push(_functionListPanel);
+        _viewMode = ViewMode.Functions;
+        RefreshMainLayout();
+    }
+
     //TODO: betterize
     public enum ViewMode
     {
         FunctionApps,
-        Slots
+        Slots,
+        Functions
     }
     
     private ViewMode _viewMode { get; set; }
@@ -142,7 +161,7 @@ public class MainContainer
     {
         if (_viewMode == ViewMode.FunctionApps)
         {
-            var selectedFunctionApp = _functionListPanel.GetSelectedItem();
+            var selectedFunctionApp = _functionAppListPanel.GetSelectedItem();
             ArgumentNullException.ThrowIfNull(selectedFunctionApp);
             
             if (selectedFunctionApp.Slots.Count == 1)
@@ -161,7 +180,7 @@ public class MainContainer
 
         if (_viewMode == ViewMode.Slots)
         {
-            var selectedFunctionAppDetails = _functionListPanel.GetSelectedItem();
+            var selectedFunctionAppDetails = _functionAppListPanel.GetSelectedItem();
             ArgumentNullException.ThrowIfNull(selectedFunctionAppDetails);
             
             var selectedSlotDetails = _slotPanel.GetSelectedItem();
@@ -177,11 +196,11 @@ public class MainContainer
 
     private void UpdatePartialData(List<FunctionAppDetails> functionApps)
     {
-        _functionListPanel.UpdatePartialData(functionApps);
+        _functionAppListPanel.UpdatePartialData(functionApps);
     }
 
     private void RemoveFunctionApps(List<FunctionAppDetails> removed)
     {
-        _functionListPanel.RemoveItems(removed);
+        _functionAppListPanel.RemoveItems(removed);
     }
 }

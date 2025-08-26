@@ -9,7 +9,7 @@ public class ListPanelTableRenderer
     private readonly IReadOnlyList<Column> _columns;
     public Table Table { get; set; }
     
-    public ListPanelTableRenderer(ColumnLayout columnLayout, int width = 100)
+    public ListPanelTableRenderer(ColumnLayout columnLayout, int width = 110)
     {
         Table = new Table();
         Table.Border(TableBorder.None);
@@ -17,7 +17,13 @@ public class ListPanelTableRenderer
         _columns = columnLayout.Columns;
         foreach (var column in _columns)
         {
-            Table.AddColumn(UiStyles.CreateHeaderText(column.Header));
+            var tableColumn = new TableColumn(UiStyles.CreateHeaderText(column.Header));
+            if (column.Width > 0)
+            {
+                tableColumn.Width(column.Width);
+            }
+
+            Table.AddColumn(tableColumn);
         }
     }
 
@@ -31,7 +37,6 @@ public class ListPanelTableRenderer
             List<IRenderable> markupsToRender = [];
             foreach (var column in _columns)
             {
-                
                 markupsToRender.Add(row.GetCell(column.Header, i == selectedIndex));
             }
 

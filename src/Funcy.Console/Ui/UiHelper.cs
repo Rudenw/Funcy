@@ -17,6 +17,11 @@ public static class UiHelper
     
     public static Color GetStatusColor(FunctionStatus status)
     {
+        if (status.HasBeenSwapped)
+        {
+            return Color.DarkGreen;
+        }
+        
         return status.Status switch
         {
             StatusType.Success => Color.Green,

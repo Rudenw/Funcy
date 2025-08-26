@@ -9,6 +9,7 @@ public static class FunctionDetailsMapper
     {
         return new FunctionDetails
         {
+            FunctionAppName = function.FunctionApp?.Name ?? string.Empty,
             Name = function.Name,
             Trigger = function.Trigger
         };
