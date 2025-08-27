@@ -11,6 +11,7 @@ using Funcy.Data;
 using Funcy.Infrastructure.Azure;
 using LazyCache;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -35,6 +36,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
         {
+            options.ConfigureWarnings(warnings =>
+                warnings.Ignore(RelationalEventId.NonTransactionalMigrationOperationWarning));
             options.UseSqlite(context.Configuration.GetConnectionString("DefaultConnection"))
                 .UseLoggerFactory(LoggerFactory.Create(builder =>
                 {
