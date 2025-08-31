@@ -1,0 +1,52 @@
+using Funcy.Console.Concurrency;
+using Funcy.Console.Ui.Panels.GenericTestPanel;
+using Funcy.Core.Model;
+
+namespace Funcy.Console.Ui.Controllers;
+
+// C#
+public sealed class FunctionAppListController : ListPanelControllerBase<FunctionAppDetails>
+{
+    private readonly FunctionStateCoordinator _coordinator;
+    private readonly Action? _invalidate;
+
+    public FunctionAppListController(IListPanelView<FunctionAppDetails> view,
+        IEnumerable<FunctionAppDetails> initial,
+        FunctionStateCoordinator coordinator,
+        Action? invalidate = null)
+        : base(view)
+    {
+        _coordinator = coordinator;
+        _invalidate = invalidate;
+
+        // Init-snapshot
+        Store.UpdateAll(initial);
+        PushSnapshotToView();
+        _invalidate?.Invoke();
+
+        // Abonnera på uppdateringar
+        _coordinator.OnFunctionAppUpdated += OnUpdated;
+        _coordinator.OnFunctionAppRemoved += OnRemoved;
+    }
+
+    private void OnUpdated(FunctionAppDetails updated)
+    {
+        Store.UpsertMany([updated]);
+        PushSnapshotToView();
+        _invalidate?.Invoke();
+    }
+
+    private void OnRemoved(FunctionAppDetails removed)
+    {
+        Store.RemoveMany([removed]);
+        PushSnapshotToView();
+        _invalidate?.Invoke();
+    }
+
+    public override void Dispose()
+    {
+        _coordinator.OnFunctionAppUpdated -= OnUpdated;
+        _coordinator.OnFunctionAppRemoved -= OnRemoved;
+        base.Dispose();
+    }
+}

@@ -20,6 +20,7 @@ public class AppOrchestrator(
     public async Task StartAsync()
     {
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
+        
         _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator, actionHandler);
 
         var cts = new CancellationTokenSource();

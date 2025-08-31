@@ -1,29 +1,29 @@
 using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
+using Funcy.Console.Ui.Controllers;
+using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Input;
-using Funcy.Console.Ui.Pagination;
-using Funcy.Console.Ui.PanelLayout.Renderers;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.GenericTestPanel;
+using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
 
-public class MainContainer
+public class MainContainer : IDisposable
 {
     private readonly FunctionActionHandler _functionActionHandler;
     private readonly TopPanel _topPanel;
     private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    private readonly ListPanel<FunctionAppDetails> _functionAppListPanel;
-    private readonly ListPanel<FunctionDetails> _functionListPanel;
-    private readonly ListPanel<FunctionAppSlotDetails> _slotPanel;
     private readonly Stack<IListPanel> _bodyPanelStack = new();
     
     public readonly Layout MainLayout;
     private bool _searchMode;
+    private readonly ListPanelFactory _listPanelFactory;
+    private readonly IListController _rootController;
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
@@ -32,14 +32,17 @@ public class MainContainer
     {
         _functionActionHandler = functionActionHandler;
         _topPanel = new TopPanel(subscriptionName);
-        _functionAppListPanel = new ListPanel<FunctionAppDetails>(functionApps, new FunctionAppMatcher(),
-            new FunctionAppLayoutRenderer(), "Azure Function Apps");
-        _slotPanel = new ListPanel<FunctionAppSlotDetails>([], new FunctionAppSlotMatcher(),
-            new FunctionAppSlotLayoutRenderer(), "Azure Function Apps Slots");
-        _functionListPanel = new ListPanel<FunctionDetails>([], new FunctionMatcher(),
-            new FunctionLayoutRenderer(), "Azure Function");
-        
-        _bodyPanelStack.Push(_functionAppListPanel);
+
+        _listPanelFactory = new ListPanelFactory(functionStateCoordinator.TryGet);
+        var functionAppListPanel = _listPanelFactory.CreateFunctionAppPanel(functionApps);
+        _rootController = new FunctionAppListController(
+            (IListPanelView<FunctionAppDetails>) functionAppListPanel,
+            functionApps,
+            functionStateCoordinator,
+            invalidate: () => _tcs.TrySetResult()
+        );
+
+        _bodyPanelStack.Push(functionAppListPanel);
         
         MainLayout = new Layout("Main Layout")
             .SplitRows(
@@ -48,18 +51,6 @@ public class MainContainer
             );
 
         RefreshMainLayout();
-        
-        functionStateCoordinator.OnFunctionAppUpdated += details =>
-        {
-            UpdatePartialData([details]);
-            _tcs.TrySetResult();
-        };
-        
-        functionStateCoordinator.OnFunctionAppRemoved += details =>
-        {
-            RemoveFunctionApps([details]);
-            _tcs.TrySetResult();
-        };
     }
     
     public Task WaitForTriggerAsync()
@@ -112,19 +103,24 @@ public class MainContainer
         }
         
         _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _functionAppListPanel.SetSearchText(_searchInput.SearchText);
+        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText);
 
         if (action is not null)
         {
-            if (action == FunctionAction.Swap)
+            var current = _bodyPanelStack.Peek();
+            if (current is IActionHandlingPanel actionPanel &&
+                actionPanel.TryBuildAction(action.Value, out var input))
             {
-                HandleSwap();
+                _ = _functionActionHandler.Dispatch(input);
             }
             else
             {
-                var selectedFunctionAppDetails = _functionAppListPanel.GetSelectedItem();
-                ArgumentNullException.ThrowIfNull(selectedFunctionAppDetails);
-                _ = _functionActionHandler.Dispatch(new InputActionResult(action.GetValueOrDefault(), selectedFunctionAppDetails));
+                if (current.TryGetActionNavigationRequest(out var navigationRequest) && navigationRequest is not null)
+                {
+                    var nextPanel = _listPanelFactory.Create(navigationRequest);
+                    _bodyPanelStack.Push(nextPanel);
+                    RefreshMainLayout();
+                }
             }
         }
 
@@ -139,54 +135,12 @@ public class MainContainer
 
     private void PushNextPanel()
     {
-        //TODO: should work for all panels obv
-        var selectedFunctionApp = _functionAppListPanel.GetSelectedItem();
-        _functionListPanel.UpdateData(selectedFunctionApp.Functions);
-        _bodyPanelStack.Push(_functionListPanel);
-        _viewMode = ViewMode.Functions;
-        RefreshMainLayout();
-    }
-
-    //TODO: betterize
-    public enum ViewMode
-    {
-        FunctionApps,
-        Slots,
-        Functions
-    }
-    
-    private ViewMode _viewMode { get; set; }
-    
-    private void HandleSwap()
-    {
-        if (_viewMode == ViewMode.FunctionApps)
+        if (_bodyPanelStack.Peek().TryGetNavigationRequest(out var navigationRequest) && navigationRequest is not null)
         {
-            var selectedFunctionApp = _functionAppListPanel.GetSelectedItem();
-            ArgumentNullException.ThrowIfNull(selectedFunctionApp);
-            
-            if (selectedFunctionApp.Slots.Count == 1)
-            {
-                var slotDetails = selectedFunctionApp.Slots[0];
-                _ = _functionActionHandler.Dispatch(new InputActionResult(FunctionAction.Swap, selectedFunctionApp, slotDetails));
-            }
-            else
-            {
-                _slotPanel.UpdateData(selectedFunctionApp.SlotsExtra);
-                _bodyPanelStack.Push(_slotPanel);
-                _viewMode = ViewMode.Slots;
-                RefreshMainLayout();
-            }
+            var nextPanel = _listPanelFactory.Create(navigationRequest);
+            _bodyPanelStack.Push(nextPanel);
+            RefreshMainLayout();
         }
-
-        if (_viewMode == ViewMode.Slots)
-        {
-            var selectedFunctionAppDetails = _functionAppListPanel.GetSelectedItem();
-            ArgumentNullException.ThrowIfNull(selectedFunctionAppDetails);
-            
-            var selectedSlotDetails = _slotPanel.GetSelectedItem();
-            _ = _functionActionHandler.Dispatch(new InputActionResult(FunctionAction.Swap, selectedFunctionAppDetails, selectedSlotDetails));
-        }
-
     }
 
     public void HandleResize()
@@ -194,13 +148,8 @@ public class MainContainer
         _bodyPanelStack.Peek().HandleResize();
     }
 
-    private void UpdatePartialData(List<FunctionAppDetails> functionApps)
+    public void Dispose()
     {
-        _functionAppListPanel.UpdatePartialData(functionApps);
-    }
-
-    private void RemoveFunctionApps(List<FunctionAppDetails> removed)
-    {
-        _functionAppListPanel.RemoveItems(removed);
+        _rootController.Dispose();
     }
 }

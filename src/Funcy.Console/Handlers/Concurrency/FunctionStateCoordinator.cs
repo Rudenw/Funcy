@@ -34,6 +34,12 @@ public class FunctionStateCoordinator
     {
         return _cache.Values.ToList();
     }
+    
+    public FunctionAppDetails? TryGet(string key)
+    {
+        _cache.TryGetValue(key, out var app);
+        return app;
+    }
 
     public async Task PublishUpdateAsync(FunctionAppUpdate details)
     {

@@ -1,16 +1,24 @@
+using Funcy.Console.Ui.Input;
+using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
 using Funcy.Console.Ui.PanelLayout;
 using Funcy.Console.Ui.PanelLayout.Renderers;
+using Funcy.Console.Ui.Panels.GenericTestPanel;
+using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Renderers;
 using Funcy.Core.Model;
 using Spectre.Console;
 
-namespace Funcy.Console.Ui.Panels.GenericTestPanel;
+namespace Funcy.Console.Ui.Panels;
 
-public class ListPanel<T> : IListPanel where T : IComparable<T>, IHasKey
+public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T : IComparable<T>, IHasKey
 {
     private readonly ISearchMatcher<T> _searchMatcher;
     private readonly ILayoutRenderer<T> _layoutRenderer;
+    private readonly Func<T, NavigationRequest?>? _onEnterNavigation;
+    private readonly Func<T, NavigationRequest?>? _onActionNavigation;
+    private readonly Func<FunctionAction, T, InputActionResult?>? _onAction; 
+
     private readonly Dictionary<string, RowMarkup> _markupCache = [];
     private List<RowMarkup> _visibleRows = [];
     
@@ -22,40 +30,28 @@ public class ListPanel<T> : IListPanel where T : IComparable<T>, IHasKey
     private string _searchText = "";
     private IReadOnlyList<T> _snapshot = [];
 
-    public ListPanel(List<T> listObjects, ISearchMatcher<T> searchMatcher, ILayoutRenderer<T> layoutRenderer, string header)
+    public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
+        ILayoutRenderer<T> layoutRenderer, Func<T, NavigationRequest>? onEnterNavigation, string header,
+        Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation)
+
     {
         _searchMatcher = searchMatcher;
         _layoutRenderer = layoutRenderer;
+        _onEnterNavigation = onEnterNavigation;
+        _onAction = onAction;
+        _onActionNavigation = onActionNavigation;
         _dataStore = new ListPanelDataStore<T>();
         _paginator = new ListPanelPaginator();
         _renderer = new ListPanelTableRenderer(_layoutRenderer.CreateColumnLayout());
         Panel = new Panel(_renderer.Table)
             .Header(header, Justify.Center)
             .BorderColor(Color.Orange1);
-        UpdateData(listObjects);
+        SetItems(listObjects);
     }
     
-    public void UpdateData(List<T> listObjects)
+    public void SetItems(IReadOnlyList<T> items)
     {
-        _dataStore.UpdateAll(listObjects);
-        _snapshot = _dataStore.Snapshot();
-        _paginator.UpdateTotalRows(_dataStore.Count);
-        BuildCache(_dataStore.Snapshot());
-        RefreshView();
-    }
-    
-    public void UpdatePartialData(List<T> listObjects)
-    {
-        _dataStore.UpsertMany(listObjects);
-        _snapshot = _dataStore.Snapshot();
-        _paginator.UpdateTotalRows(_dataStore.Count);
-        BuildCache(listObjects);
-        RefreshView();
-    }
-    
-    public void RemoveItems(List<T> removed)
-    {
-        _dataStore.RemoveMany(removed);
+        _dataStore.UpdateAll(items);
         _snapshot = _dataStore.Snapshot();
         _paginator.UpdateTotalRows(_dataStore.Count);
         BuildCache(_dataStore.Snapshot());
@@ -144,11 +140,52 @@ public class ListPanel<T> : IListPanel where T : IComparable<T>, IHasKey
             _markupCache[app.Key] = _layoutRenderer.CreateRowMarkup(app);
         }
     }
-}
+    public bool TryGetNavigationRequest(out NavigationRequest? navigationRequest)
+    {
+        navigationRequest = null;
+        if (_onEnterNavigation is null)
+        {
+            return false;
+        }
 
-public interface IListPanel
-{
-    void HandleResize();
-    Panel Panel { get; }
-    void HandleInput(ConsoleKeyInfo keyInfo);
+        var selectedItem = GetSelectedItem();
+        ArgumentNullException.ThrowIfNull(selectedItem);
+        navigationRequest = _onEnterNavigation(selectedItem);
+        return navigationRequest is not null;
+    }
+    
+    public bool TryGetActionNavigationRequest(out NavigationRequest? navigationRequest)
+    {
+        navigationRequest = null;
+        if (_onActionNavigation is null)
+        {
+            return false;
+        }
+
+        var selectedItem = GetSelectedItem();
+        ArgumentNullException.ThrowIfNull(selectedItem);
+
+        navigationRequest = _onActionNavigation(selectedItem);
+        return navigationRequest is not null;
+    }
+    
+    public bool TryBuildAction(FunctionAction action, out InputActionResult result)
+    {
+        result = default;
+        if (_onAction is null)
+            return false;
+
+        var selected = GetSelectedItem();
+        if (selected is null)
+            return false;
+
+        var built = _onAction(action, selected);
+        if (built is null)
+            return false;
+
+        result = built;
+        return true;
+    }
+
+
 }
