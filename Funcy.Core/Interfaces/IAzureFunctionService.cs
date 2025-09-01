@@ -6,7 +6,7 @@ namespace Funcy.Core.Interfaces;
 public interface IAzureFunctionService
 {
     IAsyncEnumerable<FunctionAppFetchResult> FetchFunctionAppDetailsAsync(CancellationToken cancellationToken);
-    List<FunctionAppDetails> GetFunctionsFromDatabase();
+    Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken);
 
     IAsyncEnumerable<FunctionAppFetchResult> FetchSpecificFunctionAppDetailsAsync(
         IEnumerable<FunctionAppDetails> functionAppDetails, CancellationToken cancellationToken);

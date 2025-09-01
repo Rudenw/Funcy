@@ -5,5 +5,5 @@ namespace Funcy.Console.Ui.Panels.Interfaces;
 
 public interface IActionHandlingPanel
 {
-    bool TryBuildAction(FunctionAction action, out InputActionResult result);
+    bool TryBuildAction(FunctionAction action, out InputActionResult? result);
 }

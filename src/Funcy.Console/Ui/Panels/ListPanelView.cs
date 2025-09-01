@@ -169,9 +169,9 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         return navigationRequest is not null;
     }
     
-    public bool TryBuildAction(FunctionAction action, out InputActionResult result)
+    public bool TryBuildAction(FunctionAction action, out InputActionResult? result)
     {
-        result = default;
+        result = null;
         if (_onAction is null)
             return false;
 

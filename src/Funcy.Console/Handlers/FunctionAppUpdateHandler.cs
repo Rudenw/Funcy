@@ -5,17 +5,14 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Handlers;
 
-public class FunctionAppUpdateHandler
+public class FunctionAppUpdateHandler(
+    IAzureFunctionService functionService,
+    FunctionStateCoordinator functionStateCoordinator)
 {
-    private readonly IAzureFunctionService _functionService;
-    private readonly FunctionStateCoordinator _functionStateCoordinator;
-
-    public FunctionAppUpdateHandler(IAzureFunctionService functionService, FunctionStateCoordinator functionStateCoordinator)
+    public async Task InitializeAsync(CancellationToken token)
     {
-        _functionService = functionService;
-        _functionStateCoordinator = functionStateCoordinator;
-        var functionsFromDatabase = functionService.GetFunctionsFromDatabase();
-        _functionStateCoordinator.InitCache(functionsFromDatabase);
+        var functionsFromDatabase = await functionService.GetFunctionsFromDatabase(token);
+        functionStateCoordinator.InitCache(functionsFromDatabase);
     }
 
     public async Task StartListeningAsync(CancellationToken token)
@@ -24,7 +21,7 @@ public class FunctionAppUpdateHandler
         {
             while (!token.IsCancellationRequested)
             {
-                var functionAppDetailsToUpdate = _functionService.FetchFunctionAppDetailsAsync(token);
+                var functionAppDetailsToUpdate = functionService.FetchFunctionAppDetailsAsync(token);
                 await UpdateFunctionAppList(functionAppDetailsToUpdate);
                 
                 await Task.Delay(TimeSpan.FromMinutes(5), token);
@@ -40,12 +37,12 @@ public class FunctionAppUpdateHandler
             existingFunctionAppNames.Add(newApp.Name);
             if (newApp.IsSuccess)
             {
-                await _functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp.Details!));                
+                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp.Details!));                
             }
         }
         
-        var removedFunctions = await _functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
-        await _functionService.RemoveFunctionsFromDatabase(removedFunctions);
+        var removedFunctions = await functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
+        await functionService.RemoveFunctionsFromDatabase(removedFunctions);
     }
     
     private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)

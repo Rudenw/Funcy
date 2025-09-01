@@ -19,11 +19,14 @@ public class AppOrchestrator(
 
     public async Task StartAsync()
     {
+        var cts = new CancellationTokenSource();
+        
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
+        await functionAppUpdateHandler.InitializeAsync(cts.Token);
         
         _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator, actionHandler);
 
-        var cts = new CancellationTokenSource();
+        
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);
         var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);

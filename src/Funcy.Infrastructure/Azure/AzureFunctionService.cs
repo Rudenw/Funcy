@@ -24,12 +24,15 @@ public class AzureFunctionService(
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
 
-    public List<FunctionAppDetails> GetFunctionsFromDatabase()
+    public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken)
     {
-        using var dbContext = dbContextFactory.CreateDbContext(); 
-        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots).Select(x => x.Map()).ToList();
-        functionAppList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
-        return functionAppList;
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
+            .Where(f => f.Subscription == subscriptionId);
+        var functionAppDetailsList = functionAppList.Select(x => x.Map()).ToList();
+        functionAppDetailsList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
+        return functionAppDetailsList;
     }
     
     public async IAsyncEnumerable<FunctionAppFetchResult> FetchFunctionAppDetailsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
