@@ -79,17 +79,17 @@ public class MainContainer : IDisposable
         {
             switch (keyInfo.Key)
             {
-                case var key when key == Shortcuts.Filter.Key:
+                case var key when key == ListPanelShortcuts.Filter.Key:
                     _searchMode = true;
                     _searchInput.InitializeSearchMode();
                     break;
-                case var key when key == Shortcuts.Start.Key:
+                case var key when key == ListPanelShortcuts.Start.Key:
                     action =  FunctionAction.Start;
                     break;
-                case var key when key == Shortcuts.Stop.Key:
+                case var key when key == ListPanelShortcuts.Stop.Key:
                     action =  FunctionAction.Stop;
                     break;
-                case var key when key == Shortcuts.Swap.Key:
+                case var key when key == ListPanelShortcuts.Swap.Key:
                     action =  FunctionAction.Swap;
                     break;
                 case ConsoleKey.Delete:

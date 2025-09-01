@@ -43,48 +43,23 @@ public class TopPanel
             column.Width = 30;
             column.LeftAligned();
         });
-        
-        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"),
-            new Markup($"{_subscriptionName}"), UiStyles.CreateShortcutMarkup(Shortcuts.Filter.DisplayChar, Shortcuts.Filter.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Swap.DisplayChar, Shortcuts.Swap.Label));
-        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label), UiStyles.CreateShortcutMarkup(Shortcuts.Stop.DisplayChar, Shortcuts.Stop.Label));
-    }
 
-    public void HandleInput(ConsoleKeyInfo keyInfo)
-    {
+        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"),
+            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Filter.DisplayChar, ListPanelShortcuts.Filter.Label),
+            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Swap.DisplayChar, ListPanelShortcuts.Swap.Label));
+        
+        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""),
+            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Start.DisplayChar, ListPanelShortcuts.Start.Label),
+            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Stop.DisplayChar, ListPanelShortcuts.Stop.Label));
     }
     
     public void SetSearchText(Markup searchMarkup)
     {
         UpdateSearchCell(searchMarkup);
     }
-
-    public void FunctionAppState(FunctionState state)
-    {
-        // SwitchStartShortcut(state.CanStart());
-        // SwitchStopShortcut(state.CanStop());
-        // SwitchSwapShortcut(state.CanSwap());
-    }
     
     private void UpdateSearchCell(Markup searchText)
     {
         _table.Rows.Update(1, 1, searchText);
-    }
-
-    private void SwitchStartShortcut(bool isEnabled)
-    {
-        _table.Rows.Update(1, 2,
-            UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label, isEnabled));
-    }
-    
-    private void SwitchStopShortcut(bool isEnabled)
-    {
-        _table.Rows.Update(1, 3,
-            UiStyles.CreateShortcutMarkup(Shortcuts.Stop.DisplayChar, Shortcuts.Stop.Label, isEnabled));
-    }
-    
-    private void SwitchSwapShortcut(bool isEnabled)
-    {
-        _table.Rows.Update(0, 3,
-            UiStyles.CreateShortcutMarkup(Shortcuts.Start.DisplayChar, Shortcuts.Start.Label, isEnabled));
     }
 }
