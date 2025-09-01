@@ -60,6 +60,11 @@ public class ListPanelPaginator()
         {
             SelectedIndex = MaxVisibleRows - 1;
         }
+        
+        if (SelectedIndex >= _amountOfRows)
+        {
+            SelectedIndex = _amountOfRows - 1;
+        }
 
         return isVisibleStartIndexChanged;
     }

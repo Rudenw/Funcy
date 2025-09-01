@@ -19,7 +19,7 @@ public static class UiHelper
     {
         if (status.HasBeenSwapped)
         {
-            return Color.DarkGreen;
+            return Color.CornflowerBlue;
         }
         
         return status.Status switch
