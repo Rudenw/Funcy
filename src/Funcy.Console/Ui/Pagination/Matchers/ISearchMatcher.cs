@@ -1,4 +1,4 @@
-namespace Funcy.Console.Ui.Pagination;
+namespace Funcy.Console.Ui.Pagination.Matchers;
 
 public interface ISearchMatcher<in T>
 {

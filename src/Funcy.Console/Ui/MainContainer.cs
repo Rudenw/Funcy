@@ -1,10 +1,9 @@
-using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui.Controllers;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
-using Funcy.Console.Ui.Panels.GenericTestPanel;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 using Spectre.Console;

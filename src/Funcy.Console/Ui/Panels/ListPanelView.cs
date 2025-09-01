@@ -1,9 +1,9 @@
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
+using Funcy.Console.Ui.Pagination.Matchers;
 using Funcy.Console.Ui.PanelLayout;
 using Funcy.Console.Ui.PanelLayout.Renderers;
-using Funcy.Console.Ui.Panels.GenericTestPanel;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Renderers;
 using Funcy.Core.Model;
@@ -24,11 +24,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     
     public Panel Panel { get; }
     
-    private readonly ListPanelDataStore<T> _dataStore;
     private readonly ListPanelPaginator _paginator;
     private readonly ListPanelTableRenderer _renderer;
     private string _searchText = "";
     private IReadOnlyList<T> _snapshot = [];
+    private Dictionary<string, T> _itemIndex = new();
+
 
     public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
         ILayoutRenderer<T> layoutRenderer, Func<T, NavigationRequest>? onEnterNavigation, string header,
@@ -40,7 +41,6 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         _onEnterNavigation = onEnterNavigation;
         _onAction = onAction;
         _onActionNavigation = onActionNavigation;
-        _dataStore = new ListPanelDataStore<T>();
         _paginator = new ListPanelPaginator();
         _renderer = new ListPanelTableRenderer(_layoutRenderer.CreateColumnLayout());
         Panel = new Panel(_renderer.Table)
@@ -51,10 +51,10 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     
     public void SetItems(IReadOnlyList<T> items)
     {
-        _dataStore.UpdateAll(items);
-        _snapshot = _dataStore.Snapshot();
-        _paginator.UpdateTotalRows(_dataStore.Count);
-        BuildCache(_dataStore.Snapshot());
+        _snapshot = items;
+        _paginator.UpdateTotalRows(items.Count);
+        _itemIndex = items.ToDictionary(x => x.Key);
+        BuildCache();
         RefreshView();
     }
     
@@ -92,10 +92,11 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         }
     }
 
-    public T? GetSelectedItem()
+    private T? GetSelectedItem()
     {
         var selectedItemKey = _visibleRows[_paginator.SelectedIndex].Key;
-        return _dataStore.TryGet(selectedItemKey);
+        _itemIndex.TryGetValue(selectedItemKey, out var item);
+        return item;
     }
     
     private void RefreshView()
@@ -121,7 +122,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         }
 
         var filtered = _snapshot
-            .Select(app => new { App = app, IsMatch = _searchMatcher.TryMatch(app, _searchText) }) //Rewrite to generic, but not now
+            .Select(app => new { App = app, IsMatch = _searchMatcher.TryMatch(app, _searchText) })
             .Where(x => x.IsMatch)
             .ToList();
         
@@ -133,9 +134,9 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         );
     }
     
-    private void BuildCache(IReadOnlyList<T> apps)
+    private void BuildCache()
     {
-        foreach (var app in apps)
+        foreach (var app in _snapshot)
         {
             _markupCache[app.Key] = _layoutRenderer.CreateRowMarkup(app);
         }

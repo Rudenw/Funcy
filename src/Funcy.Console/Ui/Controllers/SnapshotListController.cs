@@ -1,4 +1,4 @@
-using Funcy.Console.Ui.Panels.GenericTestPanel;
+using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Controllers;

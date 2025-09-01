@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using Funcy.Console.Concurrency;
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
 using Funcy.Core.Interfaces;

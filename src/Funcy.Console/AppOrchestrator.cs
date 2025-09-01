@@ -1,5 +1,5 @@
-using Funcy.Console.Concurrency;
 using Funcy.Console.Handlers;
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui;
 using Funcy.Infrastructure.Azure;
 

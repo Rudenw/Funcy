@@ -1,8 +1,10 @@
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
+using Funcy.Console.Ui.Pagination.Matchers;
 using Funcy.Console.Ui.PanelLayout.Renderers;
 using Funcy.Console.Ui.Panels;
+using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
@@ -61,7 +63,8 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
                 FunctionAction.Stop  => new InputActionResult(FunctionAction.Stop, app),
                 FunctionAction.Swap  => OnSwapAction(app),
                 _ => null
-            });
+            },
+            f => new NavigationRequest(PanelTarget.Slots, f.Key));
 
     }
 

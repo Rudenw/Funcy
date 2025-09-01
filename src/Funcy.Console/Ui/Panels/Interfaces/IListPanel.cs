@@ -1,7 +1,7 @@
 using Funcy.Console.Ui.Navigation;
 using Spectre.Console;
 
-namespace Funcy.Console.Ui.Panels;
+namespace Funcy.Console.Ui.Panels.Interfaces;
 
 public interface IListPanel
 {

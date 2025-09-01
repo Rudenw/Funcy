@@ -1,6 +1,6 @@
 using Funcy.Core.Model;
 
-namespace Funcy.Console.Ui.Panels.GenericTestPanel;
+namespace Funcy.Console.Ui.Panels;
 
 public class ListPanelDataStore<T> where T : IComparable<T>, IHasKey
 {
@@ -9,19 +9,6 @@ public class ListPanelDataStore<T> where T : IComparable<T>, IHasKey
     private Dictionary<string, T> _items = new();
     private List<T> _sorted = [];
     private bool _dirty = true;
-
-    public int Count
-    {
-        get { lock (_gate) return _items.Count; }
-    }
-    
-    public T? TryGet(string key)
-    {
-        lock (_gate)
-        {
-            return _items.TryGetValue(key, out var item) ? item : default;
-        }
-    }
     
     public void UpdateAll(IEnumerable<T> items)
     {

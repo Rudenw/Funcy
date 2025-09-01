@@ -1,7 +1,6 @@
-using Funcy.Console.Ui.Pagination.Models;
 using Funcy.Core.Model;
 
-namespace Funcy.Console.Ui.Pagination;
+namespace Funcy.Console.Ui.Pagination.Matchers;
 
 public class FunctionAppMatcher : ISearchMatcher<FunctionAppDetails>
 {

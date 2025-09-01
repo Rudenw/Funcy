@@ -1,5 +1,5 @@
-using Funcy.Console.Concurrency;
-using Funcy.Console.Ui.Panels.GenericTestPanel;
+using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Controllers;

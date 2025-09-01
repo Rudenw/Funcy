@@ -3,7 +3,7 @@ using System.Threading.Channels;
 using Funcy.Console.Handlers.Models;
 using Funcy.Core.Model;
 
-namespace Funcy.Console.Concurrency;
+namespace Funcy.Console.Handlers.Concurrency;
 
 public class FunctionStateCoordinator
 {
@@ -70,13 +70,14 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            var isSwapping = _cache[update.FunctionAppDetails.Name].Status.IsSwapping;
-            if (isSwapping && update.Source == UpdateSource.Database)
+            var status = update.FunctionAppDetails.Status;
+            if (update.Source == UpdateSource.Database)
             {
-                continue;
+                status = _cache[update.FunctionAppDetails.Name].Status;
             }
             
             _cache[update.FunctionAppDetails.Name] = update.FunctionAppDetails;
+            _cache[update.FunctionAppDetails.Name].Status = status;
             await _uiUpdateLock.WaitAsync();
             try
             {

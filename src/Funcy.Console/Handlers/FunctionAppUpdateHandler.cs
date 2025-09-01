@@ -1,4 +1,4 @@
-using Funcy.Console.Concurrency;
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
@@ -37,7 +37,7 @@ public class FunctionAppUpdateHandler(
             existingFunctionAppNames.Add(newApp.Name);
             if (newApp.IsSuccess)
             {
-                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp.Details!));                
+                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp.Details!));
             }
         }
         

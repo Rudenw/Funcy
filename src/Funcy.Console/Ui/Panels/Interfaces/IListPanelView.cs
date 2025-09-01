@@ -1,7 +1,6 @@
 using Funcy.Core.Model;
-using Spectre.Console;
 
-namespace Funcy.Console.Ui.Panels.GenericTestPanel;
+namespace Funcy.Console.Ui.Panels.Interfaces;
 
 public interface IListPanelView<in T> : IListPanel where T : IComparable<T>, IHasKey
 {
