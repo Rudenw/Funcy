@@ -10,5 +10,6 @@ public static class ListPanelShortcuts
     public static readonly IReadOnlyList<Shortcut> All = [Filter, Start, Stop, Swap];
 }
 
+public record TableIndex(int Row, int Column);
 public record Shortcut(ConsoleKey Key, string DisplayChar, string Label);
-public record ShortcutMap(Shortcut Shortcut, int TableColumnIndex, int TableRowIndex, bool IsEnabled);
+public record ShortcutMap(Shortcut Shortcut, bool IsEnabled);

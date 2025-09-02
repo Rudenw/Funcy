@@ -1,0 +1,15 @@
+using Funcy.Core.Model;
+
+namespace Funcy.Console.Ui.Shortcuts;
+
+public class FunctionShortcutProvider : IShortcutProvider<FunctionDetails>
+{
+    public Dictionary<TableIndex, ShortcutMap> Describe(FunctionDetails? slotDetails)
+    {
+        var shortcutList = new Dictionary<TableIndex, ShortcutMap>
+        {
+            {new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true)},
+        };
+        return shortcutList;
+    }
+}

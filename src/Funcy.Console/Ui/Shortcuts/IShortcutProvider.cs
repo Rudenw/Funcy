@@ -4,5 +4,5 @@ namespace Funcy.Console.Ui.Shortcuts;
 
 public interface IShortcutProvider<T> where T : IHasKey, IComparable<T>
 {
-    List<ShortcutMap> Describe(T? item);
+    Dictionary<TableIndex, ShortcutMap> Describe(T? item);
 }

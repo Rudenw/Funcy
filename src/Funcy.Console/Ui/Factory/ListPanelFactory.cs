@@ -5,6 +5,7 @@ using Funcy.Console.Ui.Pagination.Matchers;
 using Funcy.Console.Ui.PanelLayout.Renderers;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
+using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
@@ -16,6 +17,7 @@ public interface IPanelFactory
         IReadOnlyList<T> items,
         ISearchMatcher<T> matcher,
         ILayoutRenderer<T> layout,
+        IShortcutProvider<T> shortcuts,
         Func<T, NavigationRequest>? onEnter,
         string header,
         Func<FunctionAction, T, InputActionResult?>? onAction = null,
@@ -33,6 +35,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
         IReadOnlyList<T> items,
         ISearchMatcher<T> matcher,
         ILayoutRenderer<T> layout,
+        IShortcutProvider<T> shortcuts,
         Func<T, NavigationRequest>? onEnter,
         string header,
         Func<FunctionAction, T, InputActionResult?>? onAction = null,
@@ -43,6 +46,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
             items,
             matcher,
             layout,
+            shortcuts,
             onEnter,
             header,
             onAction,
@@ -55,6 +59,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
         return CreateFromList(apps,
             new FunctionAppMatcher(),
             new FunctionAppLayoutRenderer(),
+            new FunctionAppShortcutProvider(),
             f => new NavigationRequest(PanelTarget.Functions, f.Key),
             "Azure Function Apps",
             (act, app) => act switch
@@ -93,6 +98,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
                 return CreateFromList(app.Functions,
                     new FunctionMatcher(),
                     new FunctionLayoutRenderer(),
+                    new FunctionShortcutProvider(),
                     null,
                     "Azure Functions");
             }
@@ -101,6 +107,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) 
                 return CreateFromList(app.Slots,
                     new FunctionAppSlotMatcher(),
                     new FunctionAppSlotLayoutRenderer(),
+                    new FunctionAppSlotShortcutProvider() { FunctionApp = app },
                     null,
                     "Azure Function App Slots",
                     (act, slot) => act == FunctionAction.Swap

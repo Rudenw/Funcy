@@ -6,6 +6,7 @@ public class FunctionAppSlotDetails : IComparable<FunctionAppSlotDetails>, IHasK
     public required string FullName { get; set; }
     public required string Name { get; set; }
     public required FunctionState State { get; set; }
+    public FunctionStatus Status { get; set; } = new();
     public int CompareTo(FunctionAppSlotDetails? other)
     {
         if (other is null)

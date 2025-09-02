@@ -64,8 +64,16 @@ public class MainContainer : IDisposable
 
     private void RefreshMainLayout()
     {
+        UpdateShortcuts();
+
         MainLayout["TopPanel"].Update(_topPanel.Panel);
         MainLayout["BodyPanel"].Update(_bodyPanelStack.Peek().Panel);
+    }
+
+    private void UpdateShortcuts()
+    {
+        var shortcuts = _bodyPanelStack.Peek().GetShortcuts();
+        _topPanel.UpdateShortcuts(shortcuts);
     }
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
@@ -129,7 +137,11 @@ public class MainContainer : IDisposable
             RefreshMainLayout();
         }
         
-        _bodyPanelStack.Peek().HandleInput(keyInfo);
+        if (keyInfo.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
+        {
+            _bodyPanelStack.Peek().HandleInput(keyInfo);
+            UpdateShortcuts();
+        }
     }
 
     private void PushNextPanel()

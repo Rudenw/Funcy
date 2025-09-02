@@ -11,4 +11,5 @@ public interface IListPanel
     void SetSearchText(string searchInputSearchText);
     bool TryGetNavigationRequest(out NavigationRequest? navigationRequest);
     bool TryGetActionNavigationRequest(out NavigationRequest? navigationRequest);
+    Dictionary<TableIndex, ShortcutMap> GetShortcuts();
 }

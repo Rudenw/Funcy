@@ -4,14 +4,14 @@ namespace Funcy.Console.Ui.Shortcuts;
 
 public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
 {
-    public List<ShortcutMap> Describe(FunctionAppDetails? app)
+    public Dictionary<TableIndex, ShortcutMap> Describe(FunctionAppDetails? app)
     {
-        var shortcutList = new List<ShortcutMap>
+        var shortcutList = new Dictionary<TableIndex, ShortcutMap>
         {
-            new(ListPanelShortcuts.Filter, 0, 2, true),
-            new(ListPanelShortcuts.Start, 1, 2, CanStart(app)),
-            new(ListPanelShortcuts.Stop, 1, 3, CanStop(app)),
-            new(ListPanelShortcuts.Swap, 0, 3, CanSwap(app))
+            {new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true)},
+            {new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, CanStart(app))},
+            {new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, CanStop(app))},
+            {new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))}
         };
         return shortcutList;
     }

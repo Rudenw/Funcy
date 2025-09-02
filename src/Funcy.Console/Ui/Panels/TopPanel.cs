@@ -8,6 +8,7 @@ public class TopPanel
 {
     private readonly string _subscriptionName;
     private readonly Table _table;
+    private readonly Dictionary<TableIndex, ShortcutMap> _renderedShortcuts = new();
     public Panel Panel { get; }
 
     public TopPanel(string subscriptionName)
@@ -43,14 +44,26 @@ public class TopPanel
             column.Width = 30;
             column.LeftAligned();
         });
+            
+        _renderedShortcuts.Add(new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true));
+        _renderedShortcuts.Add(new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, true));
+        _renderedShortcuts.Add(new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, true));
+        _renderedShortcuts.Add(new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, true));
 
-        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"),
-            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Filter.DisplayChar, ListPanelShortcuts.Filter.Label),
-            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Swap.DisplayChar, ListPanelShortcuts.Swap.Label));
-        
-        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""),
-            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Start.DisplayChar, ListPanelShortcuts.Start.Label),
-            UiStyles.CreateShortcutMarkup(ListPanelShortcuts.Stop.DisplayChar, ListPanelShortcuts.Stop.Label));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
+
+        UpdateShortcuts();
+    }
+
+    private void UpdateShortcuts()
+    {
+        foreach (var shortcut in _renderedShortcuts)
+        {
+            _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
+                UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar, shortcut.Value.Shortcut.Label,
+                    shortcut.Value.IsEnabled));
+        }
     }
     
     public void SetSearchText(Markup searchMarkup)
@@ -61,5 +74,30 @@ public class TopPanel
     private void UpdateSearchCell(Markup searchText)
     {
         _table.Rows.Update(1, 1, searchText);
+    }
+
+    public void UpdateShortcuts(Dictionary<TableIndex, ShortcutMap> next)
+    {
+        foreach (var shortcut in next)
+        {
+            if (!_renderedShortcuts.TryGetValue(shortcut.Key, out var oldMap) || oldMap != shortcut.Value)
+            {
+                var markup = UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar,
+                    shortcut.Value.Shortcut.Label, shortcut.Value.IsEnabled);
+                _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column, markup);
+                
+                _renderedShortcuts[shortcut.Key] = shortcut.Value;
+            }
+            
+            _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
+                UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar, shortcut.Value.Shortcut.Label,
+                    shortcut.Value.IsEnabled));
+        }
+        
+        foreach (var removedKey in _renderedShortcuts.Keys.Except(next.Keys))
+        {
+            _table.Rows.Update(removedKey.Row, removedKey.Column, new Markup(""));
+            _renderedShortcuts.Remove(removedKey);
+        }
     }
 }

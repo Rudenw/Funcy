@@ -6,6 +6,7 @@ using Funcy.Console.Ui.PanelLayout;
 using Funcy.Console.Ui.PanelLayout.Renderers;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Renderers;
+using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
 using Spectre.Console;
 
@@ -15,6 +16,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 {
     private readonly ISearchMatcher<T> _searchMatcher;
     private readonly ILayoutRenderer<T> _layoutRenderer;
+    private readonly IShortcutProvider<T> _shortcuts;
     private readonly Func<T, NavigationRequest?>? _onEnterNavigation;
     private readonly Func<T, NavigationRequest?>? _onActionNavigation;
     private readonly Func<FunctionAction, T, InputActionResult?>? _onAction; 
@@ -32,12 +34,13 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
 
     public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
-        ILayoutRenderer<T> layoutRenderer, Func<T, NavigationRequest>? onEnterNavigation, string header,
+        ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, Func<T, NavigationRequest>? onEnterNavigation, string header,
         Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation)
 
     {
         _searchMatcher = searchMatcher;
         _layoutRenderer = layoutRenderer;
+        _shortcuts = shortcuts;
         _onEnterNavigation = onEnterNavigation;
         _onAction = onAction;
         _onActionNavigation = onActionNavigation;
@@ -169,7 +172,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         navigationRequest = _onActionNavigation(selectedItem);
         return navigationRequest is not null;
     }
-    
+
+    public Dictionary<TableIndex, ShortcutMap> GetShortcuts()
+    {
+        return _shortcuts.Describe(GetSelectedItem());
+    }
+
     public bool TryBuildAction(FunctionAction action, out InputActionResult? result)
     {
         result = null;
