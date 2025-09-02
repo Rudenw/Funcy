@@ -102,7 +102,7 @@ public class MainContainer : IDisposable
         }
         
         _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText);
+        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText); //TODO: new panels should have their own search text
 
         if (action is not null)
         {
