@@ -25,7 +25,6 @@ public class FunctionStatus
 
     private FunctionAction? _previousAction;
     private FunctionAction? _action;
-    public bool IsSwapping => Status == StatusType.InProgress && Action == FunctionAction.Swap;
 
     public int GetTimeToLive()
     {

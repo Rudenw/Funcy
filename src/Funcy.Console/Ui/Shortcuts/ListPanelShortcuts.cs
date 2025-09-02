@@ -1,6 +1,6 @@
 namespace Funcy.Console;
 
-public static class Shortcuts
+public static class ListPanelShortcuts
 {
     public static readonly Shortcut Filter = new(ConsoleKey.F, "F", "Filter");
     public static readonly Shortcut Start = new(ConsoleKey.S, "S", "Start");
@@ -11,3 +11,4 @@ public static class Shortcuts
 }
 
 public record Shortcut(ConsoleKey Key, string DisplayChar, string Label);
+public record ShortcutMap(Shortcut Shortcut, int TableColumnIndex, int TableRowIndex, bool IsEnabled);
