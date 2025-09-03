@@ -7,16 +7,21 @@ namespace Funcy.Console.Ui.Controllers;
 public sealed class SnapshotListController<T> : ListPanelControllerBase<T>
     where T : IComparable<T>, IHasKey
 {
-    public SnapshotListController(IListPanelView<T> view, IEnumerable<T> initial)
+    private readonly Action? _invalidate;
+    public SnapshotListController(IListPanelView<T> view, IEnumerable<T> initial, Action? invalidate = null)
         : base(view)
     {
+        _invalidate = invalidate;
+        
         Store.UpdateAll(initial);
         PushSnapshotToView();
+        _invalidate?.Invoke();
     }
     
-    public void Replace(IEnumerable<T> items)
+    private void OnUpdated(T updated)
     {
-        Store.UpdateAll(items);
+        Store.UpsertMany([updated]);
         PushSnapshotToView();
+        _invalidate?.Invoke();
     }
 }

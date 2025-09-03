@@ -10,26 +10,7 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
 
-// C#
-public interface IPanelFactory
-{
-    IListPanel CreateFromList<T>(
-        IReadOnlyList<T> items,
-        ISearchMatcher<T> matcher,
-        ILayoutRenderer<T> layout,
-        IShortcutProvider<T> shortcuts,
-        Func<T, NavigationRequest>? onEnter,
-        string header,
-        Func<FunctionAction, T, InputActionResult?>? onAction = null,
-        Func<T, NavigationRequest>? onActionNavigation = null)
-        where T : IComparable<T>, IHasKey;
-
-    IListPanel CreateFunctionAppPanel(IReadOnlyList<FunctionAppDetails> apps);
-    IListPanel Create(NavigationRequest request);
-
-}
-
-public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve) : IPanelFactory
+public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve)
 {
     public IListPanel CreateFromList<T>(
         IReadOnlyList<T> items,

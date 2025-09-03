@@ -97,6 +97,10 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
     private T? GetSelectedItem()
     {
+        if (_visibleRows.Count == 0)
+        {
+            return default;
+        }
         var selectedItemKey = _visibleRows[_paginator.SelectedIndex].Key;
         _itemIndex.TryGetValue(selectedItemKey, out var item);
         return item;

@@ -1,6 +1,6 @@
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
-using Funcy.Console.Ui.Controllers;
+using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
@@ -10,19 +10,19 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui;
 
-public class MainContainer : IDisposable
+public sealed class MainContainer : IDisposable
 {
     private readonly FunctionActionHandler _functionActionHandler;
     private readonly TopPanel _topPanel;
-    private readonly SearchInputManager _searchInput = new();
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
-    private readonly Stack<IListPanel> _bodyPanelStack = new();
+    private readonly Stack<ListPanelContext> _contextStack = new();
     
     public readonly Layout MainLayout;
     private bool _searchMode;
-    private readonly ListPanelFactory _listPanelFactory;
-    private readonly IListController _rootController;
+    private readonly ListPanelContextFactory _listPanelContextFactory;
+    
+    private ListPanelContext Current => _contextStack.Peek();
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
@@ -32,16 +32,10 @@ public class MainContainer : IDisposable
         _functionActionHandler = functionActionHandler;
         _topPanel = new TopPanel(subscriptionName);
 
-        _listPanelFactory = new ListPanelFactory(functionStateCoordinator.TryGet);
-        var functionAppListPanel = _listPanelFactory.CreateFunctionAppPanel(functionApps);
-        _rootController = new FunctionAppListController(
-            (IListPanelView<FunctionAppDetails>) functionAppListPanel,
-            functionApps,
-            functionStateCoordinator,
-            invalidate: () => _tcs.TrySetResult()
-        );
+        _listPanelContextFactory = new ListPanelContextFactory(functionStateCoordinator, () => _tcs.TrySetResult());
 
-        _bodyPanelStack.Push(functionAppListPanel);
+        var context = _listPanelContextFactory.CreateRoot(functionApps);
+        _contextStack.Push(context);
         
         MainLayout = new Layout("Main Layout")
             .SplitRows(
@@ -65,14 +59,15 @@ public class MainContainer : IDisposable
     private void RefreshMainLayout()
     {
         UpdateShortcuts();
+        SyncSearchUi();
 
         MainLayout["TopPanel"].Update(_topPanel.Panel);
-        MainLayout["BodyPanel"].Update(_bodyPanelStack.Peek().Panel);
+        MainLayout["BodyPanel"].Update(Current.View.Panel);
     }
 
     private void UpdateShortcuts()
     {
-        var shortcuts = _bodyPanelStack.Peek().GetShortcuts();
+        var shortcuts = Current.View.GetShortcuts();
         _topPanel.UpdateShortcuts(shortcuts);
     }
 
@@ -81,86 +76,118 @@ public class MainContainer : IDisposable
         FunctionAction? action = null;
         if (_searchMode)
         {
-            _searchMode = _searchInput.HandleInput(keyInfo);
-        }
-        else
-        {
-            switch (keyInfo.Key)
-            {
-                case var key when key == ListPanelShortcuts.Filter.Key:
-                    _searchMode = true;
-                    _searchInput.InitializeSearchMode();
-                    break;
-                case var key when key == ListPanelShortcuts.Start.Key:
-                    action =  FunctionAction.Start;
-                    break;
-                case var key when key == ListPanelShortcuts.Stop.Key:
-                    action =  FunctionAction.Stop;
-                    break;
-                case var key when key == ListPanelShortcuts.Swap.Key:
-                    action =  FunctionAction.Swap;
-                    break;
-                case ConsoleKey.Delete:
-                    _searchInput.ClearSearchText();
-                    break;
-                case ConsoleKey.Enter:
-                    PushNextPanel();
-                    break;
-            }
+            _searchMode = Current.SearchInputManager.HandleInput(keyInfo);
+            SyncSearchUi();
+            return;
         }
         
-        _topPanel.SetSearchText(_searchInput.SearchMarkup);
-        _bodyPanelStack.Peek().SetSearchText(_searchInput.SearchText); //TODO: new panels should have their own search text
+        switch (keyInfo.Key)
+        {
+            case var key when key == ListPanelShortcuts.Filter.Key:
+                EnterSearchMode();
+                break;
 
-        if (action is not null)
-        {
-            var current = _bodyPanelStack.Peek();
-            if (current is IActionHandlingPanel actionPanel &&
-                actionPanel.TryBuildAction(action.Value, out var input))
-            {
-                _ = _functionActionHandler.Dispatch(input);
-            }
-            else
-            {
-                if (current.TryGetActionNavigationRequest(out var navigationRequest) && navigationRequest is not null)
-                {
-                    var nextPanel = _listPanelFactory.Create(navigationRequest);
-                    _bodyPanelStack.Push(nextPanel);
-                    RefreshMainLayout();
-                }
-            }
-        }
+            case var key when 
+                key == ListPanelShortcuts.Start.Key ||
+                key == ListPanelShortcuts.Stop.Key ||
+                key == ListPanelShortcuts.Swap.Key:
+                HandleActionKey(keyInfo.Key);
+                break;
 
-        if (keyInfo.Key is ConsoleKey.Escape or ConsoleKey.Spacebar && _bodyPanelStack.Count > 1)
-        {
-            _bodyPanelStack.Pop();
-            RefreshMainLayout();
-        }
-        
-        if (keyInfo.Key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
-        {
-            _bodyPanelStack.Peek().HandleInput(keyInfo);
-            UpdateShortcuts();
+            case ConsoleKey.Delete:
+                Current.SearchInputManager.ClearSearchText();
+                SyncSearchUi();
+                break;
+
+            case ConsoleKey.Enter:
+                TryPushNextPanelFromSelection();
+                break;
+
+            case ConsoleKey.Escape:
+            case ConsoleKey.Spacebar:
+                TryPopPanel();
+                break;
+
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+                Current.View.HandleInput(keyInfo);
+                UpdateShortcuts();
+                break;
+
+            default:
+                Current.View.HandleInput(keyInfo);
+                break;
         }
     }
-
-    private void PushNextPanel()
+    
+    private void SyncSearchUi()
     {
-        if (_bodyPanelStack.Peek().TryGetNavigationRequest(out var navigationRequest) && navigationRequest is not null)
+        _topPanel.SetSearchText(Current.SearchInputManager.SearchMarkup);
+        Current.View.SetSearchText(Current.SearchInputManager.SearchText);
+    }
+    
+    private void EnterSearchMode()
+    {
+        _searchMode = true;
+        Current.SearchInputManager.InitializeSearchMode();
+        SyncSearchUi();
+    }
+    
+    private void HandleActionKey(ConsoleKey key)
+    {
+        var action =
+            key == ListPanelShortcuts.Start.Key ? FunctionAction.Start :
+            key == ListPanelShortcuts.Stop.Key ? FunctionAction.Stop :
+            FunctionAction.Swap;
+
+        HandleAction(action);
+    }
+
+    private void HandleAction(FunctionAction action)
+    {
+        var currentView = Current.View;
+
+        if (currentView is IActionHandlingPanel actionPanel &&
+            actionPanel.TryBuildAction(action, out var input))
         {
-            var nextPanel = _listPanelFactory.Create(navigationRequest);
-            _bodyPanelStack.Push(nextPanel);
+            _ = _functionActionHandler.Dispatch(input);
+            return;
+        }
+
+        if (currentView.TryGetActionNavigationRequest(out var navRequest) && navRequest is not null)
+        {
+            var nextContext = _listPanelContextFactory.CreateFromNavigation(navRequest);
+            _contextStack.Push(nextContext);
+            RefreshMainLayout();
+        }
+    }
+    
+    private void TryPopPanel()
+    {
+        if (_contextStack.Count <= 1)
+            return;
+
+        _contextStack.Pop();
+        RefreshMainLayout();
+    }
+
+    private void TryPushNextPanelFromSelection()
+    {
+        if (Current.View.TryGetNavigationRequest(out var navigationRequest) && navigationRequest is not null)
+        {
+            var nextPanel = _listPanelContextFactory.CreateFromNavigation(navigationRequest);
+            _contextStack.Push(nextPanel);
             RefreshMainLayout();
         }
     }
 
     public void HandleResize()
     {
-        _bodyPanelStack.Peek().HandleResize();
+        Current.View.HandleResize();
     }
 
     public void Dispose()
     {
-        _rootController.Dispose();
+        _contextStack.Clear();
     }
 }

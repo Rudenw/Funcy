@@ -18,13 +18,11 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
     {
         _coordinator = coordinator;
         _invalidate = invalidate;
-
-        // Init-snapshot
+        
         Store.UpdateAll(initial);
         PushSnapshotToView();
         _invalidate?.Invoke();
-
-        // Abonnera på uppdateringar
+        
         _coordinator.OnFunctionAppUpdated += OnUpdated;
         _coordinator.OnFunctionAppRemoved += OnRemoved;
     }
