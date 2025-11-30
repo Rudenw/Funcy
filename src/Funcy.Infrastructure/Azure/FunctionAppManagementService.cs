@@ -46,6 +46,8 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
         if (existing is not null)
         {
             existing.State = state;
+            existing.UpdatedAt = DateTime.UtcNow;
+            functionAppDetails.LastUpdated = existing.UpdatedAt;
             await dbContext.SaveChangesAsync();
         }
     }

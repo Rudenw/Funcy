@@ -13,4 +13,5 @@ public class FunctionApp
     public FunctionState State { get; set; }
     public List<Function> Functions { get; set; } = [];
     public List<FunctionAppSlot> Slots { get; set; } = [];
+    public DateTime UpdatedAt { get; set; }
 }

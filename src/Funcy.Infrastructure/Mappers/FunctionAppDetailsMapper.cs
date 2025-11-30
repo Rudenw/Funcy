@@ -15,7 +15,8 @@ public static class FunctionAppDetailsMapper
             ResourceGroup = functionApp.ResourceGroup,
             Subscription = functionApp.Subscription,
             Functions = functionApp.Functions.Select(x => x.Map()).ToList(),
-            Slots = functionApp.Slots.Select(x => x.Map()).ToList()
+            Slots = functionApp.Slots.Select(x => x.Map()).ToList(),
+            LastUpdated = functionApp.UpdatedAt
         };
     }
 }

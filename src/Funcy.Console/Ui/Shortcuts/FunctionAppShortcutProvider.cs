@@ -1,4 +1,5 @@
 using Funcy.Core.Model;
+using Spectre.Console;
 
 namespace Funcy.Console.Ui.Shortcuts;
 
@@ -17,11 +18,11 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
     }
 
     private static bool CanStart(FunctionAppDetails? app) =>
-        app is null or { State: FunctionState.Stopped, Status.Status: StatusType.Idle };
+        app is null || app.State == FunctionState.Stopped && app.Status.Status != StatusType.InProgress;
 
     private static bool CanStop(FunctionAppDetails? app) =>
-        app is null or { State: FunctionState.Running, Status.Status: StatusType.Idle };
+        app is null || app.State == FunctionState.Running && app.Status.Status != StatusType.InProgress;
 
     private static bool CanSwap(FunctionAppDetails? app) =>
-        app is null or { Status.Status: StatusType.Idle, Slots.Count: >= 0 };
+        app is null || app.Status.Status != StatusType.InProgress && app.Slots.Count >= 0;
 }

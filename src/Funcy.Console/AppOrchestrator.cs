@@ -80,6 +80,7 @@ public class AppOrchestrator(
 
                     if (_mainContainer.WaitForTriggerAsync().IsCompleted)
                     {
+                        _mainContainer.HandleUpdate();
                         _mainContainer.ResetTrigger();
                     }
                 }

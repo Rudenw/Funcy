@@ -66,6 +66,7 @@ public class FunctionActionHandler(
         await Task.Delay(TimeSpan.FromSeconds(timeToLive));
         functionAppDetails.Status.Status = StatusType.Idle;
         functionAppDetails.Status.Action = null;
+        functionAppDetails.LastUpdated = DateTime.UtcNow;
         
         await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(functionAppDetails));
     }
@@ -77,6 +78,7 @@ public class FunctionActionHandler(
         {
             dispatchedFunction.FunctionAppDetails.Status.Status = StatusType.InProgress;
             dispatchedFunction.FunctionAppDetails.Status.Action = dispatchedFunction.Action;
+            dispatchedFunction.FunctionAppDetails.LastUpdated = DateTime.UtcNow;
             
             await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
         }

@@ -90,6 +90,7 @@ public class AzureFunctionService(
                     var functionAppStopwatch = new Stopwatch();
                     await throttler.WaitAsync(cancellationToken);
                     functionAppStopwatch.Start();
+                    var updateTime = DateTime.UtcNow;
                     
                     await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
 
@@ -103,7 +104,7 @@ public class AzureFunctionService(
                     List<Function>? functionList = FetchFunctionListAsync(webSite);
                     List<FunctionAppSlot>? slotList = FetchSlotListAsync(webSite);
 
-                    var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, slotList, dbContext);
+                    var functionApp = AddOrUpdateFunctionApp(existing, webSite, functionList, slotList, dbContext, updateTime);
                     await dbContext.SaveChangesAsync(cancellationToken);
                     await channel.Writer.WriteAsync(new FunctionAppFetchResult(webSite.Id.Name, functionApp.Map()), cancellationToken);
                     functionAppStopwatch.Stop();
@@ -199,7 +200,8 @@ public class AzureFunctionService(
     }
 
     private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, WebSiteResource webSite,
-        List<Function>? functionList, List<FunctionAppSlot>? slotList, FunctionAppDbContext dbContext)
+        List<Function>? functionList, List<FunctionAppSlot>? slotList, FunctionAppDbContext dbContext,
+        DateTime updateTime)
     {
         if (functionApp is null)
         {
@@ -213,7 +215,8 @@ public class AzureFunctionService(
                 Subscription = webSite.Id?.SubscriptionId ?? string.Empty,
                 ResourceGroup = webSite.Data.ResourceGroup,
                 Functions = functionList ?? [],
-                Slots = slotList ?? []
+                Slots = slotList ?? [],
+                UpdatedAt = updateTime
             };
             dbContext.FunctionApps.Add(functionApp);
         }
@@ -221,6 +224,7 @@ public class AzureFunctionService(
         {
             functionApp.AzureId = webSite.Id.ToString();
             functionApp.State = Enum.Parse<FunctionState>(webSite.Data.State);
+            functionApp.UpdatedAt = updateTime;
 
             if (functionList is not null)
             {

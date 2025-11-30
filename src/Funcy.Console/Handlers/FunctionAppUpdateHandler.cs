@@ -19,13 +19,10 @@ public class FunctionAppUpdateHandler(
     {
         await Task.Run(async () =>
         {
-            while (!token.IsCancellationRequested)
-            {
-                var functionAppDetailsToUpdate = functionService.FetchFunctionAppDetailsAsync(token);
-                await UpdateFunctionAppList(functionAppDetailsToUpdate);
-                
-                await Task.Delay(TimeSpan.FromMinutes(5), token);
-            }
+            var functionAppDetailsToUpdate = functionService.FetchFunctionAppDetailsAsync(token);
+            await UpdateFunctionAppList(functionAppDetailsToUpdate);
+            
+            //Just do a full refresh when the app starts
         }, token);
     }
 
@@ -42,7 +39,7 @@ public class FunctionAppUpdateHandler(
         }
         
         var removedFunctions = await functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
-        await functionService.RemoveFunctionsFromDatabase(removedFunctions);
+        await functionService.RemoveFunctionsFromDatabase(removedFunctions.Select(x => x.FunctionAppDetails));
     }
     
     private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)

@@ -31,7 +31,7 @@ public sealed class MainContainer : IDisposable
     {
         _functionActionHandler = functionActionHandler;
         _topPanel = new TopPanel(subscriptionName);
-
+        
         _listPanelContextFactory = new ListPanelContextFactory(functionStateCoordinator, () => _tcs.TrySetResult());
 
         var context = _listPanelContextFactory.CreateRoot(functionApps);
@@ -63,6 +63,11 @@ public sealed class MainContainer : IDisposable
 
         MainLayout["TopPanel"].Update(_topPanel.Panel);
         MainLayout["BodyPanel"].Update(Current.View.Panel);
+    }
+
+    public void HandleUpdate()
+    {
+        UpdateShortcuts();
     }
 
     private void UpdateShortcuts()

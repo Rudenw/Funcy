@@ -11,6 +11,7 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
     public List<FunctionDetails> Functions { get; init; } = [];
     public required string ResourceGroup { get; init; }
     public required string Subscription { get; init; }
+    public DateTime LastUpdated { get; set; }
 
     public List<FunctionAppSlotDetails> SlotsExtra =>
         [new() { FullName = $"{Name} (Production)", Name = "Production", State = State, Id = ""}, ..Slots];
