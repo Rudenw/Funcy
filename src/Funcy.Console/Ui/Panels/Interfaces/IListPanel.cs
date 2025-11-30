@@ -12,4 +12,5 @@ public interface IListPanel
     bool TryGetNavigationRequest(out NavigationRequest? navigationRequest);
     bool TryGetActionNavigationRequest(out NavigationRequest? navigationRequest);
     Dictionary<TableIndex, ShortcutMap> GetShortcuts();
+    void SortViewBy(int keyInfoKey);
 }

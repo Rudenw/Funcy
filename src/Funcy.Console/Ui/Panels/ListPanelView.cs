@@ -2,6 +2,7 @@ using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
 using Funcy.Console.Ui.Pagination.Matchers;
+using Funcy.Console.Ui.Pagination.Sorters;
 using Funcy.Console.Ui.PanelLayout;
 using Funcy.Console.Ui.PanelLayout.Renderers;
 using Funcy.Console.Ui.Panels.Interfaces;
@@ -14,6 +15,7 @@ namespace Funcy.Console.Ui.Panels;
 
 public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T : IComparable<T>, IHasKey
 {
+    private readonly ISorter<T> _sorter;
     private readonly ISearchMatcher<T> _searchMatcher;
     private readonly ILayoutRenderer<T> _layoutRenderer;
     private readonly IShortcutProvider<T> _shortcuts;
@@ -27,7 +29,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     public Panel Panel { get; }
     
     private readonly ListPanelPaginator _paginator;
-    private readonly ListPanelTableRenderer _renderer;
+    private readonly ListPanelTableRenderer<T> _renderer;
     private string _searchText = "";
     private IReadOnlyList<T> _snapshot = [];
     private Dictionary<string, T> _itemIndex = new();
@@ -45,7 +47,11 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         _onAction = onAction;
         _onActionNavigation = onActionNavigation;
         _paginator = new ListPanelPaginator();
-        _renderer = new ListPanelTableRenderer(_layoutRenderer.CreateColumnLayout());
+        
+        var columnLayout = _layoutRenderer.CreateColumnLayout();
+        _renderer = new ListPanelTableRenderer<T>(columnLayout);
+        _sorter = new ListPanelSorter<T>(columnLayout);
+        
         Panel = new Panel(_renderer.Table)
             .Header(header, Justify.Center)
             .BorderColor(Color.Orange1);
@@ -120,15 +126,17 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     
     private (IEnumerable<T> appsToShow, int totalCount) GetVisibleItems()
     {
+        var sortedSnapshot = _sorter.Sort(_snapshot);
+        
         if (string.IsNullOrWhiteSpace(_searchText))
         { 
             return (
-                _snapshot.Skip(_paginator.VisibleStartIndex).Take(_paginator.MaxVisibleRows),
-                _snapshot.Count
+                sortedSnapshot.Skip(_paginator.VisibleStartIndex).Take(_paginator.MaxVisibleRows),
+                sortedSnapshot.Count
             );
         }
 
-        var filtered = _snapshot
+        var filtered = sortedSnapshot
             .Select(app => new { App = app, IsMatch = _searchMatcher.TryMatch(app, _searchText) })
             .Where(x => x.IsMatch)
             .ToList();
@@ -181,6 +189,13 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     {
         return _shortcuts.Describe(GetSelectedItem());
     }
+    
+    public void SortViewBy(int keyInfoKey)
+    {
+        _sorter.Toggle(keyInfoKey);
+        _renderer.ToggleSortingColumn(_sorter.CurrentColumn, _sorter.Desc);
+        RefreshView();
+    }
 
     public bool TryBuildAction(FunctionAction action, out InputActionResult? result)
     {
@@ -199,6 +214,4 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         result = built;
         return true;
     }
-
-
 }

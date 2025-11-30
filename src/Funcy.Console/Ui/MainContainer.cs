@@ -1,5 +1,6 @@
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Input;
@@ -91,6 +92,13 @@ public sealed class MainContainer : IDisposable
             case var key when key == ListPanelShortcuts.Filter.Key:
                 EnterSearchMode();
                 break;
+            
+            case var key when ConsoleKeyHelper.TryGetDigit(key) is { } digit:
+                if (digit > 0)
+                {
+                    Current.View.SortViewBy(digit);
+                }
+                break;
 
             case var key when 
                 key == ListPanelShortcuts.Start.Key ||
@@ -124,7 +132,7 @@ public sealed class MainContainer : IDisposable
                 break;
         }
     }
-    
+
     private void SyncSearchUi()
     {
         _topPanel.SetSearchText(Current.SearchInputManager.SearchMarkup);

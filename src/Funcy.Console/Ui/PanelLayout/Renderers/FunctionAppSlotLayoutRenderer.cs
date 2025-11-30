@@ -17,8 +17,9 @@ public class FunctionAppSlotLayoutRenderer: ILayoutRenderer<FunctionAppSlotDetai
         return rowMarkup;
     }
 
-    public ColumnLayout CreateColumnLayout()
+    public ColumnLayout<FunctionAppSlotDetails> CreateColumnLayout()
     {
-        return new ColumnLayout(new Column("Name"), new Column("State"));
+        return new ColumnLayout<FunctionAppSlotDetails>(new Column<FunctionAppSlotDetails>("Name", s => s.Name),
+            new Column<FunctionAppSlotDetails>("State", s => s.State));
     }
 }

@@ -1,8 +1,10 @@
+using Funcy.Console.Ui.Pagination.Sorters;
+
 namespace Funcy.Console.Ui.PanelLayout;
 
-public sealed record Column(string Header, int Width = 0);
+public sealed record Column<T>(string Header, Func<T, object?>? Selector, int Width = 0);
 
-public sealed class ColumnLayout(params Column[] columns)
+public sealed class ColumnLayout<T>(params Column<T>[] columns)
 {
-    public IReadOnlyList<Column> Columns { get; } = columns;
+    public IReadOnlyList<Column<T>> Columns { get; } = columns;
 }

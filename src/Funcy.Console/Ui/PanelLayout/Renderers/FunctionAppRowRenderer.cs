@@ -19,8 +19,11 @@ public class FunctionAppLayoutRenderer: ILayoutRenderer<FunctionAppDetails>
         return rowMarkup;
     }
 
-    public ColumnLayout CreateColumnLayout()
+    public ColumnLayout<FunctionAppDetails> CreateColumnLayout()
     {
-        return new ColumnLayout(new Column("Name", 40), new Column("System", 10), new Column("State", 10), new Column("Status", 20));
+        return new ColumnLayout<FunctionAppDetails>(new Column<FunctionAppDetails>("Name", f => f.Name, 40),
+            new Column<FunctionAppDetails>("System", f => f.System, 10),
+            new Column<FunctionAppDetails>("State", f => f.State, 10),
+            new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), 20));
     }
 }

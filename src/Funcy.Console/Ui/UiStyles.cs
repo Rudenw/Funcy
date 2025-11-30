@@ -9,6 +9,10 @@ public static class UiStyles
     public const string Shortcut = "bold purple_2";
     public const string Danger = "bold red";
     public const string Hint = "gray";
+    public const string Sort = "yellow";
+    
+    public const string ArrowUp = "↑";
+    public const string ArrowDown = "↓";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
@@ -17,7 +21,11 @@ public static class UiStyles
 
     public static string CreateDangerText(string text) => $"[{Danger}]{text}[/]";
 
-    public static string CreateHeaderText(string text) => $"[bold]{text}[/]";
+    public static string CreateHeaderText(string text, int index, bool descending, bool isActiveColumn = false)
+    {
+        var arrow = isActiveColumn ? (descending ? ArrowDown : ArrowUp) : "";
+        return $"[bold]{text}[/] [{Sort}]({index}) {arrow}[/]";
+    }
 
     public static Markup CreateSelectedCell(string text)
         => new("[black on yellow]" + text + "[/]");

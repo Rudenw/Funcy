@@ -17,8 +17,9 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
         return rowMarkup;
     }
 
-    public ColumnLayout CreateColumnLayout()
+    public ColumnLayout<FunctionDetails> CreateColumnLayout()
     {
-        return new ColumnLayout(new Column("Name"), new Column("Trigger"));
+        return new ColumnLayout<FunctionDetails>(new Column<FunctionDetails>("Name", (f) => f.Name),
+            new Column<FunctionDetails>("Trigger", f => f.Trigger));
     }
 }
