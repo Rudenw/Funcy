@@ -1,4 +1,5 @@
-﻿using Azure.Core;
+﻿using System.Text;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -14,6 +15,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
+
+Console.OutputEncoding = Encoding.UTF8;
 
 var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
