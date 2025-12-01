@@ -1,0 +1,50 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        rid: [win-x64, linux-x64, osx-x64, osx-arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Publish
+        run: |
+          dotnet publish src/Funcy.Console/Funcy.Console.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            /p:PublishSingleFile=true \
+            /p:PublishTrimmed=false
+
+      - name: Pack artifacts
+        run: |
+          APP_NAME=Funcy
+          RUNTIME=${{ matrix.rid }}
+          VERSION=${GITHUB_REF#refs/tags/}
+          PUBLISH_DIR=src/Funcy.Console/bin/Release/net9.0/$RUNTIME/publish
+
+          mkdir -p artifacts
+          cd $PUBLISH_DIR
+          zip -r $GITHUB_WORKSPACE/artifacts/${APP_NAME}-${VERSION}-${RUNTIME}.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
