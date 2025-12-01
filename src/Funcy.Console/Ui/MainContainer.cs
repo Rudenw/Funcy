@@ -3,7 +3,6 @@ using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
-using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
@@ -79,7 +78,6 @@ public sealed class MainContainer : IDisposable
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
     {
-        FunctionAction? action = null;
         if (_searchMode)
         {
             _searchMode = Current.SearchInputManager.HandleInput(keyInfo);
@@ -161,7 +159,8 @@ public sealed class MainContainer : IDisposable
         var currentView = Current.View;
 
         if (currentView is IActionHandlingPanel actionPanel &&
-            actionPanel.TryBuildAction(action, out var input))
+            actionPanel.TryBuildAction(action, out var input)
+            && input is not null)
         {
             _ = _functionActionHandler.Dispatch(input);
             return;

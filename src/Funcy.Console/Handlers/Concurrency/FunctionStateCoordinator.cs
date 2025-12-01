@@ -9,9 +9,9 @@ public class FunctionStateCoordinator
 {
     private readonly Channel<FunctionAppUpdate> _updateChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
     private readonly Channel<FunctionAppUpdate> _removeChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
-    
+
     private readonly ConcurrentDictionary<string, CachedFunctionAppModel> _cache = new();
-    
+
     private readonly SemaphoreSlim _uiUpdateLock = new(1, 1);
     public event Action<FunctionAppDetails>? OnFunctionAppUpdated;
     public event Action<FunctionAppDetails>? OnFunctionAppRemoved;
@@ -21,7 +21,7 @@ public class FunctionStateCoordinator
         _ = ProcessUpdatesAsync();
         _ = ProcessRemovalsAsync();
     }
-    
+
     public void InitCache(List<FunctionAppDetails> functionsFromDatabase)
     {
         foreach (var functionApp in functionsFromDatabase)
@@ -34,7 +34,7 @@ public class FunctionStateCoordinator
     {
         return _cache.Values.Select(f => f.FunctionAppDetails).ToList();
     }
-    
+
     public FunctionAppDetails? TryGet(string key)
     {
         _cache.TryGetValue(key, out var app);
@@ -53,7 +53,8 @@ public class FunctionStateCoordinator
 
     public async Task<List<CachedFunctionAppModel>> RemoveFunctions(List<string> existingFunctionAppNames)
     {
-        var removedFunctions = _cache.Keys.Except(existingFunctionAppNames).Select(functionApp => _cache[functionApp]).ToList();
+        var removedFunctions = _cache.Keys.Except(existingFunctionAppNames).Select(functionApp => _cache[functionApp])
+            .ToList();
         foreach (var removedFunction in removedFunctions)
         {
             await PublishRemoveAsync(new FunctionAppUpdate
@@ -70,18 +71,20 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            if (_cache.TryGetValue(update.FunctionAppDetails.Name, out var cachedDetails) && cachedDetails.LastUpdated >= update.FunctionAppDetails.LastUpdated)
+            if (_cache.TryGetValue(update.FunctionAppDetails.Name, out var cachedDetails) &&
+                cachedDetails.LastUpdated >= update.FunctionAppDetails.LastUpdated)
             {
                 continue;
             }
-            
+
             var status = update.FunctionAppDetails.Status;
-            if (update.Source == UpdateSource.Database)
+            if (update.Source == UpdateSource.Database && cachedDetails is not null)
             {
-                status = _cache[update.FunctionAppDetails.Name].FunctionAppDetails.Status;
+                status = cachedDetails.FunctionAppDetails.Status;
             }
-            
-            _cache[update.FunctionAppDetails.Name] = new CachedFunctionAppModel(update.FunctionAppDetails, update.FunctionAppDetails.LastUpdated)
+
+            _cache[update.FunctionAppDetails.Name] =
+                new CachedFunctionAppModel(update.FunctionAppDetails, update.FunctionAppDetails.LastUpdated)
                 {
                     FunctionAppDetails =
                     {
@@ -99,7 +102,7 @@ public class FunctionStateCoordinator
             }
         }
     }
-    
+
     private async Task ProcessRemovalsAsync()
     {
         await foreach (var removedApp in _removeChannel.Reader.ReadAllAsync())

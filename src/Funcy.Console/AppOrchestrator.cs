@@ -26,8 +26,6 @@ public class AppOrchestrator(
         
         _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator, actionHandler);
 
-        
-        
         var resizeTask = resizeHandler.StartPolling(cts.Token);
         var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);

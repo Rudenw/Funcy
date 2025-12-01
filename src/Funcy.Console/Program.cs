@@ -6,11 +6,9 @@ using Microsoft.Extensions.Hosting;
 using Funcy.Console;
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
-using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
-using LazyCache;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -38,7 +36,8 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
         {
-            options.UseSqlite(context.Configuration.GetConnectionString("DefaultConnection"))
+            var connectionString = DatabaseConnectionFactory.CreateConnectionString(context.Configuration);
+            options.UseSqlite(connectionString)
                 .UseLoggerFactory(LoggerFactory.Create(builder =>
                 {
                     builder.AddSerilog().SetMinimumLevel(LogLevel.Information);
@@ -55,18 +54,10 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
-        
-        services.AddLazyCache();
     })
     .Build();
 
-// Hämta vår service från DI-containern
 var mainMenuService = host.Services.GetRequiredService<AppOrchestrator>();
+await host.Services.MigrateDatabaseAsync(CancellationToken.None);
 await mainMenuService.StartAsync();
-
 await host.RunAsync();
-
-// 1. Keep `AzureFunctionService` focused on fetching function-app details and updating the local database.
-// 2. Introduce a new service (e.g., `FunctionAppManagementService`) within `Funcy.Infrastructure/Azure` that handles runtime operations such as starting, stopping, and swapping slots.
-// 3. Update DI registration in `src/Funcy.Console/Program.cs` to add the new service and adjust existing references.
-// 4. Let the console UI or handlers use `FunctionAppManagementService` when invoking management commands, while still calling `AzureFunctionService` to refresh data.
