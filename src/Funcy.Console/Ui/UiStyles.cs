@@ -5,14 +5,16 @@ namespace Funcy.Console.Ui;
 
 public static class UiStyles
 {
+    private static readonly bool Unicode = AnsiConsole.Profile.Capabilities.Unicode;
+    
     public const string Label = "bold yellow";
     public const string Shortcut = "bold purple_2";
     public const string Danger = "bold red";
     public const string Hint = "gray";
     public const string Sort = "yellow";
     
-    public const string ArrowUp = "↑";
-    public const string ArrowDown = "↓";
+    private static readonly string ArrowUp = Unicode ? "↑" : "^";
+    private static readonly string ArrowDown = Unicode ? "↓" : "v";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
