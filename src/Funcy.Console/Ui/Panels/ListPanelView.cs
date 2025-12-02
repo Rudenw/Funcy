@@ -77,6 +77,8 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     {
         var scrolled = keyInfo.Key switch
         {
+            ConsoleKey.PageUp   => _paginator.PageUp(),
+            ConsoleKey.PageDown   => _paginator.PageDown(),
             ConsoleKey.UpArrow   => _paginator.MoveUp(),
             ConsoleKey.DownArrow => _paginator.MoveDown(),
             _                     => false

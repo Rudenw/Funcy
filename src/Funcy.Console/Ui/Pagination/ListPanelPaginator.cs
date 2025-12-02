@@ -43,6 +43,23 @@ public class ListPanelPaginator()
 
         return isVisibleStartIndexChanged;
     }
+    
+    public bool PageUp()
+    {
+        var isVisibleStartIndexChanged = false;
+        
+        if (VisibleStartIndex > 0)
+        {
+            VisibleStartIndex = Math.Max(0, VisibleStartIndex - MaxVisibleRows);
+            isVisibleStartIndexChanged = true;
+        }
+        else
+        {
+            SelectedIndex = 0;
+        }
+
+        return isVisibleStartIndexChanged;
+    }
 
     public bool MoveDown()
     {
@@ -64,6 +81,23 @@ public class ListPanelPaginator()
         if (SelectedIndex >= _amountOfRows)
         {
             SelectedIndex = _amountOfRows - 1;
+        }
+
+        return isVisibleStartIndexChanged;
+    }
+    
+    public bool PageDown()
+    {
+        var isVisibleStartIndexChanged = false;
+        
+        if (VisibleStartIndex + MaxVisibleRows >= _amountOfRows)
+        {
+            SelectedIndex = MaxVisibleRows - 1;
+        }
+        else
+        {
+            VisibleStartIndex = Math.Min(_amountOfRows - MaxVisibleRows, VisibleStartIndex + MaxVisibleRows);
+            isVisibleStartIndexChanged = true;
         }
 
         return isVisibleStartIndexChanged;

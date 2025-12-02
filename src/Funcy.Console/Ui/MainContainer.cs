@@ -119,6 +119,8 @@ public sealed class MainContainer : IDisposable
                 TryPopPanel();
                 break;
 
+            case ConsoleKey.PageUp:
+            case ConsoleKey.PageDown:
             case ConsoleKey.UpArrow:
             case ConsoleKey.DownArrow:
                 Current.View.HandleInput(keyInfo);
