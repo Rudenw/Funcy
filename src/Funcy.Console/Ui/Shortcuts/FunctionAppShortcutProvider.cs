@@ -17,6 +17,17 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
         return shortcutList;
     }
 
+    public bool IsActionValid(FunctionAppDetails getSelectedItem, FunctionAction action)
+    {
+        return action switch
+        {
+            FunctionAction.Start => CanStart(getSelectedItem),
+            FunctionAction.Stop => CanStop(getSelectedItem),
+            FunctionAction.Swap => CanSwap(getSelectedItem),
+            _ => true
+        };
+    }
+
     private static bool CanStart(FunctionAppDetails? app) =>
         app is null || app.State == FunctionState.Stopped && app.Status.Status != StatusType.InProgress;
 

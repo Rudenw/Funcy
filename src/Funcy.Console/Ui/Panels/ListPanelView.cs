@@ -192,6 +192,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         return _shortcuts.Describe(GetSelectedItem());
     }
     
+    public bool IsActionValid(FunctionAction action)
+    {
+        var selectedItem = GetSelectedItem();
+        return selectedItem is not null && _shortcuts.IsActionValid(selectedItem, action);
+    }
+    
     public void SortViewBy(int keyInfoKey)
     {
         _sorter.Toggle(keyInfoKey);

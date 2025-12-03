@@ -18,6 +18,17 @@ public class FunctionAppSlotShortcutProvider : IShortcutProvider<FunctionAppSlot
         return shortcutList;
     }
 
+    public bool IsActionValid(FunctionAppSlotDetails getSelectedItem, FunctionAction action)
+    {
+        return action switch
+        {
+            FunctionAction.Start => CanStart(getSelectedItem),
+            FunctionAction.Stop => CanStop(getSelectedItem),
+            FunctionAction.Swap => CanSwap(getSelectedItem),
+            _ => true
+        };
+    }
+
     private static bool CanStart(FunctionAppSlotDetails? slotDetails) =>
         slotDetails is null or { State: FunctionState.Stopped, Status.Status: StatusType.Idle };
 

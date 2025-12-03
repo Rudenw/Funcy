@@ -1,4 +1,5 @@
 using Funcy.Console.Ui.Navigation;
+using Funcy.Core.Model;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels.Interfaces;
@@ -13,4 +14,5 @@ public interface IListPanel
     bool TryGetActionNavigationRequest(out NavigationRequest? navigationRequest);
     Dictionary<TableIndex, ShortcutMap> GetShortcuts();
     void SortViewBy(int keyInfoKey);
+    bool IsActionValid(FunctionAction action);
 }

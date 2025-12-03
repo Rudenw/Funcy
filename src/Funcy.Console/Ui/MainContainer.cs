@@ -153,11 +153,11 @@ public sealed class MainContainer : IDisposable
             key == ListPanelShortcuts.Stop.Key ? FunctionAction.Stop :
             FunctionAction.Swap;
 
-        HandleAction(action);
-    }
-
-    private void HandleAction(FunctionAction action)
-    {
+        if (!Current.View.IsActionValid(action))
+        {
+            return;
+        }
+        
         var currentView = Current.View;
 
         if (currentView is IActionHandlingPanel actionPanel &&

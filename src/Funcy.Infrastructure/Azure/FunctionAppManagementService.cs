@@ -68,7 +68,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
                 new CsmSlotEntity(functionAppSlot.Name, true));
             
             await stagingResource.StopSlotAsync();
-            
+            await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetFunctionState());
             logger.LogInformation("Swapped Function App: {FunctionAppName}", functionAppDetails.Name);
         }
         catch (Exception e)

@@ -12,4 +12,9 @@ public class FunctionShortcutProvider : IShortcutProvider<FunctionDetails>
         };
         return shortcutList;
     }
+
+    public bool IsActionValid(FunctionDetails getSelectedItem, FunctionAction action)
+    {
+        return false;
+    }
 }
