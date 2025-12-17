@@ -1,4 +1,6 @@
+using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Navigation;
+using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
 using Spectre.Console;
 
@@ -15,4 +17,6 @@ public interface IListPanel
     Dictionary<TableIndex, ShortcutMap> GetShortcuts();
     void SortViewBy(int keyInfoKey);
     bool IsActionValid(FunctionAction action);
+    void RenderCurrentView();
+    string GetSelectedItemKey();
 }

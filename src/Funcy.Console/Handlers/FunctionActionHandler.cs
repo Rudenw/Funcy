@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
@@ -10,53 +9,10 @@ namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
-    FunctionStateCoordinator functionStateCoordinator)
+    FunctionStateCoordinator functionStateCoordinator,
+    AnimationHandler animationHandler)
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
-
-    public async Task StartListeningAsync(CancellationToken token)
-    {
-        var firstTask = Task.Run(async () =>
-        {
-            while (!token.IsCancellationRequested)
-            {
-                foreach (var key in _currentTasks.Keys.ToList())
-                {
-                    if (_currentTasks.TryGetValue(key, out var task))
-                    {
-                        if (task.RunningTask.IsCompleted)
-                        {
-                            if (task.RunningTask.IsCompletedSuccessfully)
-                            {
-                                if (task.Action != FunctionAction.Swap)
-                                {
-                                    task.FunctionAppDetails.State = task.Action.GetFunctionState();                                    
-                                }
-                                
-                                task.FunctionAppDetails.Status.Status = StatusType.Success;
-                                task.FunctionAppDetails.Status.Action = null;
-                                
-                                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(task.FunctionAppDetails));
-                            }
-                            else
-                            {
-                                task.FunctionAppDetails.Status.Status = StatusType.Error;
-                                task.FunctionAppDetails.Status.Action = null;
-                                
-                                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(task.FunctionAppDetails));
-                            }
-
-                            _ = UpdateFunctionAppStatus(task.FunctionAppDetails);
-                            
-                            _currentTasks.TryRemove(key, out _);
-                        }
-                    }
-                }
-            }
-        }, token);
-
-        await Task.WhenAll(firstTask);
-    }
     
     public async Task UpdateFunctionAppStatus(FunctionAppDetails functionAppDetails)
     {
@@ -80,6 +36,7 @@ public class FunctionActionHandler(
             dispatchedFunction.FunctionAppDetails.Status.Action = dispatchedFunction.Action;
             dispatchedFunction.FunctionAppDetails.LastUpdated = DateTime.UtcNow;
             
+            animationHandler.AddAppDetails(dispatchedFunction.FunctionAppDetails.Key);
             await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
         }
     }
@@ -106,7 +63,36 @@ public class FunctionActionHandler(
             };
             
             await AddNewTask(inputResult.FunctionAppDetails.Name,
-                new DispatchedFunction(inputResult.Action, inputResult.FunctionAppDetails, dispatchedTask));
+                new DispatchedFunction(inputResult.Action, inputResult.FunctionAppDetails));
+
+            _ = dispatchedTask.ContinueWith(async t =>
+            {
+                if (t.IsCompletedSuccessfully)
+                {
+                    if (inputResult.Action != FunctionAction.Swap)
+                    {
+                        inputResult.FunctionAppDetails.State = inputResult.Action.GetFunctionState();                                    
+                    }
+                                
+                    inputResult.FunctionAppDetails.Status.Status = StatusType.Success;
+                    inputResult.FunctionAppDetails.Status.Action = null;
+                                
+                    animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
+                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
+                }
+                else
+                {
+                    inputResult.FunctionAppDetails.Status.Status = StatusType.Error;
+                    inputResult.FunctionAppDetails.Status.Action = null;
+                                
+                    animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
+                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
+                }
+
+                _ = UpdateFunctionAppStatus(inputResult.FunctionAppDetails);
+                            
+                _currentTasks.TryRemove(inputResult.FunctionAppDetails.Name, out _);
+            });
         }
     }
 }

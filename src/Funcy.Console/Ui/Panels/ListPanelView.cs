@@ -1,3 +1,5 @@
+using Funcy.Console.Handlers;
+using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
@@ -19,6 +21,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private readonly ISearchMatcher<T> _searchMatcher;
     private readonly ILayoutRenderer<T> _layoutRenderer;
     private readonly IShortcutProvider<T> _shortcuts;
+    private readonly IAnimationProvider _animationProvider;
     private readonly Func<T, NavigationRequest?>? _onEnterNavigation;
     private readonly Func<T, NavigationRequest?>? _onActionNavigation;
     private readonly Func<FunctionAction, T, InputActionResult?>? _onAction; 
@@ -36,13 +39,14 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
 
     public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
-        ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, Func<T, NavigationRequest>? onEnterNavigation, string header,
+        ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, IAnimationProvider animationProvider, Func<T, NavigationRequest>? onEnterNavigation, string header,
         Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation)
 
     {
         _searchMatcher = searchMatcher;
         _layoutRenderer = layoutRenderer;
         _shortcuts = shortcuts;
+        _animationProvider = animationProvider;
         _onEnterNavigation = onEnterNavigation;
         _onAction = onAction;
         _onActionNavigation = onActionNavigation;
@@ -72,7 +76,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         _paginator.UpdateMaxVisibleRows();
         RefreshView();
     }
-
+    
     public void HandleInput(ConsoleKeyInfo keyInfo)
     {
         var scrolled = keyInfo.Key switch
@@ -90,7 +94,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         }
         else
         {
-            _renderer.Render(_visibleRows, _paginator.SelectedIndex);
+            RenderCurrentView();
         }
     }
     
@@ -114,7 +118,23 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         return item;
     }
     
+    public string GetSelectedItemKey()
+    {
+        return GetSelectedItem()?.Key ?? "";
+    }
+    
     private void RefreshView()
+    {
+        RebuildVisibleRows();
+        RenderCurrentView();
+    }
+
+    public void RenderCurrentView()
+    {
+        _renderer.Render(_visibleRows, _paginator.SelectedIndex, _animationProvider.GetAnimations());
+    }
+
+    private void RebuildVisibleRows()
     {
         var (appsToShow, totalCount) = GetVisibleItems();
 
@@ -123,9 +143,8 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
             .ToList();
 
         _paginator.UpdateTotalRows(totalCount);
-        _renderer.Render(_visibleRows, _paginator.SelectedIndex);
     }
-    
+
     private (IEnumerable<T> appsToShow, int totalCount) GetVisibleItems()
     {
         var sortedSnapshot = _sorter.Sort(_snapshot);

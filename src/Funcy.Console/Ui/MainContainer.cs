@@ -1,10 +1,13 @@
+using System.Diagnostics;
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
+using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
 using Spectre.Console;
 
@@ -13,6 +16,7 @@ namespace Funcy.Console.Ui;
 public sealed class MainContainer : IDisposable
 {
     private readonly FunctionActionHandler _functionActionHandler;
+    private readonly FunctionAppUpdateHandler _functionAppUpdateHandler;
     private readonly TopPanel _topPanel;
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
@@ -26,15 +30,16 @@ public sealed class MainContainer : IDisposable
 
     public MainContainer(string subscriptionName,
         List<FunctionAppDetails> functionApps,
-        FunctionStateCoordinator functionStateCoordinator,
-        FunctionActionHandler functionActionHandler)
+        ListPanelContextFactory listPanelContextFactory,
+        FunctionActionHandler functionActionHandler, 
+        FunctionAppUpdateHandler functionAppUpdateHandler)
     {
+        _listPanelContextFactory = listPanelContextFactory;
         _functionActionHandler = functionActionHandler;
+        _functionAppUpdateHandler = functionAppUpdateHandler;
         _topPanel = new TopPanel(subscriptionName);
-        
-        _listPanelContextFactory = new ListPanelContextFactory(functionStateCoordinator, () => _tcs.TrySetResult());
 
-        var context = _listPanelContextFactory.CreateRoot(functionApps);
+        var context = _listPanelContextFactory.CreateRoot(functionApps, () => _tcs.TrySetResult());
         _contextStack.Push(context);
         
         MainLayout = new Layout("Main Layout")
@@ -104,6 +109,11 @@ public sealed class MainContainer : IDisposable
                 key == ListPanelShortcuts.Swap.Key:
                 HandleActionKey(keyInfo.Key);
                 break;
+            
+            case var key when 
+                key == ListPanelShortcuts.Refresh.Key:
+                LoadDetails(true);
+                break;
 
             case ConsoleKey.Delete:
                 Current.SearchInputManager.ClearSearchText();
@@ -125,12 +135,19 @@ public sealed class MainContainer : IDisposable
             case ConsoleKey.DownArrow:
                 Current.View.HandleInput(keyInfo);
                 UpdateShortcuts();
+                LoadDetails(false);
                 break;
 
             default:
                 Current.View.HandleInput(keyInfo);
                 break;
         }
+    }
+
+    private void LoadDetails(bool userInitiated)
+    {
+        var currentKey = Current.View.GetSelectedItemKey();
+        _functionAppUpdateHandler.LoadDetails(currentKey, userInitiated);
     }
 
     private void SyncSearchUi()
@@ -170,7 +187,7 @@ public sealed class MainContainer : IDisposable
 
         if (currentView.TryGetActionNavigationRequest(out var navRequest) && navRequest is not null)
         {
-            var nextContext = _listPanelContextFactory.CreateFromNavigation(navRequest);
+            var nextContext = _listPanelContextFactory.CreateFromNavigation(navRequest, () => _tcs.TrySetResult());
             _contextStack.Push(nextContext);
             RefreshMainLayout();
         }
@@ -189,7 +206,7 @@ public sealed class MainContainer : IDisposable
     {
         if (Current.View.TryGetNavigationRequest(out var navigationRequest) && navigationRequest is not null)
         {
-            var nextPanel = _listPanelContextFactory.CreateFromNavigation(navigationRequest);
+            var nextPanel = _listPanelContextFactory.CreateFromNavigation(navigationRequest, () => _tcs.TrySetResult());
             _contextStack.Push(nextPanel);
             RefreshMainLayout();
         }
@@ -198,6 +215,11 @@ public sealed class MainContainer : IDisposable
     public void HandleResize()
     {
         Current.View.HandleResize();
+    }
+
+    public void HandleAnimation()
+    {
+        Current.View.RenderCurrentView();
     }
 
     public void Dispose()

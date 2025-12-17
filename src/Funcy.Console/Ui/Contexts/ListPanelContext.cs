@@ -7,6 +7,6 @@ namespace Funcy.Console.Ui.Contexts;
 public class ListPanelContext
 {
     public SearchInputManager SearchInputManager { get; } = new();
-    public IListController Controller { get; set; } = null!;
-    public IListPanel View { get; set; } = null!;
+    public required IListController Controller { get; set; }
+    public required IListPanel View { get; init; }
 }

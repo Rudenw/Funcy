@@ -1,3 +1,5 @@
+using Funcy.Console.Handlers;
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
@@ -10,7 +12,7 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
 
-public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve)
+public sealed class ListPanelFactory(FunctionStateCoordinator coordinator, IAnimationProvider animationProvider)
 {
     public IListPanel CreateFromList<T>(
         IReadOnlyList<T> items,
@@ -28,6 +30,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve)
             matcher,
             layout,
             shortcuts,
+            animationProvider,
             onEnter,
             header,
             onAction,
@@ -67,7 +70,7 @@ public sealed class ListPanelFactory(Func<string, FunctionAppDetails?> resolve)
     
     public IListPanel Create(NavigationRequest request)
     {
-        var app = resolve(request.Key);
+        var app = coordinator.TryGet(request.Key);
         if (app is null)
         {
             throw new InvalidOperationException($"App not found: {request.Key}");

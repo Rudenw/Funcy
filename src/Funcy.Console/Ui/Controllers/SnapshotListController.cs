@@ -1,3 +1,4 @@
+using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Core.Model;
 
@@ -8,8 +9,9 @@ public sealed class SnapshotListController<T> : ListPanelControllerBase<T>
     where T : IComparable<T>, IHasKey
 {
     private readonly Action? _invalidate;
-    public SnapshotListController(IListPanelView<T> view, IEnumerable<T> initial, Action? invalidate = null)
-        : base(view)
+
+    public SnapshotListController(IListPanelView<T> view, IEnumerable<T> initial,
+        Action? invalidate = null) : base(view)
     {
         _invalidate = invalidate;
         
@@ -18,7 +20,7 @@ public sealed class SnapshotListController<T> : ListPanelControllerBase<T>
         _invalidate?.Invoke();
     }
     
-    private void OnUpdated(T updated)
+    private void OnListUpdated(T updated)
     {
         Store.UpsertMany([updated]);
         PushSnapshotToView();

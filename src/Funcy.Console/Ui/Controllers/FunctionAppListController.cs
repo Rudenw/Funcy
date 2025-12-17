@@ -24,7 +24,6 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _invalidate?.Invoke();
         
         _coordinator.OnFunctionAppUpdated += OnUpdated;
-        _coordinator.OnFunctionAppRemoved += OnRemoved;
     }
 
     private void OnUpdated(FunctionAppDetails updated)
@@ -34,17 +33,9 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _invalidate?.Invoke();
     }
 
-    private void OnRemoved(FunctionAppDetails removed)
-    {
-        Store.RemoveMany([removed]);
-        PushSnapshotToView();
-        _invalidate?.Invoke();
-    }
-
     public override void Dispose()
     {
         _coordinator.OnFunctionAppUpdated -= OnUpdated;
-        _coordinator.OnFunctionAppRemoved -= OnRemoved;
         base.Dispose();
     }
 }

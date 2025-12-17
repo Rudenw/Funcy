@@ -1,3 +1,4 @@
+using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Controllers;
@@ -8,14 +9,11 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
 
-public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator,
-    Action invalidate)
+public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator, ListPanelFactory listPanelFactory)
 {
-    private readonly ListPanelFactory _listPanelFactory = new(coordinator.TryGet);
-    
-    public ListPanelContext CreateRoot(IReadOnlyList<FunctionAppDetails> apps)
+    public ListPanelContext CreateRoot(IReadOnlyList<FunctionAppDetails> apps, Action invalidate)
     {
-        var panel = _listPanelFactory.CreateFunctionAppPanel(apps);
+        var panel = listPanelFactory.CreateFunctionAppPanel(apps);
         var controller = new FunctionAppListController(
             (IListPanelView<FunctionAppDetails>)panel,
             apps,
@@ -29,9 +27,9 @@ public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator
         };
     }
 
-    public ListPanelContext CreateFromNavigation(NavigationRequest request)
+    public ListPanelContext CreateFromNavigation(NavigationRequest request, Action invalidate)
     {
-        var panel = _listPanelFactory.Create(request);
+        var panel = listPanelFactory.Create(request);
         var app = coordinator.TryGet(request.Key)
                   ?? throw new InvalidOperationException($"App not found: {request.Key}");
 
@@ -40,7 +38,7 @@ public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator
             case PanelTarget.Functions:
             {
                 var view = (IListPanelView<FunctionDetails>)panel;
-                var controller = new SnapshotListController<FunctionDetails>(view, app.Functions, invalidate);
+                var controller = new FunctionListController(view, app.Key, app.Functions, coordinator, invalidate);
                 return new ListPanelContext
                 {
                     View = panel,

@@ -1,6 +1,7 @@
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.Factory;
 using Funcy.Infrastructure.Azure;
 
 namespace Funcy.Console;
@@ -11,9 +12,11 @@ public class AppOrchestrator(
     IAzureSubscriptionService subscriptionService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
+    AnimationHandler animationHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler,
     FunctionActionHandler actionHandler,
-    FunctionStateCoordinator functionStateCoordinator)
+    FunctionStateCoordinator functionStateCoordinator,
+    ListPanelContextFactory listPanelContextFactory)
 {
     private MainContainer _mainContainer = null!;
 
@@ -23,21 +26,21 @@ public class AppOrchestrator(
         
         var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
         await functionAppUpdateHandler.InitializeAsync(cts.Token);
-        
-        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(), functionStateCoordinator, actionHandler);
 
+        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(),
+            listPanelContextFactory, actionHandler, functionAppUpdateHandler);
+        _ = functionAppUpdateHandler.StartListeningAsync(cts.Token);
+        
         var resizeTask = resizeHandler.StartPolling(cts.Token);
-        var functionTask = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
-        var actionTask = actionHandler.StartListeningAsync(cts.Token);
+        var animation = animationHandler.StartAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
+        await animation;
         await cts.CancelAsync();
         await inputTask;
-        await functionTask;
         await resizeTask;
-        await actionTask;
     }
     
     private async Task WaitForAnyTriggerAsync()
@@ -45,7 +48,8 @@ public class AppOrchestrator(
         await Task.WhenAny(
             resizeHandler.WaitForTriggerAsync(),
             inputHandler.WaitForTriggerAsync(),
-            _mainContainer.WaitForTriggerAsync());
+            _mainContainer.WaitForTriggerAsync(),
+        animationHandler.WaitForTriggerAsync());
     }
 
     private async Task HandleInputAndRenderAsync(CancellationToken token)
@@ -61,7 +65,6 @@ public class AppOrchestrator(
                 {
                     ctx.Refresh();
                     await WaitForAnyTriggerAsync();
-                    
 
                     if (inputHandler.IsTriggered)
                     {
@@ -74,6 +77,12 @@ public class AppOrchestrator(
                         _mainContainer.HandleResize();
                         resizeHandler.ResetTrigger();
                         break;
+                    }
+                    
+                    if (animationHandler.IsTriggered)
+                    {
+                        _mainContainer.HandleAnimation();
+                        animationHandler.ResetTrigger();
                     }
 
                     if (_mainContainer.WaitForTriggerAsync().IsCompleted)

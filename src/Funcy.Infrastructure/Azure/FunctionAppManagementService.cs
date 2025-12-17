@@ -21,7 +21,6 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StartAsync();
-        await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetFunctionState());
         logger.LogInformation("Started Function App: {FunctionAppName}", functionAppDetails.Name);
     }
 
@@ -29,27 +28,7 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
     {
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
         await webSiteResource.StopAsync();
-        await UpdateFunctionApp(functionAppDetails, FunctionAction.Stop.GetFunctionState());
         logger.LogInformation("Stopped Function App: {FunctionAppName}", functionAppDetails.Name);
-    }
-
-    private async Task UpdateFunctionApp(FunctionAppDetails functionAppDetails, FunctionState state)
-    {
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-
-        var existing = await dbContext.FunctionApps
-            .Include(f => f.Functions)
-            .FirstOrDefaultAsync(f =>
-                f.Name == functionAppDetails.Name && f.ResourceGroup == functionAppDetails.ResourceGroup &&
-                f.Subscription == functionAppDetails.Subscription);
-        
-        if (existing is not null)
-        {
-            existing.State = state;
-            existing.UpdatedAt = DateTime.UtcNow;
-            functionAppDetails.LastUpdated = existing.UpdatedAt;
-            await dbContext.SaveChangesAsync();
-        }
     }
 
     public async Task SwapFunction(FunctionAppDetails functionAppDetails, FunctionAppSlotDetails functionAppSlot)
@@ -68,7 +47,6 @@ public class FunctionAppManagementService(ILogger<FunctionAppManagementService> 
                 new CsmSlotEntity(functionAppSlot.Name, true));
             
             await stagingResource.StopSlotAsync();
-            await UpdateFunctionApp(functionAppDetails, FunctionAction.Start.GetFunctionState());
             logger.LogInformation("Swapped Function App: {FunctionAppName}", functionAppDetails.Name);
         }
         catch (Exception e)

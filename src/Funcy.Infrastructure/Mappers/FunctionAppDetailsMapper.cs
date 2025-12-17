@@ -1,22 +1,19 @@
 using Funcy.Core.Model;
-using Funcy.Data.Entities;
+using Funcy.Infrastructure.Azure.Models;
 
 namespace Funcy.Infrastructure.Mappers;
 
 public static class FunctionAppDetailsMapper
 {
-    public static FunctionAppDetails Map(this FunctionApp functionApp)
+    public static FunctionAppDetails Map(this FunctionAppGraphRow functionApp)
     {
         return new FunctionAppDetails
         {
             Name = functionApp.Name,
-            State = functionApp.State,
+            State = Enum.Parse<FunctionState>(functionApp.State),
             System = functionApp.System,
-            ResourceGroup = functionApp.ResourceGroup,
-            Subscription = functionApp.Subscription,
-            Functions = functionApp.Functions.Select(x => x.Map()).ToList(),
-            Slots = functionApp.Slots.Select(x => x.Map()).ToList(),
-            LastUpdated = functionApp.UpdatedAt
+            Id = functionApp.Id,
+            LastUpdated = DateTime.UtcNow
         };
     }
 }

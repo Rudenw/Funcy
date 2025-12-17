@@ -1,3 +1,4 @@
+using Funcy.Console.Handlers.Models;
 using Spectre.Console;
 using Funcy.Console.Ui.PanelLayout;
 using Spectre.Console.Rendering;
@@ -9,7 +10,7 @@ public class ListPanelTableRenderer<T>
     private readonly IReadOnlyList<Column<T>> _columns;
     public Table Table { get; set; }
     
-    public ListPanelTableRenderer(ColumnLayout<T> columnLayout, int width = 110)
+    public ListPanelTableRenderer(ColumnLayout<T> columnLayout, int width = 115)
     {
         Table = new Table();
         Table.Border(TableBorder.None);
@@ -18,7 +19,8 @@ public class ListPanelTableRenderer<T>
         var index = 1;
         foreach (var column in _columns)
         {
-            var tableColumn = new TableColumn(UiStyles.CreateHeaderText(column.Header, index++, false));
+            var tableColumn = new TableColumn(UiStyles.CreateHeaderText(column.Header, column.Selector is not null ? index : null, false));
+            index++;
             if (column.Width > 0)
             {
                 tableColumn.Width(column.Width);
@@ -39,21 +41,33 @@ public class ListPanelTableRenderer<T>
         }
     }
 
-    public void Render(IEnumerable<RowMarkup> rows, int selectedIndex)
+    public void Render(IEnumerable<RowMarkup> rows, int selectedIndex, List<AnimationContext>? animatingKeys)
     {
-        Table.Rows.Clear();
 
-        var i = 0;
-        foreach (var row in rows)
-        {
-            List<IRenderable> markupsToRender = [];
-            foreach (var column in _columns)
+            Table.Rows.Clear();
+
+            var i = 0;
+            foreach (var row in rows)
             {
-                markupsToRender.Add(row.GetCell(column.Header, i == selectedIndex));
-            }
+                List<IRenderable> markupsToRender = [];
+                foreach (var column in _columns)
+                {
+                    var isSelected = i == selectedIndex;
 
-            Table.AddRow(markupsToRender);
-            i++;
-        }
+                    if (column.AnimationColumn && animatingKeys is not null)
+                    {
+                        var animationContext = animatingKeys.FirstOrDefault(a => a.FunctionAppKey == row.Key);
+                        if (animationContext is null) continue;
+                        markupsToRender.Add(new Markup(animationContext.AnimationFrame));
+                    }
+                    else
+                    {
+                        markupsToRender.Add(row.GetCell(column.Header, isSelected));
+                    }
+                }
+
+                Table.AddRow(markupsToRender);
+                i++;
+            }
     }
 }

@@ -1,4 +1,4 @@
-namespace Funcy.Console;
+namespace Funcy.Console.Ui.Shortcuts;
 
 public static class ListPanelShortcuts
 {
@@ -6,8 +6,7 @@ public static class ListPanelShortcuts
     public static readonly Shortcut Start = new(ConsoleKey.S, "S", "Start");
     public static readonly Shortcut Stop = new(ConsoleKey.T, "T", "Stop");
     public static readonly Shortcut Swap = new(ConsoleKey.W, "W", "Swap");
-
-    public static readonly IReadOnlyList<Shortcut> All = [Filter, Start, Stop, Swap];
+    public static readonly Shortcut Refresh = new(ConsoleKey.R, "R", "Refresh");
 }
 
 public record TableIndex(int Row, int Column);

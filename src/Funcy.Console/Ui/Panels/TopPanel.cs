@@ -1,3 +1,4 @@
+using Funcy.Console.Ui.Shortcuts;
 using Spectre.Console;
 using Funcy.Core.Model;
 
@@ -19,8 +20,8 @@ public class TopPanel
         RenderTableLayout();
             
         Panel = new Panel(_table);
-        Panel.Width = 104;
-        Panel.Border(BoxBorder.Ascii);
+        Panel.Width = 80;
+        Panel.BorderColor(Color.Orange1);
     }
 
     private void RenderTableLayout()
@@ -36,12 +37,17 @@ public class TopPanel
         });
         _table.AddColumn("", column =>
         {
-            column.Width = 30;
+            column.Width = 20;
             column.LeftAligned();
         });
         _table.AddColumn("", column =>
         {
-            column.Width = 30;
+            column.Width = 20;
+            column.LeftAligned();
+        });
+        _table.AddColumn("", column =>
+        {
+            column.Width = 20;
             column.LeftAligned();
         });
             
@@ -49,6 +55,7 @@ public class TopPanel
         _renderedShortcuts.Add(new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, true));
         _renderedShortcuts.Add(new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, true));
         _renderedShortcuts.Add(new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, true));
+        _renderedShortcuts.Add(new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, true));
 
         _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
         _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));

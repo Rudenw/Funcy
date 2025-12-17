@@ -12,7 +12,8 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
             {new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true)},
             {new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, CanStart(app))},
             {new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, CanStop(app))},
-            {new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))}
+            {new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))},
+            {new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, CanRefresh(app))}
         };
         return shortcutList;
     }
@@ -29,11 +30,14 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
     }
 
     private static bool CanStart(FunctionAppDetails? app) =>
-        app is null || app.State == FunctionState.Stopped && app.Status.Status != StatusType.InProgress;
+        app is not null && app.State == FunctionState.Stopped && app.Status.Status != StatusType.InProgress;
 
     private static bool CanStop(FunctionAppDetails? app) =>
-        app is null || app.State == FunctionState.Running && app.Status.Status != StatusType.InProgress;
+        app is not null && app.State == FunctionState.Running && app.Status.Status != StatusType.InProgress;
 
     private static bool CanSwap(FunctionAppDetails? app) =>
-        app is null || app.Status.Status != StatusType.InProgress && app.Slots.Count >= 0;
+        app is not null && app.Status.Status != StatusType.InProgress && app.Slots.Count >= 0;
+    
+    private static bool CanRefresh(FunctionAppDetails? app) => 
+        app is not null && app.Status.Status != StatusType.InProgress;
 }

@@ -23,10 +23,11 @@ public static class UiStyles
 
     public static string CreateDangerText(string text) => $"[{Danger}]{text}[/]";
 
-    public static string CreateHeaderText(string text, int index, bool descending, bool isActiveColumn = false)
+    public static string CreateHeaderText(string text, int? index, bool descending, bool isActiveColumn = false)
     {
         var arrow = isActiveColumn ? (descending ? ArrowDown : ArrowUp) : "";
-        return $"[bold]{text}[/] [{Sort}]({index}) {arrow}[/]";
+        var sorting = index is not null ? $"[{Sort}]({index}) {arrow}[/]" : "";
+        return $"[bold]{text}[/]{sorting}";
     }
 
     public static Markup CreateSelectedCell(string text)
