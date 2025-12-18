@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
+using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Microsoft.Extensions.Logging;
@@ -12,7 +13,8 @@ public class FunctionAppUpdateHandler(
     ILogger<FunctionAppUpdateHandler> logger,
     IAzureFunctionService functionService,
     FunctionStateCoordinator functionStateCoordinator,
-    AnimationHandler animationHandler)
+    AnimationHandler animationHandler,
+    IUiStatusState uiStatusState)
 {
     private ConcurrentDictionary<string, Task> _inFlight = new();
     
@@ -27,8 +29,10 @@ public class FunctionAppUpdateHandler(
     {
         await Task.Run(async () =>
         {
+            uiStatusState.BeginInventoryRefresh();
             var functionAppDetailsToUpdate = functionService.GetFunctionAppDetailsAsync(token);
             await UpdateFunctionAppList(functionAppDetailsToUpdate);
+            uiStatusState.EndInventoryRefresh();
             
             await LoadAllDetailsInBackground(token);
             //Just do a full refresh when the app starts
