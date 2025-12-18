@@ -8,125 +8,196 @@ using Azure.ResourceManager;
 using Azure.ResourceManager.AppService;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Data;
+using Funcy.Data.Entities;
 using Funcy.Infrastructure.Azure.Models;
 using Funcy.Infrastructure.Mappers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace Funcy.Infrastructure.Azure;
 
 public class AzureFunctionService(
     ILogger<AzureFunctionService> logger,
-    IAzureSubscriptionService subscriptionService) : IAzureFunctionService
+    IAzureSubscriptionService subscriptionService,
+    IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
-    
-    public async Task<IEnumerable<FunctionAppDetails>> GetFunctionAppBaseAsync()
+
+    public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
-        var allFunctionApps = await subscriptionService.GetAllFunctionApps();
-        sw.Stop();
-        logger.LogInformation("Fetched all function apps in {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
-        return allFunctionApps.Select(functionApp => functionApp.Map());
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
+            .Where(f => f.Subscription == subscriptionId);
+        var functionAppDetailsList = functionAppList.Select(x => x.Map()).ToList();
+        functionAppDetailsList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
+        return functionAppDetailsList;
     }
-    
-    public async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppWithAllDataAsync(
+
+    public async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var sw = Stopwatch.StartNew();
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
         var channel = Channel.CreateUnbounded<FunctionAppFetchResult>();
         var allFunctionApps = await subscriptionService.GetAllFunctionApps();
+        
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+
+        var cleanupTask = CleanUpFunctionApps(allFunctionApps, cancellationToken);
+
+        var existingApps = await dbContext.FunctionApps
+            .Where(f => f.Subscription == subscriptionId)
+            .ToDictionaryAsync(f => f.AzureId, cancellationToken);
+        foreach (var functionAppGraphRow in allFunctionApps)
+        {
+            existingApps.TryGetValue(functionAppGraphRow.Id, out var existing);
+            var functionApp = AddOrUpdateFunctionApp(existing, functionAppGraphRow, dbContext);
+            var details = functionApp.Map();
+            await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppGraphRow.Name, details),
+                cancellationToken);
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        channel.Writer.Complete();
+        await cleanupTask;
+        while (await channel.Reader.WaitToReadAsync(cancellationToken))
+        {
+            while (channel.Reader.TryRead(out var item))
+            {
+                yield return item;
+            }
+        }
+
+        stopwatch.Stop();
+        logger.LogInformation("Fetched all function app details in {ElapsedMilliseconds}ms",
+            stopwatch.ElapsedMilliseconds);
+    }
+
+
+    private async Task CleanUpFunctionApps(List<FunctionAppGraphRow> allFunctionApps, CancellationToken cancellationToken)
+    {
+        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        var azureIds = allFunctionApps.Select(f => f.Id).ToHashSet();
+        var toRemove = await dbContext.FunctionApps
+            .Where(f => f.Subscription == subscriptionId && !azureIds.Contains(f.AzureId))
+            .ToListAsync(cancellationToken);
+
+        if (toRemove.Any())
+        {
+            dbContext.FunctionApps.RemoveRange(toRemove);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            logger.LogInformation("Removed {Count} function apps that no longer exist", toRemove.Count);
+        }
+    }
+
+    public async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppFunctionsAndSlotsAsync(
+        List<FunctionAppDetails> functionAppDetails, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var stopwatch = new Stopwatch();
+        stopwatch.Start();
+        var channel = Channel.CreateUnbounded<FunctionAppFetchResult>();
         var throttler = new SemaphoreSlim(5);
         var tasks = new List<Task>();
-
-        _ = Task.Run(async () =>
+        
+        var foreachTask = Task.Run(async () =>
         {
-            try
+            foreach (var functionAppDetail in functionAppDetails)
             {
-                foreach (var functionAppGraphRow in allFunctionApps)
+                await throttler.WaitAsync(cancellationToken);
+            
+                var getFromAzureTask = Task.Run(async () =>
                 {
-                    await throttler.WaitAsync(cancellationToken);
-                    var detailsTask = Task.Run(async () =>
+                    try
                     {
-                        try
-                        {
-                            var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppGraphRow.Id));
-                            var functionTask = Task.Run(() =>
-                                GetFunctionAppFunctionsAsync(webSiteResource, functionAppGraphRow.Name), cancellationToken);
-                            var slotTask = Task.Run(() => GetFunctionAppSlotsAsync(webSiteResource, functionAppGraphRow.Name), cancellationToken);
-                            var functionAppDetails = functionAppGraphRow.Map();
-
-                            await Task.WhenAll(functionTask, slotTask);
-                            functionAppDetails.Functions = functionTask.Result ?? [];
-                            functionAppDetails.Slots = slotTask.Result ?? [];
-
-                            await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppDetails.Name,
-                                functionAppDetails), cancellationToken);
-                        }
-                        catch (Exception e)
-                        {
-                            await channel.Writer.WriteAsync(
-                                new FunctionAppFetchResult(functionAppGraphRow.Name, null, e.Message),
-                                cancellationToken);
-                        }
-                        finally
-                        {
-                            throttler.Release();
-                        }
-                    }, cancellationToken);
-                    tasks.Add(detailsTask);
-                }
-                
-                await Task.WhenAll(tasks);
-            }
-            finally
-            {
-                channel.Writer.Complete();
-                throttler.Dispose();
+                        var updatedDetails = await GetFunctionAppDetails(functionAppDetail);
+                        await channel.Writer.WriteAsync(new FunctionAppFetchResult(updatedDetails.Name,
+                            updatedDetails), cancellationToken);
+                    }
+                    catch (Exception e)
+                    {
+                        await channel.Writer.WriteAsync(
+                            new FunctionAppFetchResult(functionAppDetail.Name, null, e.Message),
+                            cancellationToken);
+                    }
+                    finally
+                    {
+                        throttler.Release();
+                    }
+                }, cancellationToken);
+                tasks.Add(getFromAzureTask);
             }
         }, cancellationToken);
         
-        sw.Stop();
+        tasks.Add(foreachTask);
+        await Task.WhenAll(tasks);
+        channel.Writer.Complete();
         
         await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken))
         {
             yield return item;
         }
     }
-    
+
     public async Task<FunctionAppDetails> GetFunctionAppDetails(FunctionAppDetails functionAppDetails)
     {
         if (functionAppDetails.State == FunctionState.Stopped)
         {
             return functionAppDetails;
         }
-        
+
         var sw = Stopwatch.StartNew();
+        var dbContext = await dbContextFactory.CreateDbContextAsync();
+        var existing = await dbContext.FunctionApps
+            .Include(f => f.Functions)
+            .Include(f => f.Slots)
+            .FirstAsync(f => f.AzureId == functionAppDetails.Id);
+
         var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
-        
-        var functionTask = Task.Run(() => GetFunctionAppFunctionsAsync(webSiteResource, functionAppDetails.Name));
-        var slotTask = Task.Run(() => GetFunctionAppSlotsAsync(webSiteResource, functionAppDetails.Name));
+
+        var functionTask = Task.Run(() =>
+            FetchFunctionListAsync(webSiteResource, functionAppDetails.Name, functionAppDetails.State.ToString()));
+        var slotTask = Task.Run(() => FetchSlotListAsync(webSiteResource, functionAppDetails.Name));
         await Task.WhenAll(functionTask, slotTask);
 
-        functionAppDetails.Functions = functionTask.Result ?? [];
-        functionAppDetails.Slots = slotTask.Result  ?? [];
-        functionAppDetails.DetailsLoaded = true;
-        
+        if (functionTask.Result is not null)
+        {
+            dbContext.Functions.RemoveRange(existing.Functions);
+            existing.Functions = functionTask.Result;
+        }
+
+        if (slotTask.Result is not null)
+        {
+            dbContext.FunctionAppSlots.RemoveRange(existing.Slots);
+            existing.Slots = slotTask.Result;
+        }
+
+        await dbContext.SaveChangesAsync();
+
         sw.Stop();
         logger.LogInformation("Fetched all function app details in {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
 
-        return functionAppDetails;
+        return existing.Map();
     }
 
-    private List<FunctionDetails>? GetFunctionAppFunctionsAsync(WebSiteResource webSite, string functionAppName)
+    private List<Function>? FetchFunctionListAsync(WebSiteResource webSiteResource, string functionAppName,
+        string functionAppState)
     {
-        List<FunctionDetails>? functionList = [];
+        if (functionAppState.Equals("Stopped", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        List<Function>? functionList = [];
         try
         {
             var sw = Stopwatch.StartNew();
-            var websiteFunctions = webSite.GetSiteFunctions();
+            var websiteFunctions = webSiteResource.GetSiteFunctions();
             foreach (var websiteFunction in websiteFunctions)
             {
-                var config = websiteFunction.Data.Config.ToObjectFromJson<FunctionConfig>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var config = websiteFunction.Data.Config.ToObjectFromJson<FunctionConfig>(new JsonSerializerOptions
+                    { PropertyNameCaseInsensitive = true });
                 var trigger = "";
                 if (config is not null)
                 {
@@ -135,36 +206,72 @@ public class AzureFunctionService(
                         (b.Direction == null || b.Direction.Equals("in", StringComparison.OrdinalIgnoreCase)));
                     trigger = triggerBinding?.Type ?? "";
                 }
-                functionList.Add(new FunctionDetails { FunctionAppName = functionAppName, Name = websiteFunction.Id.Name, Trigger = trigger });
+
+                functionList.Add(new Function
+                    { AzureId = websiteFunction.Id.ToString(), Name = websiteFunction.Id.Name, Trigger = trigger });
             }
+
             sw.Stop();
-            logger.LogInformation("Fetched function list for {FunctionAppName} in {ElapsedMilliseconds}ms", functionAppName, sw.ElapsedMilliseconds);
+            logger.LogInformation("Fetched function list for {FunctionAppName} in {ElapsedMilliseconds}ms",
+                functionAppName, sw.ElapsedMilliseconds);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error while fetching function list details {FunctionAppName}", functionAppName);
             functionList = null;
         }
-        
+
         return functionList;
     }
-    
-    private List<FunctionAppSlotDetails>? GetFunctionAppSlotsAsync(WebSiteResource webSite, string functionAppName)
+
+    private List<FunctionAppSlot>? FetchSlotListAsync(WebSiteResource webSite, string functionAppName)
     {
-        List<FunctionAppSlotDetails>? slotList = null;
+        List<FunctionAppSlot>? slotList = null;
         try
         {
             var sw = Stopwatch.StartNew();
             var slots = webSite.GetWebSiteSlots();
             slotList = Enumerable.Select(slots,
-                slot => new FunctionAppSlotDetails { FullName = slot.Data.Name, Name = slot.Id.Name, Id = slot.Id.ToString(), State = Enum.Parse<FunctionState>(slot.Data.State) }).ToList();
+                slot => new FunctionAppSlot
+                {
+                    FullName = slot.Data.Name, Name = slot.Id.Name, AzureId = slot.Id.ToString(),
+                    State = Enum.Parse<FunctionState>(slot.Data.State)
+                }).ToList();
             sw.Stop();
-            logger.LogInformation("Fetched slot list for {FunctionAppName} in {ElapsedMilliseconds}ms", functionAppName, sw.ElapsedMilliseconds);
+            logger.LogInformation("Fetched slot list for {FunctionAppName} in {ElapsedMilliseconds}ms", functionAppName,
+                sw.ElapsedMilliseconds);
         }
         catch (Exception e)
         {
             logger.LogError(e, "Error while fetching slot list details {FunctionAppName}", functionAppName);
         }
+
         return slotList;
+    }
+
+    private FunctionApp AddOrUpdateFunctionApp(FunctionApp? functionApp, FunctionAppGraphRow functionAppGraphRow,
+        FunctionAppDbContext dbContext)
+    {
+        if (functionApp is null)
+        {
+            functionApp = new FunctionApp()
+            {
+                AzureId = functionAppGraphRow.Id,
+                Name = functionAppGraphRow.Name,
+                State = Enum.Parse<FunctionState>(functionAppGraphRow.State),
+                System = functionAppGraphRow.System,
+                Subscription = functionAppGraphRow.SubscriptionId,
+                ResourceGroup = functionAppGraphRow.ResourceGroup,
+                UpdatedAt = DateTime.UtcNow
+            };
+            dbContext.FunctionApps.Add(functionApp);
+        }
+        else
+        {
+            functionApp.State = Enum.Parse<FunctionState>(functionAppGraphRow.State);
+            functionApp.UpdatedAt = DateTime.UtcNow;
+        }
+
+        return functionApp;
     }
 }

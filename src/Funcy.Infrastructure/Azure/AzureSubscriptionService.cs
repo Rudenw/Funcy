@@ -31,7 +31,7 @@ public class AzureSubscriptionService : IAzureSubscriptionService
             $"Resources | where subscriptionId == '{subscriptionId}' " +
             "| where type =~ 'microsoft.web/sites' " +
             "| where kind has 'functionapp' " +
-            "| project id, name, resourceGroup, system=tostring(tags['System']), state=tostring(properties.state)";
+            "| project id, name, resourceGroup, subscriptionId, system=tostring(tags['System']), state=tostring(properties.state)";
         const int pageSize = 1000;
 
         var results = new List<FunctionAppGraphRow>();

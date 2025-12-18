@@ -26,9 +26,9 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _coordinator.OnFunctionAppUpdated += OnUpdated;
     }
 
-    private void OnUpdated(FunctionAppDetails updated)
+    private void OnUpdated(List<FunctionAppDetails> updated)
     {
-        Store.UpsertMany([updated]);
+        Store.UpsertMany(updated);
         PushSnapshotToView();
         _invalidate?.Invoke();
     }

@@ -15,24 +15,31 @@ public class FunctionAppUpdateHandler(
     AnimationHandler animationHandler)
 {
     private ConcurrentDictionary<string, Task> _inFlight = new();
-
-    private ConcurrentDictionary<string, FunctionAppDetails> _detailsCache = new();
+    
     
     public async Task InitializeAsync(CancellationToken token)
     {
-        // var functionsFromDatabase = await functionService.GetFunctionsFromDatabase(token);
-        // functionStateCoordinator.InitCache(functionsFromDatabase);
+        var functionsFromDatabase = await functionService.GetFunctionsFromDatabase(token);
+        functionStateCoordinator.InitCache(functionsFromDatabase);
     }
 
     public async Task StartListeningAsync(CancellationToken token)
     {
         await Task.Run(async () =>
         {
-            var functionAppDetailsToUpdate = await functionService.GetFunctionAppBaseAsync();
+            var functionAppDetailsToUpdate = functionService.GetFunctionAppDetailsAsync(token);
             await UpdateFunctionAppList(functionAppDetailsToUpdate);
             
+            await LoadAllDetailsInBackground(token);
             //Just do a full refresh when the app starts
         }, token);
+    }
+    
+    private async Task LoadAllDetailsInBackground(CancellationToken token)
+    {
+        var allApps = functionStateCoordinator.GetInitialLoad();
+        var updatedFunctionApps = functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
+        await UpdateFunctionAppList(updatedFunctionApps);
     }
     
     public void LoadDetails(string currentKey, bool userInitiated)
@@ -44,7 +51,7 @@ public class FunctionAppUpdateHandler(
         }
         
         var functionAppDetails = functionStateCoordinator.TryGet(currentKey);
-        if (functionAppDetails is not null && (!functionAppDetails.DetailsLoaded || userInitiated))
+        if (functionAppDetails is not null && userInitiated)
         {
             if (userInitiated)
             {
@@ -53,7 +60,7 @@ public class FunctionAppUpdateHandler(
             var loadingTask = Task.Run(async () =>
             {
                 var functionAppFromAzure = await functionService.GetFunctionAppDetails(functionAppDetails);
-                await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(functionAppFromAzure));
+                await functionStateCoordinator.PublishUpdateAsync(functionAppFromAzure);
             });
             _inFlight.TryAdd(currentKey, loadingTask);
             loadingTask.ContinueWith(t =>
@@ -64,23 +71,14 @@ public class FunctionAppUpdateHandler(
         }
     }
 
-    private async Task UpdateFunctionAppList(IEnumerable<FunctionAppDetails> functionAppDetailsToUpdate)
+    private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate)
     {
         var sw = Stopwatch.StartNew();
-        foreach (var newApp in functionAppDetailsToUpdate)
+        await foreach (var newApp in functionAppDetailsToUpdate)
         {
-            await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(newApp));
+            await functionStateCoordinator.PublishUpdateAsync(newApp.Details!);
         }
         sw.Stop();
         logger.LogInformation("Updated Function App List in {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
-    }
-    
-    private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
-    {
-        return new FunctionAppUpdate()
-        {
-            FunctionAppDetails = functionAppDetails,
-            Source = UpdateSource.Database
-        };
     }
 }

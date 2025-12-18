@@ -7,17 +7,25 @@ namespace Funcy.Console.Handlers.Concurrency;
 
 public class FunctionStateCoordinator
 {
-    private readonly Channel<FunctionAppUpdate> _updateChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
+    private readonly Channel<FunctionAppDetails> _updateChannel = Channel.CreateUnbounded<FunctionAppDetails>();
 
     private readonly ConcurrentDictionary<string, CachedFunctionAppModel> _cache = new();
 
     private readonly SemaphoreSlim _uiUpdateLock = new(1, 1);
-    public event Action<FunctionAppDetails>? OnFunctionAppUpdated;
+    public event Action<List<FunctionAppDetails>>? OnFunctionAppUpdated;
     public event Action<string, List<FunctionDetails>>? OnFunctionListUpdated;
 
     public FunctionStateCoordinator()
     {
         _ = ProcessUpdatesAsync();
+    }
+    
+    public void InitCache(List<FunctionAppDetails> functionsFromDatabase)
+    {
+        foreach (var functionApp in functionsFromDatabase)
+        {
+            _cache.TryAdd(functionApp.Name, new CachedFunctionAppModel(functionApp, functionApp.LastUpdated));
+        }
     }
 
     public List<FunctionAppDetails> GetInitialLoad()
@@ -31,7 +39,7 @@ public class FunctionStateCoordinator
         return app?.FunctionAppDetails;
     }
 
-    public async Task PublishUpdateAsync(FunctionAppUpdate details)
+    public async Task PublishUpdateAsync(FunctionAppDetails details)
     {
         await _updateChannel.Writer.WriteAsync(details);
     }
@@ -40,9 +48,9 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            var status = update.FunctionAppDetails.Status;
-            _cache[update.FunctionAppDetails.Name] =
-                new CachedFunctionAppModel(update.FunctionAppDetails, update.FunctionAppDetails.LastUpdated)
+            var status = update.Status;
+            _cache[update.Name] =
+                new CachedFunctionAppModel(update, update.LastUpdated)
                 {
                     FunctionAppDetails =
                     {
@@ -52,8 +60,8 @@ public class FunctionStateCoordinator
             await _uiUpdateLock.WaitAsync();
             try
             {
-                OnFunctionAppUpdated?.Invoke(update.FunctionAppDetails);
-                OnFunctionListUpdated?.Invoke(update.FunctionAppDetails.Key, update.FunctionAppDetails.Functions);
+                OnFunctionAppUpdated?.Invoke([update]);
+                OnFunctionListUpdated?.Invoke(update.Key, update.Functions);
             }
             finally
             {

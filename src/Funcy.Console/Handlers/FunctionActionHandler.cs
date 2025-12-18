@@ -24,7 +24,7 @@ public class FunctionActionHandler(
         functionAppDetails.Status.Action = null;
         functionAppDetails.LastUpdated = DateTime.UtcNow;
         
-        await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(functionAppDetails));
+        await functionStateCoordinator.PublishUpdateAsync(functionAppDetails);
     }
 
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
@@ -37,17 +37,8 @@ public class FunctionActionHandler(
             dispatchedFunction.FunctionAppDetails.LastUpdated = DateTime.UtcNow;
             
             animationHandler.AddAppDetails(dispatchedFunction.FunctionAppDetails.Key);
-            await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
+            await functionStateCoordinator.PublishUpdateAsync(dispatchedFunction.FunctionAppDetails);
         }
-    }
-
-    private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
-    {
-        return new FunctionAppUpdate
-        {
-            FunctionAppDetails = functionAppDetails,
-            Source = UpdateSource.Action
-        };
     }
     
     public async Task Dispatch(InputActionResult inputResult)
@@ -78,7 +69,7 @@ public class FunctionActionHandler(
                     inputResult.FunctionAppDetails.Status.Action = null;
                                 
                     animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
-                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
+                    await functionStateCoordinator.PublishUpdateAsync(inputResult.FunctionAppDetails);
                 }
                 else
                 {
@@ -86,7 +77,7 @@ public class FunctionActionHandler(
                     inputResult.FunctionAppDetails.Status.Action = null;
                                 
                     animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
-                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
+                    await functionStateCoordinator.PublishUpdateAsync(inputResult.FunctionAppDetails);
                 }
 
                 _ = UpdateFunctionAppStatus(inputResult.FunctionAppDetails);
