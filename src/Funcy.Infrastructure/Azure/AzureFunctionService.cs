@@ -51,6 +51,7 @@ public class AzureFunctionService(
         var existingApps = await dbContext.FunctionApps
             .Where(f => f.Subscription == subscriptionId)
             .ToDictionaryAsync(f => f.AzureId, cancellationToken);
+
         foreach (var functionAppGraphRow in allFunctionApps)
         {
             existingApps.TryGetValue(functionAppGraphRow.Id, out var existing);
@@ -59,10 +60,11 @@ public class AzureFunctionService(
             await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppGraphRow.Name, details),
                 cancellationToken);
         }
-
         await dbContext.SaveChangesAsync(cancellationToken);
-        channel.Writer.Complete();
         await cleanupTask;
+        channel.Writer.Complete();
+
+        
         while (await channel.Reader.WaitToReadAsync(cancellationToken))
         {
             while (channel.Reader.TryRead(out var item))
@@ -130,11 +132,10 @@ public class AzureFunctionService(
                 }, cancellationToken);
                 tasks.Add(getFromAzureTask);
             }
+            
+            await Task.WhenAll(tasks);
+            channel.Writer.Complete();
         }, cancellationToken);
-        
-        tasks.Add(foreachTask);
-        await Task.WhenAll(tasks);
-        channel.Writer.Complete();
         
         await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken))
         {

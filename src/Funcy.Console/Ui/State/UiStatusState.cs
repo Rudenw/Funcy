@@ -6,32 +6,39 @@ public interface IUiStatusState
 
     UiStatusSnapshot GetSnapshot();
 
-    void BeginInventoryRefresh();
-    void EndInventoryRefresh();
+    void BeginInventoryValidation();
+    void EndInventoryValidation();
+    void BeginDetailsRefresh();
+    void EndDetailsRefresh();
+    void SetTotalDetails(int count);
 
     void IncrementDetailsInFlight();
-    void DecrementDetailsInFlight();
+    void ResetDetailsInFlight();
 
     void SetLastError(string? message);
 }
 
 public readonly struct UiStatusSnapshot
 {
-    public bool IsInventoryRefreshing { get; init; }
+    public bool IsInventoryValidating { get; init; }
     public int DetailsInFlight { get; init; }
     public long LastInventoryRefreshUtcTicks { get; init; }
     public long LastErrorUtcTicks { get; init; }
     public string? LastError { get; init; }
+    public bool IsDetailsRefreshing { get; init; }
+    public int TotalDetails { get; init; }
 }
 
 public sealed class UiStatusState : IUiStatusState
 {
     public event Action? Changed;
 
-    private int _isInventoryRefreshing;
+    private int _isInventoryValidating;
+    private int _isDetailsRefreshing;
+    private int _totalDetails;
     private int _detailsInFlight;
 
-    private long _lastInventoryRefreshUtcTicks;
+    private long _lastDetailsRefreshUtcTicks;
     private long _lastErrorUtcTicks;
     private string? _lastError;
 
@@ -41,28 +48,46 @@ public sealed class UiStatusState : IUiStatusState
     {
         return new UiStatusSnapshot
         {
-            IsInventoryRefreshing = Volatile.Read(ref _isInventoryRefreshing) == 1,
+            IsDetailsRefreshing = Volatile.Read(ref _isDetailsRefreshing) == 1,
+            IsInventoryValidating = Volatile.Read(ref _isInventoryValidating) == 1,
             DetailsInFlight = Volatile.Read(ref _detailsInFlight),
-            LastInventoryRefreshUtcTicks = Volatile.Read(ref _lastInventoryRefreshUtcTicks),
+            LastInventoryRefreshUtcTicks = Volatile.Read(ref _lastDetailsRefreshUtcTicks),
             LastErrorUtcTicks = Volatile.Read(ref _lastErrorUtcTicks),
-            LastError = Volatile.Read(ref _lastError)
+            LastError = Volatile.Read(ref _lastError),
+            TotalDetails = Volatile.Read(ref _totalDetails)
         };
     }
 
-    public void BeginInventoryRefresh()
+    public void BeginInventoryValidation()
     {
-        if (Interlocked.Exchange(ref _isInventoryRefreshing, 1) == 1)
+        if (Interlocked.Exchange(ref _isInventoryValidating, 1) == 1)
             return;
 
         QueueChanged();
     }
 
-    public void EndInventoryRefresh()
+    public void EndInventoryValidation()
     {
-        if (Interlocked.Exchange(ref _isInventoryRefreshing, 0) == 0)
+        if (Interlocked.Exchange(ref _isInventoryValidating, 0) == 0)
             return;
+        
+        QueueChanged();
+    }
 
-        Volatile.Write(ref _lastInventoryRefreshUtcTicks, DateTime.UtcNow.Ticks);
+    public void BeginDetailsRefresh()
+    {
+        if (Interlocked.Exchange(ref _isDetailsRefreshing, 1) == 1)
+            return;
+        
+        QueueChanged();
+    }
+
+    public void EndDetailsRefresh()
+    {
+        if (Interlocked.Exchange(ref _isDetailsRefreshing, 0) == 0)
+            return;
+        
+        Volatile.Write(ref _lastDetailsRefreshUtcTicks, DateTime.UtcNow.Ticks);
         QueueChanged();
     }
 
@@ -71,12 +96,16 @@ public sealed class UiStatusState : IUiStatusState
         Interlocked.Increment(ref _detailsInFlight);
         QueueChanged();
     }
-
-    public void DecrementDetailsInFlight()
+    
+    public void SetTotalDetails(int count)
     {
-        var after = Interlocked.Decrement(ref _detailsInFlight);
-        if (after < 0)
-            Interlocked.Exchange(ref _detailsInFlight, 0);
+        Interlocked.Exchange(ref _totalDetails, count);
+        QueueChanged();
+    }
+
+    public void ResetDetailsInFlight()
+    {
+        Interlocked.Exchange(ref _detailsInFlight, 0);
 
         QueueChanged();
     }

@@ -59,6 +59,7 @@ public class TopPanel
 
         _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
         _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
+        _table.AddRow(UiStyles.CreateLabelMarkup("Status:"), new Markup(""));
 
         UpdateShortcuts();
     }
@@ -76,6 +77,11 @@ public class TopPanel
     public void SetSearchText(Markup searchMarkup)
     {
         UpdateSearchCell(searchMarkup);
+    }
+
+    public void SetUiStatusText(Markup markup)
+    {
+        _table.Rows.Update(2, 1, markup);
     }
     
     private void UpdateSearchCell(Markup searchText)

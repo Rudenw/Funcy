@@ -9,7 +9,10 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
 
-public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator, ListPanelFactory listPanelFactory)
+public sealed class ListPanelContextFactory(
+    FunctionStateCoordinator coordinator,
+    ListPanelFactory listPanelFactory,
+    IUiStatusState uiStatusState)
 {
     public ListPanelContext CreateRoot(IReadOnlyList<FunctionAppDetails> apps, Action invalidate)
     {
@@ -18,6 +21,7 @@ public sealed class ListPanelContextFactory(FunctionStateCoordinator coordinator
             (IListPanelView<FunctionAppDetails>)panel,
             apps,
             coordinator,
+            uiStatusState,
             invalidate: invalidate);
 
         return new ListPanelContext

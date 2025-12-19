@@ -18,6 +18,11 @@ public abstract class ListPanelControllerBase<T>(IListPanelView<T> view) : IList
         var snapshot = Store.Snapshot();
         View.SetItems(snapshot);
     }
+    
+    protected void PushStatusToView(UiStatusSnapshot uiStatusSnapshot)
+    {
+        View.SetUiStatus(uiStatusSnapshot);
+    }
 
     public virtual void Dispose() { /* unhook events etc */ }
 }

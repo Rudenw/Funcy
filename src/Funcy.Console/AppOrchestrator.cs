@@ -2,6 +2,7 @@ using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factory;
+using Funcy.Console.Ui.State;
 using Funcy.Infrastructure.Azure;
 
 namespace Funcy.Console;
@@ -16,7 +17,8 @@ public class AppOrchestrator(
     FunctionAppUpdateHandler functionAppUpdateHandler,
     FunctionActionHandler actionHandler,
     FunctionStateCoordinator functionStateCoordinator,
-    ListPanelContextFactory listPanelContextFactory)
+    ListPanelContextFactory listPanelContextFactory,
+    UiStateMarkupProvider uiStateMarkupProvider)
 {
     private MainContainer _mainContainer = null!;
 
@@ -28,7 +30,7 @@ public class AppOrchestrator(
         await functionAppUpdateHandler.InitializeAsync(cts.Token);
 
         _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(),
-            listPanelContextFactory, actionHandler, functionAppUpdateHandler);
+            listPanelContextFactory, actionHandler, functionAppUpdateHandler, uiStateMarkupProvider);
         _ = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);

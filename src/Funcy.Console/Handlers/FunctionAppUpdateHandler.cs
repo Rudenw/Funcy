@@ -29,12 +29,14 @@ public class FunctionAppUpdateHandler(
     {
         await Task.Run(async () =>
         {
-            uiStatusState.BeginInventoryRefresh();
+            uiStatusState.BeginInventoryValidation();
             var functionAppDetailsToUpdate = functionService.GetFunctionAppDetailsAsync(token);
             await UpdateFunctionAppList(functionAppDetailsToUpdate);
-            uiStatusState.EndInventoryRefresh();
+            uiStatusState.EndInventoryValidation();
             
+            uiStatusState.BeginDetailsRefresh();
             await LoadAllDetailsInBackground(token);
+            uiStatusState.EndDetailsRefresh();
             //Just do a full refresh when the app starts
         }, token);
     }
@@ -42,6 +44,7 @@ public class FunctionAppUpdateHandler(
     private async Task LoadAllDetailsInBackground(CancellationToken token)
     {
         var allApps = functionStateCoordinator.GetInitialLoad();
+        uiStatusState.SetTotalDetails(allApps.Count);
         var updatedFunctionApps = functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
         await UpdateFunctionAppList(updatedFunctionApps);
     }
@@ -81,7 +84,9 @@ public class FunctionAppUpdateHandler(
         await foreach (var newApp in functionAppDetailsToUpdate)
         {
             await functionStateCoordinator.PublishUpdateAsync(newApp.Details!);
+            uiStatusState.IncrementDetailsInFlight();
         }
+        uiStatusState.ResetDetailsInFlight();
         sw.Stop();
         logger.LogInformation("Updated Function App List in {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
     }

@@ -9,21 +9,31 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
 {
     private readonly FunctionStateCoordinator _coordinator;
     private readonly Action? _invalidate;
+    private readonly IUiStatusState _uiStatusState;
 
     public FunctionAppListController(IListPanelView<FunctionAppDetails> view,
         IEnumerable<FunctionAppDetails> initial,
         FunctionStateCoordinator coordinator,
+        IUiStatusState uiStatusState,
         Action? invalidate = null)
         : base(view)
     {
         _coordinator = coordinator;
         _invalidate = invalidate;
+        _uiStatusState = uiStatusState;
         
         Store.UpdateAll(initial);
         PushSnapshotToView();
         _invalidate?.Invoke();
         
         _coordinator.OnFunctionAppUpdated += OnUpdated;
+        _uiStatusState.Changed += OnUiStatusChanged;
+    }
+
+    private void OnUiStatusChanged()
+    {
+        PushStatusToView(_uiStatusState.GetSnapshot());
+        _invalidate?.Invoke();
     }
 
     private void OnUpdated(List<FunctionAppDetails> updated)
