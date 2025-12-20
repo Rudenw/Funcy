@@ -10,7 +10,7 @@ namespace Funcy.Console;
 using Spectre.Console;
 
 public class AppOrchestrator(
-    IAzureSubscriptionService subscriptionService,
+    IAzureResourceService resourceService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
     AnimationHandler animationHandler,
@@ -26,10 +26,10 @@ public class AppOrchestrator(
     {
         var cts = new CancellationTokenSource();
         
-        var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
+        var subscriptionName = await resourceService.GetCurrentSubscriptionName();
         await functionAppUpdateHandler.InitializeAsync(cts.Token);
 
-        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(),
+        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetCachedFunctionAppDetails(),
             listPanelContextFactory, actionHandler, functionAppUpdateHandler, uiStateMarkupProvider);
         _ = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         

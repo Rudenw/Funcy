@@ -231,6 +231,7 @@ public sealed class MainContainer : IDisposable
     public void HandleAnimation()
     {
         Current.View.RenderCurrentView();
+        UpdateUiStatus();
     }
 
     public void Dispose()

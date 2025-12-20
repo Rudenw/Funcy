@@ -19,14 +19,14 @@ namespace Funcy.Infrastructure.Azure;
 
 public class AzureFunctionService(
     ILogger<AzureFunctionService> logger,
-    IAzureSubscriptionService subscriptionService,
+    IAzureResourceService resourceService,
     IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
 {
     private readonly ArmClient _client = new(new DefaultAzureCredential());
 
     public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken)
     {
-        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
             .Where(f => f.Subscription == subscriptionId);
@@ -41,10 +41,10 @@ public class AzureFunctionService(
         var stopwatch = new Stopwatch();
         stopwatch.Start();
         var channel = Channel.CreateUnbounded<FunctionAppFetchResult>();
-        var allFunctionApps = await subscriptionService.GetAllFunctionApps();
+        var allFunctionApps = await resourceService.GetAllFunctionApps();
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
 
         var cleanupTask = CleanUpFunctionApps(allFunctionApps, cancellationToken);
 
@@ -78,10 +78,9 @@ public class AzureFunctionService(
             stopwatch.ElapsedMilliseconds);
     }
 
-
     private async Task CleanUpFunctionApps(List<FunctionAppGraphRow> allFunctionApps, CancellationToken cancellationToken)
     {
-        var subscriptionId = await subscriptionService.GetCurrentSubscriptionId();
+        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var azureIds = allFunctionApps.Select(f => f.Id).ToHashSet();
         var toRemove = await dbContext.FunctionApps

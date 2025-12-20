@@ -7,7 +7,7 @@ using Funcy.Infrastructure.Shell;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class AzureSubscriptionService : IAzureSubscriptionService
+public class AzureResourceService : IAzureResourceService
 {
     public async Task<string> GetCurrentSubscriptionId()
     {
@@ -83,7 +83,7 @@ public class AzureSubscriptionService : IAzureSubscriptionService
     }
 }
 
-public interface IAzureSubscriptionService
+public interface IAzureResourceService
 {
     Task<string> GetCurrentSubscriptionId();
     Task<string> GetCurrentSubscriptionName();

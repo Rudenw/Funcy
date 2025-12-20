@@ -3,13 +3,15 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui.State;
 
-public class UiStateMarkupProvider()
+public class UiStateMarkupProvider(IAnimationProvider animationProvider)
 {
     public Markup CreateMarkupFromUiStatusState(UiStatusSnapshot state)
     {
+        var animations = animationProvider.GetAnimation("TopPanel");
+        var animationFrame = animations?.AnimationFrame ?? string.Empty;
         if (state.IsInventoryValidating)
         {
-            return UiStyles.CreateStatusText($"Validating all function apps {state.DetailsInFlight}");
+            return UiStyles.CreateStatusText($"Validating all function apps {animationFrame}");
         }
 
         if (state.IsDetailsRefreshing)

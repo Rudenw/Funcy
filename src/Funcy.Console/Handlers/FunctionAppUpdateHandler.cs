@@ -29,10 +29,12 @@ public class FunctionAppUpdateHandler(
     {
         await Task.Run(async () =>
         {
+            animationHandler.AddAppDetails("TopPanel");
             uiStatusState.BeginInventoryValidation();
             var functionAppDetailsToUpdate = functionService.GetFunctionAppDetailsAsync(token);
             await UpdateFunctionAppList(functionAppDetailsToUpdate);
             uiStatusState.EndInventoryValidation();
+            animationHandler.RemoveAppDetails("TopPanel");
             
             uiStatusState.BeginDetailsRefresh();
             await LoadAllDetailsInBackground(token);
@@ -43,7 +45,7 @@ public class FunctionAppUpdateHandler(
     
     private async Task LoadAllDetailsInBackground(CancellationToken token)
     {
-        var allApps = functionStateCoordinator.GetInitialLoad();
+        var allApps = functionStateCoordinator.GetCachedFunctionAppDetails();
         uiStatusState.SetTotalDetails(allApps.Count);
         var updatedFunctionApps = functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
         await UpdateFunctionAppList(updatedFunctionApps);
@@ -80,14 +82,21 @@ public class FunctionAppUpdateHandler(
 
     private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate)
     {
+        List<string> existingFunctionAppNames = [];
         var sw = Stopwatch.StartNew();
         await foreach (var newApp in functionAppDetailsToUpdate)
         {
-            await functionStateCoordinator.PublishUpdateAsync(newApp.Details!);
-            uiStatusState.IncrementDetailsInFlight();
+            existingFunctionAppNames.Add(newApp.Name);
+            if (newApp.IsSuccess)
+            {
+                await functionStateCoordinator.PublishUpdateAsync(newApp.Details!);
+                uiStatusState.IncrementDetailsInFlight();
+            }
         }
         uiStatusState.ResetDetailsInFlight();
         sw.Stop();
         logger.LogInformation("Updated Function App List in {ElapsedMilliseconds}ms", sw.ElapsedMilliseconds);
+        
+        await functionStateCoordinator.RemoveFunctions(existingFunctionAppNames);
     }
 }

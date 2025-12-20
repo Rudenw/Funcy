@@ -27,6 +27,7 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _invalidate?.Invoke();
         
         _coordinator.OnFunctionAppUpdated += OnUpdated;
+        _coordinator.OnFunctionAppRemoved += OnRemoved;
         _uiStatusState.Changed += OnUiStatusChanged;
     }
 
@@ -36,9 +37,16 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _invalidate?.Invoke();
     }
 
-    private void OnUpdated(List<FunctionAppDetails> updated)
+    private void OnUpdated(FunctionAppDetails updated)
     {
-        Store.UpsertMany(updated);
+        Store.UpsertMany([updated]);
+        PushSnapshotToView();
+        _invalidate?.Invoke();
+    }
+    
+    private void OnRemoved(FunctionAppDetails removed)
+    {
+        Store.RemoveMany([removed]);
         PushSnapshotToView();
         _invalidate?.Invoke();
     }

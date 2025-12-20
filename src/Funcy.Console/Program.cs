@@ -61,7 +61,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<ListPanelFactory>();
         services.AddTransient<IAzureFunctionService, AzureFunctionService>();
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
-        services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
+        services.AddScoped<IAzureResourceService, AzureResourceService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
     })
     .Build();
