@@ -16,7 +16,7 @@ public class FunctionAppUpdateHandler(
     AnimationHandler animationHandler,
     IUiStatusState uiStatusState)
 {
-    private ConcurrentDictionary<string, Task> _inFlight = new();
+    private readonly ConcurrentDictionary<string, Task> _inFlight = new();
     
     
     public async Task InitializeAsync(CancellationToken token)
@@ -39,7 +39,6 @@ public class FunctionAppUpdateHandler(
             uiStatusState.BeginDetailsRefresh();
             await LoadAllDetailsInBackground(token);
             uiStatusState.EndDetailsRefresh();
-            //Just do a full refresh when the app starts
         }, token);
     }
     
@@ -53,6 +52,7 @@ public class FunctionAppUpdateHandler(
     
     public void LoadDetails(string currentKey, bool userInitiated)
     {
+        //TODO cleanup this and add status text as in functionapphandler
         if (_inFlight.ContainsKey(currentKey))
         {
             animationHandler.AddAppDetails(currentKey);
