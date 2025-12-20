@@ -30,7 +30,7 @@ public class TopPanel
         
         
         Panel = new Panel(layoutTable);
-        Panel.Width = 80;
+        Panel.Width = 119;
         Panel.BorderColor(Color.Orange1);
     }
 
@@ -66,7 +66,7 @@ public class TopPanel
         });
         _dataTable.AddColumn("", column =>
         {
-            column.Width = 20;
+            column.Width = 15;
             column.LeftAligned();
         });
             
