@@ -18,14 +18,16 @@ public class AppOrchestrator(
     FunctionActionHandler actionHandler,
     FunctionStateCoordinator functionStateCoordinator,
     ListPanelContextFactory listPanelContextFactory,
-    UiStateMarkupProvider uiStateMarkupProvider)
+    UiStateMarkupProvider uiStateMarkupProvider,
+    AppContext appContext)
 {
     private MainContainer _mainContainer = null!;
 
     public async Task StartAsync()
     {
         var cts = new CancellationTokenSource();
-        
+
+        await appContext.InitializeAppContext();
         var subscriptionName = await resourceService.GetCurrentSubscriptionName();
         await functionAppUpdateHandler.InitializeAsync(cts.Token);
 

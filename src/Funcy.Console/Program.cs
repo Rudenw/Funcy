@@ -16,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using AppContext = Funcy.Console.AppContext;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -55,7 +56,9 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IAnimationProvider>(sp => sp.GetRequiredService<AnimationHandler>());
         services.AddSingleton<FunctionStateCoordinator>();
         services.AddSingleton<IUiStatusState, UiStatusState>();
+        services.AddSingleton<AppContext>();
         services.AddTransient<FunctionStatusManager>();
+        services.AddTransient<AzureSubscriptionService>();
         services.AddTransient<UiStateMarkupProvider>();
         services.AddTransient<AppOrchestrator>();
         services.AddTransient<ListPanelContextFactory>();
