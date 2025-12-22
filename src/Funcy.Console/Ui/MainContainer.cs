@@ -8,6 +8,7 @@ using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Model;
 using Spectre.Console;
 
@@ -17,6 +18,7 @@ public sealed class MainContainer : IDisposable
 {
     private readonly FunctionActionHandler _functionActionHandler;
     private readonly FunctionAppUpdateHandler _functionAppUpdateHandler;
+    private readonly UiStateMarkupProvider _uiStateMarkupProvider;
     private readonly TopPanel _topPanel;
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
     
@@ -32,11 +34,13 @@ public sealed class MainContainer : IDisposable
         List<FunctionAppDetails> functionApps,
         ListPanelContextFactory listPanelContextFactory,
         FunctionActionHandler functionActionHandler, 
-        FunctionAppUpdateHandler functionAppUpdateHandler)
+        FunctionAppUpdateHandler functionAppUpdateHandler,
+        UiStateMarkupProvider uiStateMarkupProvider)
     {
         _listPanelContextFactory = listPanelContextFactory;
         _functionActionHandler = functionActionHandler;
         _functionAppUpdateHandler = functionAppUpdateHandler;
+        _uiStateMarkupProvider = uiStateMarkupProvider;
         _topPanel = new TopPanel(subscriptionName);
 
         var context = _listPanelContextFactory.CreateRoot(functionApps, () => _tcs.TrySetResult());
@@ -44,7 +48,7 @@ public sealed class MainContainer : IDisposable
         
         MainLayout = new Layout("Main Layout")
             .SplitRows(
-                new Layout("TopPanel").Size(4),
+                new Layout("TopPanel").Size(5),
                 new Layout("BodyPanel")
             );
 
@@ -73,6 +77,13 @@ public sealed class MainContainer : IDisposable
     public void HandleUpdate()
     {
         UpdateShortcuts();
+        UpdateUiStatus();
+    }
+
+    private void UpdateUiStatus()
+    {
+        var uiStatusSnapshot = Current.View.GetUiStatusSnapshot();
+        _topPanel.SetUiStatusText(_uiStateMarkupProvider.CreateMarkupFromUiStatusState(uiStatusSnapshot));
     }
 
     private void UpdateShortcuts()
@@ -112,7 +123,7 @@ public sealed class MainContainer : IDisposable
             
             case var key when 
                 key == ListPanelShortcuts.Refresh.Key:
-                LoadDetails(true);
+                LoadDetails();
                 break;
 
             case ConsoleKey.Delete:
@@ -135,7 +146,6 @@ public sealed class MainContainer : IDisposable
             case ConsoleKey.DownArrow:
                 Current.View.HandleInput(keyInfo);
                 UpdateShortcuts();
-                LoadDetails(false);
                 break;
 
             default:
@@ -144,10 +154,16 @@ public sealed class MainContainer : IDisposable
         }
     }
 
-    private void LoadDetails(bool userInitiated)
+    private void LoadDetails()
     {
         var currentKey = Current.View.GetSelectedItemKey();
-        _functionAppUpdateHandler.LoadDetails(currentKey, userInitiated);
+        
+        if (!Current.View.IsActionValid(FunctionAction.Refresh))
+        {
+            return;
+        }
+        
+        _functionAppUpdateHandler.LoadDetails(currentKey);
     }
 
     private void SyncSearchUi()
@@ -220,6 +236,7 @@ public sealed class MainContainer : IDisposable
     public void HandleAnimation()
     {
         Current.View.RenderCurrentView();
+        UpdateUiStatus();
     }
 
     public void Dispose()

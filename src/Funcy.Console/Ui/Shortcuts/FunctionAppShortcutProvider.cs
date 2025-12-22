@@ -25,6 +25,7 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
             FunctionAction.Start => CanStart(getSelectedItem),
             FunctionAction.Stop => CanStop(getSelectedItem),
             FunctionAction.Swap => CanSwap(getSelectedItem),
+            FunctionAction.Refresh => CanRefresh(getSelectedItem),
             _ => true
         };
     }

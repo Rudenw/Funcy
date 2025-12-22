@@ -6,7 +6,9 @@ using Microsoft.Extensions.Hosting;
 using Funcy.Console;
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factory;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
@@ -52,12 +54,15 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<AnimationHandler>();
         services.AddSingleton<IAnimationProvider>(sp => sp.GetRequiredService<AnimationHandler>());
         services.AddSingleton<FunctionStateCoordinator>();
+        services.AddSingleton<IUiStatusState, UiStatusState>();
+        services.AddTransient<FunctionStatusManager>();
+        services.AddTransient<UiStateMarkupProvider>();
         services.AddTransient<AppOrchestrator>();
         services.AddTransient<ListPanelContextFactory>();
         services.AddTransient<ListPanelFactory>();
         services.AddTransient<IAzureFunctionService, AzureFunctionService>();
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
-        services.AddScoped<IAzureSubscriptionService, AzureSubscriptionService>();
+        services.AddScoped<IAzureResourceService, AzureResourceService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
     })
     .Build();

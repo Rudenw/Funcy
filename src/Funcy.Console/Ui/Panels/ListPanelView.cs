@@ -36,6 +36,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private string _searchText = "";
     private IReadOnlyList<T> _snapshot = [];
     private Dictionary<string, T> _itemIndex = new();
+    private UiStatusSnapshot _uiStatus;
 
 
     public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
@@ -70,7 +71,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         BuildCache();
         RefreshView();
     }
-    
+
+    public void SetUiStatus(UiStatusSnapshot uiStatusSnapshot)
+    {
+        _uiStatus = uiStatusSnapshot;
+    }
+
     public void HandleResize()
     {
         _paginator.UpdateMaxVisibleRows();
@@ -210,6 +216,8 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     {
         return _shortcuts.Describe(GetSelectedItem());
     }
+    
+    public UiStatusSnapshot GetUiStatusSnapshot() => _uiStatus;
     
     public bool IsActionValid(FunctionAction action)
     {

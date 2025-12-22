@@ -19,4 +19,5 @@ public interface IListPanel
     bool IsActionValid(FunctionAction action);
     void RenderCurrentView();
     string GetSelectedItemKey();
+    UiStatusSnapshot GetUiStatusSnapshot();
 }

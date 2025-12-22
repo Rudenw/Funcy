@@ -9,45 +9,17 @@ namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
-    FunctionStateCoordinator functionStateCoordinator,
-    AnimationHandler animationHandler)
+    FunctionStatusManager functionStatusManager)
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
-    
-    public async Task UpdateFunctionAppStatus(FunctionAppDetails functionAppDetails)
-    {
-        var timeToLive = functionAppDetails.Status.GetTimeToLive();
-        if (timeToLive <= 0) return;
-        
-        await Task.Delay(TimeSpan.FromSeconds(timeToLive));
-        functionAppDetails.Status.Status = StatusType.Idle;
-        functionAppDetails.Status.Action = null;
-        functionAppDetails.LastUpdated = DateTime.UtcNow;
-        
-        await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(functionAppDetails));
-    }
 
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
         _currentTasks.TryAdd(name, dispatchedFunction);
         if (dispatchedFunction.FunctionAppDetails.Status.Status != StatusType.InProgress)
         {
-            dispatchedFunction.FunctionAppDetails.Status.Status = StatusType.InProgress;
-            dispatchedFunction.FunctionAppDetails.Status.Action = dispatchedFunction.Action;
-            dispatchedFunction.FunctionAppDetails.LastUpdated = DateTime.UtcNow;
-            
-            animationHandler.AddAppDetails(dispatchedFunction.FunctionAppDetails.Key);
-            await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(dispatchedFunction.FunctionAppDetails));
+            await functionStatusManager.BeginOperation(dispatchedFunction.FunctionAppDetails, dispatchedFunction.Action);
         }
-    }
-
-    private static FunctionAppUpdate CreateFunctionAppUpdate(FunctionAppDetails functionAppDetails)
-    {
-        return new FunctionAppUpdate
-        {
-            FunctionAppDetails = functionAppDetails,
-            Source = UpdateSource.Action
-        };
     }
     
     public async Task Dispatch(InputActionResult inputResult)
@@ -67,29 +39,13 @@ public class FunctionActionHandler(
 
             _ = dispatchedTask.ContinueWith(async t =>
             {
-                if (t.IsCompletedSuccessfully)
+                if (inputResult.Action != FunctionAction.Swap)
                 {
-                    if (inputResult.Action != FunctionAction.Swap)
-                    {
-                        inputResult.FunctionAppDetails.State = inputResult.Action.GetFunctionState();                                    
-                    }
-                                
-                    inputResult.FunctionAppDetails.Status.Status = StatusType.Success;
-                    inputResult.FunctionAppDetails.Status.Action = null;
-                                
-                    animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
-                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
-                }
-                else
-                {
-                    inputResult.FunctionAppDetails.Status.Status = StatusType.Error;
-                    inputResult.FunctionAppDetails.Status.Action = null;
-                                
-                    animationHandler.RemoveAppDetails(inputResult.FunctionAppDetails.Key);
-                    await functionStateCoordinator.PublishUpdateAsync(CreateFunctionAppUpdate(inputResult.FunctionAppDetails));
+                    inputResult.FunctionAppDetails.State = inputResult.Action.GetFunctionState();                                    
                 }
 
-                _ = UpdateFunctionAppStatus(inputResult.FunctionAppDetails);
+                await functionStatusManager.CompleteOperation(inputResult.FunctionAppDetails, inputResult.Action,
+                    t.IsCompletedSuccessfully);
                             
                 _currentTasks.TryRemove(inputResult.FunctionAppDetails.Name, out _);
             });

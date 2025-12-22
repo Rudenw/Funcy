@@ -29,6 +29,11 @@ public static class UiStyles
         var sorting = index is not null ? $"[{Sort}]({index}) {arrow}[/]" : "";
         return $"[bold]{text}[/]{sorting}";
     }
+    
+    public static Markup CreateStatusText(string statusText)
+    {
+        return new Markup($"[{Color.CornflowerBlue}]{statusText}[/]");
+    }
 
     public static Markup CreateSelectedCell(string text)
         => new("[black on yellow]" + text + "[/]");

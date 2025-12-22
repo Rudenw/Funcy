@@ -8,7 +8,8 @@ namespace Funcy.Console.Ui.Panels;
 public class TopPanel
 {
     private readonly string _subscriptionName;
-    private readonly Table _table;
+    private readonly Table _dataTable = new();
+    private readonly Table _statusTable = new();
     private readonly Dictionary<TableIndex, ShortcutMap> _renderedShortcuts = new();
     public Panel Panel { get; }
 
@@ -16,38 +17,56 @@ public class TopPanel
     {
         _subscriptionName = subscriptionName;
         
-        _table = new Table();
-        RenderTableLayout();
-            
-        Panel = new Panel(_table);
-        Panel.Width = 80;
+        
+        InitDataTable();
+        InitStatusTable();
+        
+        var layoutTable = new Table();
+        layoutTable.Border(TableBorder.None);
+        layoutTable.ShowHeaders = false;
+        layoutTable.AddColumn("");
+        layoutTable.AddRow(_dataTable);
+        layoutTable.AddRow(_statusTable);
+        
+        
+        Panel = new Panel(layoutTable);
+        Panel.Width = 119;
         Panel.BorderColor(Color.Orange1);
     }
 
-    private void RenderTableLayout()
+    private void InitStatusTable()
     {
-        _table.Border(TableBorder.None);
-        _table.ShowHeaders = false;
+        _statusTable.Border(TableBorder.None);
+        _statusTable.ShowHeaders = false;
+        _statusTable.AddColumn("");
+        _statusTable.AddColumn("");
+        _statusTable.AddRow(UiStyles.CreateLabelMarkup("Status: "));
+    }
+
+    private void InitDataTable()
+    {
+        _dataTable.Border(TableBorder.None);
+        _dataTable.ShowHeaders = false;
         
-        _table.AddColumn("", column => column.Width = 15);
-        _table.AddColumn("", column =>
+        _dataTable.AddColumn("", column => column.Width = 15);
+        _dataTable.AddColumn("", column =>
         {
             column.Width = 30;
             column.LeftAligned();
         });
-        _table.AddColumn("", column =>
+        _dataTable.AddColumn("", column =>
         {
             column.Width = 20;
             column.LeftAligned();
         });
-        _table.AddColumn("", column =>
+        _dataTable.AddColumn("", column =>
         {
             column.Width = 20;
             column.LeftAligned();
         });
-        _table.AddColumn("", column =>
+        _dataTable.AddColumn("", column =>
         {
-            column.Width = 20;
+            column.Width = 15;
             column.LeftAligned();
         });
             
@@ -57,8 +76,8 @@ public class TopPanel
         _renderedShortcuts.Add(new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, true));
         _renderedShortcuts.Add(new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, true));
 
-        _table.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
-        _table.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
+        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
+        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
 
         UpdateShortcuts();
     }
@@ -67,7 +86,7 @@ public class TopPanel
     {
         foreach (var shortcut in _renderedShortcuts)
         {
-            _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
+            _dataTable.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
                 UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar, shortcut.Value.Shortcut.Label,
                     shortcut.Value.IsEnabled));
         }
@@ -77,10 +96,15 @@ public class TopPanel
     {
         UpdateSearchCell(searchMarkup);
     }
+
+    public void SetUiStatusText(Markup markup)
+    {
+        _statusTable.Rows.Update(0, 1, markup);
+    }
     
     private void UpdateSearchCell(Markup searchText)
     {
-        _table.Rows.Update(1, 1, searchText);
+        _dataTable.Rows.Update(1, 1, searchText);
     }
 
     public void UpdateShortcuts(Dictionary<TableIndex, ShortcutMap> next)
@@ -91,19 +115,19 @@ public class TopPanel
             {
                 var markup = UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar,
                     shortcut.Value.Shortcut.Label, shortcut.Value.IsEnabled);
-                _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column, markup);
+                _dataTable.Rows.Update(shortcut.Key.Row, shortcut.Key.Column, markup);
                 
                 _renderedShortcuts[shortcut.Key] = shortcut.Value;
             }
             
-            _table.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
+            _dataTable.Rows.Update(shortcut.Key.Row, shortcut.Key.Column,
                 UiStyles.CreateShortcutMarkup(shortcut.Value.Shortcut.DisplayChar, shortcut.Value.Shortcut.Label,
                     shortcut.Value.IsEnabled));
         }
         
         foreach (var removedKey in _renderedShortcuts.Keys.Except(next.Keys))
         {
-            _table.Rows.Update(removedKey.Row, removedKey.Column, new Markup(""));
+            _dataTable.Rows.Update(removedKey.Row, removedKey.Column, new Markup(""));
             _renderedShortcuts.Remove(removedKey);
         }
     }

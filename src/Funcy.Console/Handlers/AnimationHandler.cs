@@ -50,6 +50,11 @@ public class AnimationHandler : IAnimationProvider
         return _animatedFunctions.Select(x => new AnimationContext(x.Key, x.Value)).ToList();
     }
 
+    public AnimationContext? GetAnimation(string key)
+    {
+        return _animatedFunctions.TryGetValue(key, out var frame) ? new AnimationContext(key, frame) : null;
+    }
+
     public void AddAppDetails(string appDetailsKey)
     {
         var start = _animatedFunctions.IsEmpty;
@@ -84,4 +89,5 @@ public class AnimationHandler : IAnimationProvider
 public interface IAnimationProvider
 {
     List<AnimationContext> GetAnimations();
+    AnimationContext? GetAnimation(string key);
 }

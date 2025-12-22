@@ -105,6 +105,6 @@ public class ListPanelPaginator()
     
     public void UpdateMaxVisibleRows()
     {
-        MaxVisibleRows = System.Console.WindowHeight - 7;
+        MaxVisibleRows = System.Console.WindowHeight - 8;
     }
 }

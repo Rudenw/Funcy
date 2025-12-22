@@ -2,6 +2,7 @@ using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factory;
+using Funcy.Console.Ui.State;
 using Funcy.Infrastructure.Azure;
 
 namespace Funcy.Console;
@@ -9,14 +10,15 @@ namespace Funcy.Console;
 using Spectre.Console;
 
 public class AppOrchestrator(
-    IAzureSubscriptionService subscriptionService,
+    IAzureResourceService resourceService,
     InputHandler inputHandler,
     ResizeHandler resizeHandler,
     AnimationHandler animationHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler,
     FunctionActionHandler actionHandler,
     FunctionStateCoordinator functionStateCoordinator,
-    ListPanelContextFactory listPanelContextFactory)
+    ListPanelContextFactory listPanelContextFactory,
+    UiStateMarkupProvider uiStateMarkupProvider)
 {
     private MainContainer _mainContainer = null!;
 
@@ -24,11 +26,11 @@ public class AppOrchestrator(
     {
         var cts = new CancellationTokenSource();
         
-        var subscriptionName = await subscriptionService.GetCurrentSubscriptionName();
+        var subscriptionName = await resourceService.GetCurrentSubscriptionName();
         await functionAppUpdateHandler.InitializeAsync(cts.Token);
 
-        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetInitialLoad(),
-            listPanelContextFactory, actionHandler, functionAppUpdateHandler);
+        _mainContainer = new MainContainer(subscriptionName, functionStateCoordinator.GetCachedFunctionAppDetails(),
+            listPanelContextFactory, actionHandler, functionAppUpdateHandler, uiStateMarkupProvider);
         _ = functionAppUpdateHandler.StartListeningAsync(cts.Token);
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);

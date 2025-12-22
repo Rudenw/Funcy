@@ -5,6 +5,7 @@ public enum FunctionAction
     Start,
     Stop,
     Swap,
+    Refresh
 }
 
 public static class FunctionActionExtensions
