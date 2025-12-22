@@ -55,6 +55,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IAnimationProvider>(sp => sp.GetRequiredService<AnimationHandler>());
         services.AddSingleton<FunctionStateCoordinator>();
         services.AddSingleton<IUiStatusState, UiStatusState>();
+        services.AddTransient<FunctionStatusManager>();
         services.AddTransient<UiStateMarkupProvider>();
         services.AddTransient<AppOrchestrator>();
         services.AddTransient<ListPanelContextFactory>();

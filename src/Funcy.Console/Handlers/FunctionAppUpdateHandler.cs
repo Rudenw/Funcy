@@ -14,11 +14,9 @@ public class FunctionAppUpdateHandler(
     IAzureFunctionService functionService,
     FunctionStateCoordinator functionStateCoordinator,
     AnimationHandler animationHandler,
-    IUiStatusState uiStatusState)
+    IUiStatusState uiStatusState,
+    FunctionStatusManager functionStatusManager)
 {
-    private readonly ConcurrentDictionary<string, Task> _inFlight = new();
-    
-    
     public async Task InitializeAsync(CancellationToken token)
     {
         var functionsFromDatabase = await functionService.GetFunctionsFromDatabase(token);
@@ -50,34 +48,17 @@ public class FunctionAppUpdateHandler(
         await UpdateFunctionAppList(updatedFunctionApps);
     }
     
-    public void LoadDetails(string currentKey, bool userInitiated)
+    public void LoadDetails(string currentKey)
     {
-        //TODO cleanup this and add status text as in functionapphandler
-        if (_inFlight.ContainsKey(currentKey))
-        {
-            animationHandler.AddAppDetails(currentKey);
-            return;
-        }
-        
         var functionAppDetails = functionStateCoordinator.TryGet(currentKey);
-        if (functionAppDetails is not null && userInitiated)
+        if (functionAppDetails is null) return;
+        
+        _ = Task.Run(async () =>
         {
-            if (userInitiated)
-            {
-                animationHandler.AddAppDetails(currentKey);            
-            }
-            var loadingTask = Task.Run(async () =>
-            {
-                var functionAppFromAzure = await functionService.GetFunctionAppDetails(functionAppDetails);
-                await functionStateCoordinator.PublishUpdateAsync(functionAppFromAzure);
-            });
-            _inFlight.TryAdd(currentKey, loadingTask);
-            loadingTask.ContinueWith(t =>
-            {
-                _inFlight.TryRemove(currentKey, out _);
-                animationHandler.RemoveAppDetails(functionAppDetails.Key);
-            });
-        }
+            await functionStatusManager.BeginOperation(functionAppDetails, FunctionAction.Refresh);
+            var updatedDetails = await functionService.GetFunctionAppDetails(functionAppDetails);
+            await functionStatusManager.CompleteOperation(updatedDetails, FunctionAction.Refresh, true);
+        });
     }
 
     private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate)

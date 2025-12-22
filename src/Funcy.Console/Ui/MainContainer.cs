@@ -123,7 +123,7 @@ public sealed class MainContainer : IDisposable
             
             case var key when 
                 key == ListPanelShortcuts.Refresh.Key:
-                LoadDetails(true);
+                LoadDetails();
                 break;
 
             case ConsoleKey.Delete:
@@ -146,7 +146,6 @@ public sealed class MainContainer : IDisposable
             case ConsoleKey.DownArrow:
                 Current.View.HandleInput(keyInfo);
                 UpdateShortcuts();
-                LoadDetails(false);
                 break;
 
             default:
@@ -155,10 +154,16 @@ public sealed class MainContainer : IDisposable
         }
     }
 
-    private void LoadDetails(bool userInitiated)
+    private void LoadDetails()
     {
         var currentKey = Current.View.GetSelectedItemKey();
-        _functionAppUpdateHandler.LoadDetails(currentKey, userInitiated);
+        
+        if (!Current.View.IsActionValid(FunctionAction.Refresh))
+        {
+            return;
+        }
+        
+        _functionAppUpdateHandler.LoadDetails(currentKey);
     }
 
     private void SyncSearchUi()

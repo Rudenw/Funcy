@@ -17,7 +17,7 @@ public static class UiHelper
     
     public static Color GetStatusColor(FunctionStatus status)
     {
-        if (status.HasBeenSwapped)
+        if (status.Status == StatusType.Swapped)
         {
             return Color.CornflowerBlue;
         }
