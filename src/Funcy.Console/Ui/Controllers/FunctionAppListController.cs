@@ -12,7 +12,6 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
     private readonly IUiStatusState _uiStatusState;
 
     public FunctionAppListController(IListPanelView<FunctionAppDetails> view,
-        IEnumerable<FunctionAppDetails> initial,
         FunctionStateCoordinator coordinator,
         IUiStatusState uiStatusState,
         Action? invalidate = null)
@@ -21,14 +20,18 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
         _coordinator = coordinator;
         _invalidate = invalidate;
         _uiStatusState = uiStatusState;
-        
-        Store.UpdateAll(initial);
-        PushSnapshotToView();
-        _invalidate?.Invoke();
-        
+
+        _coordinator.OnCacheInit += OnCacheInit;
         _coordinator.OnFunctionAppUpdated += OnUpdated;
         _coordinator.OnFunctionAppRemoved += OnRemoved;
         _uiStatusState.Changed += OnUiStatusChanged;
+    }
+
+    private void OnCacheInit(List<FunctionAppDetails> functionAppDetailsList)
+    {
+        Store.UpdateAll(_coordinator.GetCachedFunctionAppDetails());
+        PushSnapshotToView();
+        _invalidate?.Invoke();
     }
 
     private void OnUiStatusChanged()
@@ -53,7 +56,10 @@ public sealed class FunctionAppListController : ListPanelControllerBase<Function
 
     public override void Dispose()
     {
+        _coordinator.OnCacheInit -= OnCacheInit;
         _coordinator.OnFunctionAppUpdated -= OnUpdated;
+        _coordinator.OnFunctionAppRemoved -= OnRemoved;
+        _uiStatusState.Changed -= OnUiStatusChanged;
         base.Dispose();
     }
 }

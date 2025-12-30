@@ -7,6 +7,7 @@ public static class ListPanelShortcuts
     public static readonly Shortcut Stop = new(ConsoleKey.T, "T", "Stop");
     public static readonly Shortcut Swap = new(ConsoleKey.W, "W", "Swap");
     public static readonly Shortcut Refresh = new(ConsoleKey.R, "R", "Refresh");
+    public static readonly Shortcut ChangeSubscription = new(ConsoleKey.U, "u", "Refresh");
 }
 
 public record TableIndex(int Row, int Column);

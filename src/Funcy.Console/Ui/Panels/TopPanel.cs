@@ -7,17 +7,15 @@ namespace Funcy.Console.Ui.Panels;
 
 public class TopPanel
 {
-    private readonly string _subscriptionName;
+    private string _subscriptionName;
     private readonly Table _dataTable = new();
     private readonly Table _statusTable = new();
     private readonly Dictionary<TableIndex, ShortcutMap> _renderedShortcuts = new();
     public Panel Panel { get; }
 
-    public TopPanel(string subscriptionName)
+    public TopPanel(AppContext appContext)
     {
-        _subscriptionName = subscriptionName;
-        
-        
+        _subscriptionName = appContext.CurrentSubscription.Name;
         InitDataTable();
         InitStatusTable();
         
@@ -29,9 +27,19 @@ public class TopPanel
         layoutTable.AddRow(_statusTable);
         
         
-        Panel = new Panel(layoutTable);
-        Panel.Width = 119;
+        Panel = new Panel(layoutTable)
+        {
+            Width = 119
+        };
         Panel.BorderColor(Color.Orange1);
+
+        appContext.OnSubscriptionChange += OnSubscriptionChanged;
+    }
+
+    private void OnSubscriptionChanged(SubscriptionDetails obj)
+    {
+        _subscriptionName = obj.Name;
+        _dataTable.Rows.Update(0, 1, new Markup($"{_subscriptionName}"));
     }
 
     private void InitStatusTable()

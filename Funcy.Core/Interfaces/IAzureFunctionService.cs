@@ -5,8 +5,8 @@ namespace Funcy.Core.Interfaces;
 
 public interface IAzureFunctionService
 {
-    Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken);
-    IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(CancellationToken cancellationToken);
+    Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(string subscriptionId);
+    IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(string subscriptionId, CancellationToken cancellationToken);
     Task<FunctionAppDetails> GetFunctionAppDetails(FunctionAppDetails functionAppDetails);
 
     IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppFunctionsAndSlotsAsync(

@@ -20,14 +20,12 @@ namespace Funcy.Infrastructure.Azure;
 public class AzureFunctionService(
     ILogger<AzureFunctionService> logger,
     IAzureResourceService resourceService,
+    ArmClient client,
     IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
 {
-    private readonly ArmClient _client = new(new DefaultAzureCredential());
-
-    public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(CancellationToken cancellationToken)
+    public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(string subscriptionId)
     {
-        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
-        await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
+        await using var dbContext = await dbContextFactory.CreateDbContextAsync();
         var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
             .Where(f => f.Subscription == subscriptionId);
         var functionAppDetailsList = functionAppList.Select(x => x.Map()).ToList();
@@ -35,18 +33,17 @@ public class AzureFunctionService(
         return functionAppDetailsList;
     }
 
-    public async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(
+    public async IAsyncEnumerable<FunctionAppFetchResult> GetFunctionAppDetailsAsync(string subscriptionId,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var stopwatch = new Stopwatch();
         stopwatch.Start();
         var channel = Channel.CreateUnbounded<FunctionAppFetchResult>();
-        var allFunctionApps = await resourceService.GetAllFunctionApps();
+        var allFunctionApps = await resourceService.GetAllFunctionApps(subscriptionId);
         
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
-        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
 
-        var cleanupTask = CleanUpFunctionApps(allFunctionApps, cancellationToken);
+        var cleanupTask = CleanUpFunctionApps(subscriptionId, allFunctionApps, cancellationToken);
 
         var existingApps = await dbContext.FunctionApps
             .Where(f => f.Subscription == subscriptionId)
@@ -78,9 +75,8 @@ public class AzureFunctionService(
             stopwatch.ElapsedMilliseconds);
     }
 
-    private async Task CleanUpFunctionApps(List<FunctionAppGraphRow> allFunctionApps, CancellationToken cancellationToken)
+    private async Task CleanUpFunctionApps(string subscriptionId, List<FunctionAppGraphRow> allFunctionApps, CancellationToken cancellationToken)
     {
-        var subscriptionId = await resourceService.GetCurrentSubscriptionId();
         await using var dbContext = await dbContextFactory.CreateDbContextAsync(cancellationToken);
         var azureIds = allFunctionApps.Select(f => f.Id).ToHashSet();
         var toRemove = await dbContext.FunctionApps
@@ -104,36 +100,55 @@ public class AzureFunctionService(
         var throttler = new SemaphoreSlim(5);
         var tasks = new List<Task>();
         
-        var foreachTask = Task.Run(async () =>
+        _ = Task.Run(async () =>
         {
-            foreach (var functionAppDetail in functionAppDetails)
+            try
             {
-                await throttler.WaitAsync(cancellationToken);
-            
-                var getFromAzureTask = Task.Run(async () =>
+                foreach (var functionAppDetail in functionAppDetails)
                 {
-                    try
+                    await throttler.WaitAsync(cancellationToken);
+
+                    var getFromAzureTask = Task.Run(async () =>
                     {
-                        var updatedDetails = await GetFunctionAppDetails(functionAppDetail);
-                        await channel.Writer.WriteAsync(new FunctionAppFetchResult(updatedDetails.Name,
-                            updatedDetails), cancellationToken);
-                    }
-                    catch (Exception e)
-                    {
-                        await channel.Writer.WriteAsync(
-                            new FunctionAppFetchResult(functionAppDetail.Name, null, e.Message),
-                            cancellationToken);
-                    }
-                    finally
-                    {
-                        throttler.Release();
-                    }
-                }, cancellationToken);
-                tasks.Add(getFromAzureTask);
+                        try
+                        {
+                            var updatedDetails = await GetFunctionAppDetails(functionAppDetail);
+                            await channel.Writer.WriteAsync(new FunctionAppFetchResult(updatedDetails.Name,
+                                updatedDetails), cancellationToken);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            logger.LogInformation("Operation cancelled");
+                        }
+                        catch (Exception e)
+                        {
+                            if (!cancellationToken.IsCancellationRequested)
+                            {
+                                await channel.Writer.WriteAsync(
+                                    new FunctionAppFetchResult(functionAppDetail.Name, null, e.Message),
+                                    CancellationToken.None);
+                            }
+                        }
+                        finally
+                        {
+                            throttler.Release();
+                        }
+                    }, cancellationToken);
+                    tasks.Add(getFromAzureTask);
+                }
+                
+                await Task.WhenAll(tasks);
+            }
+            catch (OperationCanceledException e)
+            {
+                logger.LogInformation("Operation cancelled");
+            }
+            finally
+            {
+                throttler.Dispose();
+                channel.Writer.Complete();
             }
             
-            await Task.WhenAll(tasks);
-            channel.Writer.Complete();
         }, cancellationToken);
         
         await foreach (var item in channel.Reader.ReadAllAsync(cancellationToken))
@@ -156,7 +171,7 @@ public class AzureFunctionService(
             .Include(f => f.Slots)
             .FirstAsync(f => f.AzureId == functionAppDetails.Id);
 
-        var webSiteResource = _client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
+        var webSiteResource = client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
 
         var functionTask = Task.Run(() =>
             FetchFunctionListAsync(webSiteResource, functionAppDetails.Name, functionAppDetails.State.ToString()));

@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Azure.Core;
 using Azure.Identity;
+using Azure.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Funcy.Console;
@@ -52,6 +53,12 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
         services.AddTransient<FunctionActionHandler>();
+        services.AddSingleton<DefaultAzureCredential>();
+        services.AddSingleton(sp =>
+        {
+            var credential = sp.GetRequiredService<DefaultAzureCredential>();
+            return new ArmClient(credential);
+        });
         services.AddSingleton<AnimationHandler>();
         services.AddSingleton<IAnimationProvider>(sp => sp.GetRequiredService<AnimationHandler>());
         services.AddSingleton<FunctionStateCoordinator>();

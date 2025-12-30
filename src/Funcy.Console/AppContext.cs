@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure;
 
@@ -6,7 +5,9 @@ namespace Funcy.Console;
 
 public class AppContext(AzureSubscriptionService azureSubscriptionService)
 {
-    public SubscriptionDetails? CurrentSubscription { get; private set; }
+    private SubscriptionDetails? _currentSubscription;
+    public SubscriptionDetails CurrentSubscription =>
+        _currentSubscription ?? throw new InvalidOperationException("AppContext not initialized");
     private Dictionary<string, SubscriptionDetails> CachedSubscriptions { get; set; } = [];
     public event Action<SubscriptionDetails>? OnSubscriptionChange;
 
@@ -14,6 +15,10 @@ public class AppContext(AzureSubscriptionService azureSubscriptionService)
     {
         var subscriptions = await azureSubscriptionService.GetSubscriptions();
         SetCachedSubscriptions(subscriptions);
+        
+        _currentSubscription ??=
+            subscriptions.FirstOrDefault(s => s.Current)
+            ?? throw new InvalidOperationException("No current subscription resolved");
     }
 
     private void SetCachedSubscriptions(List<SubscriptionDetails> subscriptions)
@@ -21,10 +26,7 @@ public class AppContext(AzureSubscriptionService azureSubscriptionService)
         var newCache = new Dictionary<string, SubscriptionDetails>();
         foreach (var subscription in subscriptions)
         {
-            if (subscription.Current)
-            {
-                CurrentSubscription = subscription;
-            }
+            subscription.Current = _currentSubscription is not null ? subscription.Key == CurrentSubscription.Key : subscription.Current;
             newCache.TryAdd(subscription.Key, subscription);
         }
 
@@ -40,10 +42,11 @@ public class AppContext(AzureSubscriptionService azureSubscriptionService)
             throw new KeyNotFoundException($"Subscription '{subscriptionKey}' not found");
         }
         
-        if (CurrentSubscription?.Key == subscriptionKey) return;
+        if (CurrentSubscription.Key == subscriptionKey) return;
         
-        CurrentSubscription = subscription;
+        _currentSubscription = subscription;
+        CachedSubscriptions.Values.ToList().ForEach(s => s.Current = s.Key == subscriptionKey);
         
-        OnSubscriptionChange?.Invoke(CurrentSubscription);
+        OnSubscriptionChange?.Invoke(_currentSubscription);
     }
 }

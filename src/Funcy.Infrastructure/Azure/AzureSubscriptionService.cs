@@ -5,15 +5,13 @@ using Funcy.Core.Model;
 
 namespace Funcy.Infrastructure.Azure;
 
-public class AzureSubscriptionService(IAzureResourceService azureResourceService)
+public class AzureSubscriptionService(IAzureResourceService azureResourceService, ArmClient client)
 {
-    private readonly ArmClient _client = new(new DefaultAzureCredential());
-
     public async Task<List<SubscriptionDetails>> GetSubscriptions()
     {
         var currentSubscriptionId = await azureResourceService.GetCurrentSubscriptionId();
         var subscriptionDetailsList = new List<SubscriptionDetails>();
-        var subscriptions = _client.GetSubscriptions();
+        var subscriptions = client.GetSubscriptions();
 
         await foreach (var subscription in subscriptions.GetAllAsync()
                            .Where(x => x.Data.State is not null && x.Data.State == SubscriptionState.Enabled))

@@ -70,6 +70,20 @@ public sealed class ListPanelFactory(
         var slotDetails = app.Slots[0];
         return new InputActionResult(FunctionAction.Swap, app, slotDetails);
     }
+
+    public IListPanel CreateSubscriptionPanel()
+    {
+        return CreateFromList(appContext.GetSnapshot(),
+            new SubscriptionMatcher(),
+            new SubscriptionLayoutRenderer(),
+            new SubscriptionShortcutProvider(),
+            s =>
+            {
+                appContext.ChangeSubscription(s.Key);
+                return new NavigationRequest(PanelTarget.FunctionApps, s.Key);
+            },
+            "Switch Subscription");
+    }
     
     public IListPanel Create(NavigationRequest request)
     {
@@ -80,15 +94,6 @@ public sealed class ListPanelFactory(
         }
         switch (request.Target)
         {
-            case PanelTarget.Subscriptions:
-            {
-                return CreateFromList(appContext.GetSnapshot(),
-                    new SubscriptionMatcher(),
-                    new SubscriptionLayoutRenderer(),
-                    new SubscriptionShortcutProvider(),
-                    null,
-                    "Switch Subscription");
-            }
             case PanelTarget.Functions:
             {
                 return CreateFromList(app.Functions,

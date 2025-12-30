@@ -20,6 +20,7 @@ public class UiStateMarkupProvider(IAnimationProvider animationProvider)
         }
         
         var lastUpdated = new DateTime(state.LastInventoryRefreshUtcTicks, DateTimeKind.Utc);
-        return new Markup($"Last Updated {lastUpdated:HH:mm}");
+        var lastUpdatedMarkup = new Markup($"Last Updated {lastUpdated:HH:mm}");
+        return state.LastInventoryRefreshUtcTicks != 0 ? lastUpdatedMarkup : UiStyles.CreateStatusText("");
     }
 }
