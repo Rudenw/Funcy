@@ -17,6 +17,24 @@ public static class UiStyles
     private static readonly string ArrowDown = Unicode ? "↓" : "v";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
+    public static Markup CreateShortcutLabelMarkup(string text, char shortcutChar)
+    {
+        var markup = $"[{Label}]";
+        foreach (var c in text)
+        {
+            if (c == shortcutChar)
+            {
+                markup += $"[/][{Shortcut}]{c}[/][{Label}]";
+            }
+            else
+            {
+                markup += c;                
+            }
+        }
+
+        markup += "[/]";
+        return new Markup(markup);
+    }
 
     public static Markup CreateShortcutMarkup(string shortcut, string description, bool isEnabled = true)
         => new($"[{(isEnabled ? Shortcut : Hint)}]<{shortcut}>[/] [{Hint}]{description}[/]");
