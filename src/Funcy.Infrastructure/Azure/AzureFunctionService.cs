@@ -223,7 +223,7 @@ public class AzureFunctionService(
                 }
 
                 functionList.Add(new Function
-                    { AzureId = websiteFunction.Id.ToString(), Name = websiteFunction.Id.Name, Trigger = trigger });
+                    { AzureId = websiteFunction.Id.ToString(), Name = websiteFunction.Id.Name, Trigger = Capitalize(trigger) });
             }
 
             sw.Stop();
@@ -237,6 +237,14 @@ public class AzureFunctionService(
         }
 
         return functionList;
+    }
+    
+    static string Capitalize(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return value;
+
+        return char.ToUpperInvariant(value[0]) + value[1..];
     }
 
     private List<FunctionAppSlot>? FetchSlotListAsync(WebSiteResource webSite, string functionAppName)

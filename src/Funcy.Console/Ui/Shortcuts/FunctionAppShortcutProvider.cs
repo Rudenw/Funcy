@@ -10,10 +10,11 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
         var shortcutList = new Dictionary<TableIndex, ShortcutMap>
         {
             {new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true)},
+            {new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.ChangeSubscription, true)},
+            {new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, CanRefresh(app))},
             {new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, CanStart(app))},
             {new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, CanStop(app))},
-            {new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))},
-            {new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, CanRefresh(app))}
+            {new TableIndex(1, 4), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))}
         };
         return shortcutList;
     }

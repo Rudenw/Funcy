@@ -65,7 +65,7 @@ public class FunctionAppUpdateHandler
     
     public async Task InitializeAsync()
     {
-        _functionStateCoordinator.SetSubscription(_appContext.CurrentSubscription.Name);
+        _functionStateCoordinator.SetSubscription(_appContext.CurrentSubscription.Id);
         var functionsFromDatabase =
             await _functionService.GetFunctionsFromDatabase(_appContext.CurrentSubscription.Id);
         _functionStateCoordinator.InitCache(functionsFromDatabase);

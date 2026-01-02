@@ -84,7 +84,7 @@ public class TopPanel
         _renderedShortcuts.Add(new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, true));
         _renderedShortcuts.Add(new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, true));
 
-        _dataTable.AddRow(UiStyles.CreateShortcutLabelMarkup("Subscription:", 'u'), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
+        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
         _dataTable.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
 
         UpdateShortcuts();

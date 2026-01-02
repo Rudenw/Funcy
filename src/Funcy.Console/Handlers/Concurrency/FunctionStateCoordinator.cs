@@ -13,7 +13,7 @@ public class FunctionStateCoordinator
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, CachedFunctionAppModel>> _cache = new();
 
     private readonly SemaphoreSlim _uiUpdateLock = new(1, 1);
-    private string? _currentSubscriptionName;
+    private string? _currentSubscriptionId;
     public event Action<List<FunctionAppDetails>>? OnCacheInit;
     public event Action<FunctionAppDetails>? OnFunctionAppUpdated;
     public event Action<FunctionAppDetails>? OnFunctionAppRemoved;
@@ -27,13 +27,13 @@ public class FunctionStateCoordinator
     
     public void SetSubscription(string subscriptionId)
     {
-        _currentSubscriptionName = subscriptionId;
+        _currentSubscriptionId = subscriptionId;
         _cache.GetOrAdd(subscriptionId, _ => new ConcurrentDictionary<string, CachedFunctionAppModel>());
     }
     
     private ConcurrentDictionary<string, CachedFunctionAppModel> GetCurrentCache()
     {
-        return _cache.GetOrAdd(_currentSubscriptionName!, _ => new ConcurrentDictionary<string, CachedFunctionAppModel>());
+        return _cache.GetOrAdd(_currentSubscriptionId!, _ => new ConcurrentDictionary<string, CachedFunctionAppModel>());
     }
     
     public void InitCache(List<FunctionAppDetails> functionsFromDatabase)
@@ -82,7 +82,7 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            if (update.Subscription != _currentSubscriptionName)
+            if (update.Subscription != _currentSubscriptionId)
             {
                 continue;
             }

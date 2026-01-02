@@ -17,24 +17,6 @@ public static class UiStyles
     private static readonly string ArrowDown = Unicode ? "↓" : "v";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
-    public static Markup CreateShortcutLabelMarkup(string text, char shortcutChar)
-    {
-        var markup = $"[{Label}]";
-        foreach (var c in text)
-        {
-            if (c == shortcutChar)
-            {
-                markup += $"[/][{Shortcut}]{c}[/][{Label}]";
-            }
-            else
-            {
-                markup += c;                
-            }
-        }
-
-        markup += "[/]";
-        return new Markup(markup);
-    }
 
     public static Markup CreateShortcutMarkup(string shortcut, string description, bool isEnabled = true)
         => new($"[{(isEnabled ? Shortcut : Hint)}]<{shortcut}>[/] [{Hint}]{description}[/]");
@@ -53,8 +35,12 @@ public static class UiStyles
         return new Markup($"[{Color.CornflowerBlue}]{statusText}[/]");
     }
 
-    public static Markup CreateSelectedCell(string text)
-        => new("[black on yellow]" + text + "[/]");
+    public static Markup CreateSelectedCell(string text, string statusText = "")
+        => new("[black on yellow]" + text + statusText + "[/]");
+    
+    public static Markup CreateUnselectedCellWithStatus(string text, string statusText)
+        => new(text + "[Aquamarine1]" + statusText + "[/]");
+        
 
     public static Markup CreateStateCell(FunctionState state)
         => new($"[bold {UiHelper.GetStateColor(state)}]{state.ToDisplayLabel()}[/]");
