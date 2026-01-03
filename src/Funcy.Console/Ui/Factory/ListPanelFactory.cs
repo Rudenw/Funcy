@@ -12,7 +12,10 @@ using Funcy.Core.Model;
 
 namespace Funcy.Console.Ui.Factory;
 
-public sealed class ListPanelFactory(FunctionStateCoordinator coordinator, IAnimationProvider animationProvider)
+public sealed class ListPanelFactory(
+    FunctionStateCoordinator coordinator,
+    IAnimationProvider animationProvider,
+    AppContext appContext)
 {
     public IListPanel CreateFromList<T>(
         IReadOnlyList<T> items,
@@ -66,6 +69,20 @@ public sealed class ListPanelFactory(FunctionStateCoordinator coordinator, IAnim
         
         var slotDetails = app.Slots[0];
         return new InputActionResult(FunctionAction.Swap, app, slotDetails);
+    }
+
+    public IListPanel CreateSubscriptionPanel()
+    {
+        return CreateFromList(appContext.GetSnapshot(),
+            new SubscriptionMatcher(),
+            new SubscriptionLayoutRenderer(),
+            new SubscriptionShortcutProvider(),
+            s =>
+            {
+                appContext.ChangeSubscription(s.Key);
+                return new NavigationRequest(PanelTarget.FunctionApps, s.Key);
+            },
+            "Switch Subscription");
     }
     
     public IListPanel Create(NavigationRequest request)

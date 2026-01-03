@@ -12,18 +12,30 @@ namespace Funcy.Console.Ui.Factory;
 public sealed class ListPanelContextFactory(
     FunctionStateCoordinator coordinator,
     ListPanelFactory listPanelFactory,
-    IUiStatusState uiStatusState)
+    IUiStatusState uiStatusState,
+    AppContext appContext)
 {
-    public ListPanelContext CreateRoot(IReadOnlyList<FunctionAppDetails> apps, Action invalidate)
+    public ListPanelContext CreateRoot(Action invalidate)
     {
-        var panel = listPanelFactory.CreateFunctionAppPanel(apps);
+        var panel = listPanelFactory.CreateFunctionAppPanel([]);
         var controller = new FunctionAppListController(
             (IListPanelView<FunctionAppDetails>)panel,
-            apps,
             coordinator,
             uiStatusState,
             invalidate: invalidate);
 
+        return new ListPanelContext
+        {
+            View = panel,
+            Controller = controller
+        };
+    }
+
+    public ListPanelContext CreateSubscriptionPanel(Action invalidate)
+    {
+        var panel = listPanelFactory.CreateSubscriptionPanel();
+        var view = (IListPanelView<SubscriptionDetails>)panel;
+        var controller = new SnapshotListController<SubscriptionDetails>(view, appContext.GetSnapshot(), invalidate);
         return new ListPanelContext
         {
             View = panel,

@@ -35,8 +35,12 @@ public static class UiStyles
         return new Markup($"[{Color.CornflowerBlue}]{statusText}[/]");
     }
 
-    public static Markup CreateSelectedCell(string text)
-        => new("[black on yellow]" + text + "[/]");
+    public static Markup CreateSelectedCell(string text, string statusText = "")
+        => new("[black on yellow]" + text + statusText + "[/]");
+    
+    public static Markup CreateUnselectedCellWithStatus(string text, string statusText)
+        => new(text + "[Aquamarine1]" + statusText + "[/]");
+        
 
     public static Markup CreateStateCell(FunctionState state)
         => new($"[bold {UiHelper.GetStateColor(state)}]{state.ToDisplayLabel()}[/]");

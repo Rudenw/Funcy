@@ -1,7 +1,4 @@
-using System.Diagnostics;
 using Funcy.Console.Handlers;
-using Funcy.Console.Handlers.Concurrency;
-using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
@@ -30,20 +27,19 @@ public sealed class MainContainer : IDisposable
     
     private ListPanelContext Current => _contextStack.Peek();
 
-    public MainContainer(string subscriptionName,
-        List<FunctionAppDetails> functionApps,
-        ListPanelContextFactory listPanelContextFactory,
+    public MainContainer(ListPanelContextFactory listPanelContextFactory,
         FunctionActionHandler functionActionHandler, 
         FunctionAppUpdateHandler functionAppUpdateHandler,
-        UiStateMarkupProvider uiStateMarkupProvider)
+        UiStateMarkupProvider uiStateMarkupProvider,
+        AppContext appContext)
     {
         _listPanelContextFactory = listPanelContextFactory;
         _functionActionHandler = functionActionHandler;
         _functionAppUpdateHandler = functionAppUpdateHandler;
         _uiStateMarkupProvider = uiStateMarkupProvider;
-        _topPanel = new TopPanel(subscriptionName);
+        _topPanel = new TopPanel(appContext);
 
-        var context = _listPanelContextFactory.CreateRoot(functionApps, () => _tcs.TrySetResult());
+        var context = _listPanelContextFactory.CreateRoot(() => _tcs.TrySetResult());
         _contextStack.Push(context);
         
         MainLayout = new Layout("Main Layout")
@@ -67,7 +63,7 @@ public sealed class MainContainer : IDisposable
 
     private void RefreshMainLayout()
     {
-        UpdateShortcuts();
+        HandleUpdate();
         SyncSearchUi();
 
         MainLayout["TopPanel"].Update(_topPanel.Panel);
@@ -125,6 +121,11 @@ public sealed class MainContainer : IDisposable
                 key == ListPanelShortcuts.Refresh.Key:
                 LoadDetails();
                 break;
+            
+            case var key when 
+                key == ListPanelShortcuts.ChangeSubscription.Key:
+                SubscriptionView();
+                break;
 
             case ConsoleKey.Delete:
                 Current.SearchInputManager.ClearSearchText();
@@ -152,6 +153,13 @@ public sealed class MainContainer : IDisposable
                 Current.View.HandleInput(keyInfo);
                 break;
         }
+    }
+
+    private void SubscriptionView()
+    {
+        var nextContext = _listPanelContextFactory.CreateSubscriptionPanel(() => _tcs.TrySetResult());
+        _contextStack.Push(nextContext);
+        RefreshMainLayout();
     }
 
     private void LoadDetails()
@@ -222,8 +230,16 @@ public sealed class MainContainer : IDisposable
     {
         if (Current.View.TryGetNavigationRequest(out var navigationRequest) && navigationRequest is not null)
         {
-            var nextPanel = _listPanelContextFactory.CreateFromNavigation(navigationRequest, () => _tcs.TrySetResult());
-            _contextStack.Push(nextPanel);
+            if (navigationRequest.Target == PanelTarget.FunctionApps)
+            {
+                TryPopPanel();
+            }
+            else
+            {
+                var nextPanel = _listPanelContextFactory.CreateFromNavigation(navigationRequest, () => _tcs.TrySetResult());
+                _contextStack.Push(nextPanel);
+            }
+            
             RefreshMainLayout();
         }
     }

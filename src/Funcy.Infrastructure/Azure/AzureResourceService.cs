@@ -1,7 +1,5 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure.Models;
 using Funcy.Infrastructure.Shell;
 
@@ -14,19 +12,13 @@ public class AzureResourceService : IAzureResourceService
         return await ShellCommandRunner.RunAsync("az", "account show --query id -o tsv");
     }
     
-    public async Task<string> GetCurrentSubscriptionName()
-    {
-        return await ShellCommandRunner.RunAsync("az", "account show --query name -o tsv");
-    }
-    
-    public async Task<List<FunctionAppGraphRow>> GetAllFunctionApps()
+    public async Task<List<FunctionAppGraphRow>> GetAllFunctionApps(string subscriptionId)
     {
         var options = new JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true
         };
         
-        var subscriptionId = await GetCurrentSubscriptionId();
         var query =
             $"Resources | where subscriptionId == '{subscriptionId}' " +
             "| where type =~ 'microsoft.web/sites' " +
@@ -86,6 +78,5 @@ public class AzureResourceService : IAzureResourceService
 public interface IAzureResourceService
 {
     Task<string> GetCurrentSubscriptionId();
-    Task<string> GetCurrentSubscriptionName();
-    Task<List<FunctionAppGraphRow>> GetAllFunctionApps();
+    Task<List<FunctionAppGraphRow>> GetAllFunctionApps(string subscriptionId);
 }

@@ -72,6 +72,7 @@ public class SearchInputManager
                          + markupText[_searchIndex]
                          + "[/]"
                          + markupText[(_searchIndex + 1)..];
+            markupText += " " + UiStyles.CreateDangerText("↩");
         }
 
         return new Markup(markupText);

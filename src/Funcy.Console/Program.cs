@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using Azure.Core;
 using Azure.Identity;
+using Azure.ResourceManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Funcy.Console;
@@ -16,6 +17,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using AppContext = Funcy.Console.AppContext;
 
 Console.OutputEncoding = Encoding.UTF8;
 
@@ -51,11 +53,19 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
         services.AddTransient<FunctionActionHandler>();
+        services.AddSingleton<DefaultAzureCredential>();
+        services.AddSingleton(sp =>
+        {
+            var credential = sp.GetRequiredService<DefaultAzureCredential>();
+            return new ArmClient(credential);
+        });
         services.AddSingleton<AnimationHandler>();
         services.AddSingleton<IAnimationProvider>(sp => sp.GetRequiredService<AnimationHandler>());
         services.AddSingleton<FunctionStateCoordinator>();
         services.AddSingleton<IUiStatusState, UiStatusState>();
+        services.AddSingleton<AppContext>();
         services.AddTransient<FunctionStatusManager>();
+        services.AddTransient<AzureSubscriptionService>();
         services.AddTransient<UiStateMarkupProvider>();
         services.AddTransient<AppOrchestrator>();
         services.AddTransient<ListPanelContextFactory>();
