@@ -123,7 +123,9 @@ After switching, you always return to the Function Apps view.
 
 ## Roadmap (informal)
 
-- Persist last used subscription
+- Settings view
 - Favorites / pinned Function Apps
-- More detailed Function App configuration views
+- Hide functionality for subscriptions
 - Improved error surfacing in UI
+- Splash screen
+- View Service Bus message count
