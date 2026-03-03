@@ -10,4 +10,4 @@ public record GraphQueryResponse(
     [property: JsonPropertyName("total_records")]
     int TotalCount);
 
-public record FunctionAppGraphRow(string Id, string Name, string State, string System, string ResourceGroup, string SubscriptionId);
+public record FunctionAppGraphRow(string Id, string Name, string State, Dictionary<string, string> Tags, string ResourceGroup, string SubscriptionId);

@@ -6,7 +6,7 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
     public string Key => Name;
     public required FunctionState State { get; set; }
     public FunctionStatus Status { get; set; } = new();
-    public required string System { get; init; }
+    public Dictionary<string, string> Tags { get; init; } = [];
     public List<FunctionAppSlotDetails> Slots { get; set; } = [];
     public List<FunctionDetails> Functions { get; set; } = [];
     public required string ResourceGroup { get; init; }
@@ -19,7 +19,6 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
     
     public required string Id { get; init; }
 
-
     public int CompareTo(FunctionAppDetails? other)
     {
         if (other is null)
@@ -27,7 +26,6 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
             return 1;
         }
         
-        var bySystem = StringComparer.Ordinal.Compare(System, other.System);
-        return bySystem != 0 ? bySystem : StringComparer.Ordinal.Compare(Name, other.Name);
+        return StringComparer.Ordinal.Compare(Name, other.Name);
     }
 }

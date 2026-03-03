@@ -29,7 +29,7 @@ public class AzureFunctionService(
         var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
             .Where(f => f.Subscription == subscriptionId);
         var functionAppDetailsList = functionAppList.Select(x => x.Map()).ToList();
-        functionAppDetailsList.Sort((a, b) => string.Compare(a.System, b.System, StringComparison.Ordinal));
+        functionAppDetailsList.Sort();
         return functionAppDetailsList;
     }
 
@@ -277,12 +277,17 @@ public class AzureFunctionService(
     {
         if (functionApp is null)
         {
+            var system = functionAppGraphRow.Tags is not null &&
+                         functionAppGraphRow.Tags.TryGetValue("System", out var s)
+                ? s
+                : string.Empty;
+
             functionApp = new FunctionApp()
             {
                 AzureId = functionAppGraphRow.Id,
                 Name = functionAppGraphRow.Name,
                 State = Enum.Parse<FunctionState>(functionAppGraphRow.State),
-                System = functionAppGraphRow.System,
+                System = system,
                 Subscription = functionAppGraphRow.SubscriptionId,
                 ResourceGroup = functionAppGraphRow.ResourceGroup,
                 UpdatedAt = DateTime.UtcNow

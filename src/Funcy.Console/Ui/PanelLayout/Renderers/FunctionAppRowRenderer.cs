@@ -3,7 +3,7 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui.PanelLayout.Renderers;
 
-public class FunctionAppLayoutRenderer: ILayoutRenderer<FunctionAppDetails>
+public class FunctionAppLayoutRenderer(IReadOnlyList<string> tagColumns) : ILayoutRenderer<FunctionAppDetails>
 {
     public RowMarkup CreateRowMarkup(FunctionAppDetails item)
     {
@@ -12,7 +12,13 @@ public class FunctionAppLayoutRenderer: ILayoutRenderer<FunctionAppDetails>
             Key = item.Key
         };
         rowMarkup.Add("Name", new RowCell(UiStyles.CreateSelectedCell(item.Name), new Markup(item.Name)));
-        rowMarkup.Add("System", new RowCell(UiStyles.CreateSelectedCell(item.System), new Markup(item.System)));
+
+        foreach (var tag in tagColumns)
+        {
+            var value = item.Tags.TryGetValue(tag, out var v) ? v : string.Empty;
+            rowMarkup.Add(tag, new RowCell(UiStyles.CreateSelectedCell(value), new Markup(value)));
+        }
+
         rowMarkup.Add("State", new RowCell(UiStyles.CreateSelectedCell(item.State.ToDisplayLabel()), UiStyles.CreateStateCell(item.State)));
         rowMarkup.Add("Status", new RowCell(UiStyles.CreateSelectedCell(item.Status.ToDisplayLabel()), UiStyles.CreateStatusCell(item.Status)));
         rowMarkup.Add("", new RowCell(UiStyles.CreateSelectedCell(item.AnimatingFrame), new Markup(item.AnimatingFrame)));
@@ -22,10 +28,21 @@ public class FunctionAppLayoutRenderer: ILayoutRenderer<FunctionAppDetails>
 
     public ColumnLayout<FunctionAppDetails> CreateColumnLayout()
     {
-        return new ColumnLayout<FunctionAppDetails>(new Column<FunctionAppDetails>("Name", f => f.Name, 40),
-            new Column<FunctionAppDetails>("System", f => f.System, 10),
-            new Column<FunctionAppDetails>("State", f => f.State, 10),
-            new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), 20),
-            new Column<FunctionAppDetails>("", null, 10, true));
+        var columns = new List<Column<FunctionAppDetails>>
+        {
+            new("Name", f => f.Name, 40)
+        };
+
+        foreach (var tag in tagColumns)
+        {
+            var tagCopy = tag;
+            columns.Add(new Column<FunctionAppDetails>(tagCopy, f => f.Tags.TryGetValue(tagCopy, out var v) ? v : null, 10));
+        }
+
+        columns.Add(new Column<FunctionAppDetails>("State", f => f.State, 10));
+        columns.Add(new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), 20));
+        columns.Add(new Column<FunctionAppDetails>("", null, 10, true));
+
+        return new ColumnLayout<FunctionAppDetails>([.. columns]);
     }
 }

@@ -1,5 +1,6 @@
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Settings;
 using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Pagination;
@@ -9,13 +10,15 @@ using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
+using Microsoft.Extensions.Options;
 
 namespace Funcy.Console.Ui.Factory;
 
 public sealed class ListPanelFactory(
     FunctionStateCoordinator coordinator,
     IAnimationProvider animationProvider,
-    AppContext appContext)
+    AppContext appContext,
+    IOptions<FuncySettings> settings)
 {
     public IListPanel CreateFromList<T>(
         IReadOnlyList<T> items,
@@ -45,7 +48,7 @@ public sealed class ListPanelFactory(
     {
         return CreateFromList(apps,
             new FunctionAppMatcher(),
-            new FunctionAppLayoutRenderer(),
+            new FunctionAppLayoutRenderer(settings.Value.TagColumns),
             new FunctionAppShortcutProvider(),
             f => new NavigationRequest(PanelTarget.Functions, f.Key),
             "Azure Function Apps",

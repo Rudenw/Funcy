@@ -14,7 +14,7 @@ public static class FunctionAppDetailsMapper
             Subscription = functionApp.SubscriptionId,
             ResourceGroup = functionApp.ResourceGroup,
             State = Enum.Parse<FunctionState>(functionApp.State),
-            System = functionApp.System,
+            Tags = functionApp.Tags ?? [],
             Id = functionApp.Id,
             LastUpdated = DateTime.UtcNow
         };
@@ -29,7 +29,9 @@ public static class FunctionAppDetailsMapper
             State = functionApp.State,
             Subscription = functionApp.Subscription,
             ResourceGroup = functionApp.ResourceGroup,
-            System = functionApp.System,
+            Tags = string.IsNullOrEmpty(functionApp.System)
+                ? []
+                : new Dictionary<string, string> { ["System"] = functionApp.System },
             Functions = functionApp.Functions.Select(x => x.Map()).ToList(),
             Slots = functionApp.Slots.Select(x => x.Map()).ToList(),
             LastUpdated = functionApp.UpdatedAt
