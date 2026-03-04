@@ -127,5 +127,5 @@ After switching, you always return to the Function Apps view.
 - Favorites / pinned Function Apps
 - Hide functionality for subscriptions
 - Improved error surfacing in UI
-- Splash screen
+- Throttle refresh on subscription change (max once every 5 minutes)
 - View Service Bus message count
