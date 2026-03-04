@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Azure.Core;
 using Azure.Identity;
 using Azure.ResourceManager;
@@ -7,6 +7,7 @@ using Microsoft.Extensions.Hosting;
 using Funcy.Console;
 using Funcy.Console.Handlers;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Settings;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.State;
@@ -39,6 +40,7 @@ var host = Host.CreateDefaultBuilder(args)
     })
     .ConfigureServices((context, services) =>
     {
+        services.Configure<FuncySettings>(context.Configuration.GetSection("Funcy"));
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
         {
