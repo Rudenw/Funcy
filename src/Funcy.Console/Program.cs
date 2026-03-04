@@ -26,11 +26,24 @@ Console.OutputEncoding = Encoding.UTF8;
 var dataDirectory = DatabaseConnectionFactory.GetDataDirectory();
 Directory.CreateDirectory(dataDirectory);
 
+var settingsPath = Path.Combine(dataDirectory, "settings.json");
+if (!File.Exists(settingsPath))
+{
+    await File.WriteAllTextAsync(settingsPath,
+        """
+        {
+          "Funcy": {
+            "TagColumns": [ "System" ]
+          }
+        }
+        """);
+}
+
 var config = new ConfigurationBuilder()
     .SetBasePath(System.AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json")
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
-    .AddJsonFile(Path.Combine(dataDirectory, "settings.json"), optional: true, reloadOnChange: false)
+    .AddJsonFile(settingsPath, optional: true, reloadOnChange: false)
     .AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["Serilog:WriteTo:0:Args:path"] = Path.Combine(dataDirectory, "logs", "funcy.log")
