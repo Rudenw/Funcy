@@ -12,14 +12,14 @@ public static class DatabaseConnectionFactory
         var builder = new SqliteConnectionStringBuilder(baseConnectionString);
 
         var fileName = Path.GetFileName(builder.DataSource);
-        var baseDirectory = GetBaseDirectory();
+        var baseDirectory = GetDataDirectory();
         Directory.CreateDirectory(baseDirectory);
 
         builder.DataSource = Path.Combine(baseDirectory, fileName);
         return builder.ToString();
     }
 
-    static string GetBaseDirectory()
+    public static string GetDataDirectory()
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {

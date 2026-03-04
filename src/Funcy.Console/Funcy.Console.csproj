@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
@@ -9,6 +9,14 @@
 
     <PropertyGroup>
         <AssemblyName>Funcy</AssemblyName>
+        <PackAsTool>true</PackAsTool>
+        <ToolCommandName>funcy</ToolCommandName>
+        <PackageId>Funcy</PackageId>
+        <Version>1.0.0</Version>
+        <Authors>Rudenw</Authors>
+        <Description>TUI tool for monitoring and administering Azure Function Apps</Description>
+        <PackageTags>azure;functions;tui;cli</PackageTags>
+        <RepositoryUrl>https://github.com/Rudenw/Funcy</RepositoryUrl>
     </PropertyGroup>
 
     <ItemGroup>
