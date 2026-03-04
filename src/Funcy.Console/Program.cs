@@ -23,9 +23,16 @@ using AppContext = Funcy.Console.AppContext;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+var dataDirectory = DatabaseConnectionFactory.GetDataDirectory();
+Directory.CreateDirectory(dataDirectory);
+
 var config = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .AddInMemoryCollection(new Dictionary<string, string?>
+    {
+        ["Serilog:WriteTo:0:Args:path"] = Path.Combine(dataDirectory, "logs", "funcy.log")
+    })
     .Build();
 
 Log.Logger = new LoggerConfiguration()
