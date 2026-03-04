@@ -1,5 +1,6 @@
 using Funcy.Console.Ui.PanelLayout;
 using Funcy.Console.Ui.Pagination.Sorters;
+using Xunit;
 
 namespace Funcy.Tests.Sorters;
 

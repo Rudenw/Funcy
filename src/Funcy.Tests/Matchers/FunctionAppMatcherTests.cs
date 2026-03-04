@@ -1,11 +1,12 @@
 using Funcy.Console.Ui.Pagination.Matchers;
 using Funcy.Core.Model;
+using Xunit;
 
 namespace Funcy.Tests.Matchers;
 
 public class FunctionAppMatcherTests
 {
-    private readonly FunctionAppMatcher _sut = new();
+    private readonly FunctionAppMatcher _sut = new(["System"]);
 
     private static FunctionAppDetails MakeApp(
         string name,
@@ -15,7 +16,9 @@ public class FunctionAppMatcherTests
         {
             Name = name,
             State = FunctionState.Running,
-            System = system,
+            Tags = {
+                { "System", system }
+            },
             ResourceGroup = "rg-test",
             Subscription = "sub-test",
             Id = "id-test",

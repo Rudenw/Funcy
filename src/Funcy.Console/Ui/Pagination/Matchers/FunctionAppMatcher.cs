@@ -13,7 +13,7 @@ public class FunctionAppMatcher(string[] tagColumns) : ISearchMatcher<FunctionAp
             foreach (var tagColumn in tagColumns)
             {
                 var value = app.Tags.TryGetValue(tagColumn, out var v) ? v : string.Empty;
-                match |= string.IsNullOrWhiteSpace(value) && value.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+                match |= !string.IsNullOrWhiteSpace(value) && value.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
             }
             
             match |= app.Functions.Any(f => f.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
