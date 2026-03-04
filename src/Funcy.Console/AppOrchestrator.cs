@@ -23,19 +23,16 @@ public class AppOrchestrator(
     {
         var cts = new CancellationTokenSource();
 
-        await appContext.InitializeAppContext();
         _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
             uiStateMarkupProvider, appContext);
-        await functionAppUpdateHandler.InitializeAsync();
+        // InitializeAsync is now done in Program.cs before StartAsync
         _ = functionAppUpdateHandler.SynchronizeFunctionAppDataAsync();
         
         var resizeTask = resizeHandler.StartPolling(cts.Token);
         var inputTask = inputHandler.StartListeningAsync(cts.Token);
-        var animation = animationHandler.StartAsync(cts.Token);
         
         await HandleInputAndRenderAsync(cts.Token);
         
-        await animation;
         await cts.CancelAsync();
         await inputTask;
         await resizeTask;
