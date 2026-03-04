@@ -13,6 +13,7 @@ using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Data;
 using Funcy.Infrastructure.Azure;
+using Funcy.Infrastructure.Shell;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -74,10 +75,42 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddScoped<IAzureResourceService, AzureResourceService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
+        services.AddTransient<ToolValidationService>();
+        services.AddTransient<SplashScreen>();
     })
     .Build();
 
+var splashScreen = host.Services.GetRequiredService<SplashScreen>();
+
+// Starta AnimationHandler för splash screen spinner
+var animationHandler = host.Services.GetRequiredService<AnimationHandler>();
+var animationCts = new CancellationTokenSource();
+var animationTask = animationHandler.StartAsync(animationCts.Token);
+
+// Starta bakgrundsuppgifter som körs under splash screen
+var dbMigrationTask = host.Services.MigrateDatabaseAsync(CancellationToken.None);
+var appContext = host.Services.GetRequiredService<AppContext>();
+var appContextInitTask = appContext.InitializeAppContext();
+
+// Hämta functionAppUpdateHandler för continuation
+var functionAppUpdateHandler = host.Services.GetRequiredService<FunctionAppUpdateHandler>();
+
+var canContinue = await splashScreen.ShowAsync(
+    [dbMigrationTask, appContextInitTask],
+    async () => await functionAppUpdateHandler.InitializeAsync());
+
+if (!canContinue)
+{
+    await animationCts.CancelAsync();
+    return;
+}
+
+// AnimationHandler fortsätter köra för AppOrchestrator
 var mainMenuService = host.Services.GetRequiredService<AppOrchestrator>();
-await host.Services.MigrateDatabaseAsync(CancellationToken.None);
 await mainMenuService.StartAsync();
+
+// Stoppa animation efter att huvudmenyn är klar
+await animationCts.CancelAsync();
+await animationTask;
+
 await host.RunAsync();
