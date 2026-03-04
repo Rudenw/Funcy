@@ -30,6 +30,7 @@ var config = new ConfigurationBuilder()
     .SetBasePath(System.AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json")
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
+    .AddJsonFile(Path.Combine(dataDirectory, "settings.json"), optional: true, reloadOnChange: false)
     .AddInMemoryCollection(new Dictionary<string, string?>
     {
         ["Serilog:WriteTo:0:Args:path"] = Path.Combine(dataDirectory, "logs", "funcy.log")
