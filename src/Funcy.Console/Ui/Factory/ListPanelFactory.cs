@@ -47,7 +47,7 @@ public sealed class ListPanelFactory(
     public IListPanel CreateFunctionAppPanel(IReadOnlyList<FunctionAppDetails> apps)
     {
         return CreateFromList(apps,
-            new FunctionAppMatcher(),
+            new FunctionAppMatcher(settings.Value.TagColumns),
             new FunctionAppLayoutRenderer(settings.Value.TagColumns),
             new FunctionAppShortcutProvider(),
             f => new NavigationRequest(PanelTarget.Functions, f.Key),

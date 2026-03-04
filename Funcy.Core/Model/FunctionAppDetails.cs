@@ -13,9 +13,6 @@ public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
     public required string Subscription { get; init; }
     public string AnimatingFrame { get; set; } = "";
     public DateTime LastUpdated { get; set; }
-
-    public List<FunctionAppSlotDetails> SlotsExtra =>
-        [new() { FullName = $"{Name} (Production)", Name = "Production", State = State, Id = ""}, ..Slots];
     
     public required string Id { get; init; }
 
