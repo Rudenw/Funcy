@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
+using Funcy.Console.Ui;
 using Funcy.Console.Ui.Input;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
@@ -9,7 +10,7 @@ namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
-    FunctionStatusManager functionStatusManager)
+    FunctionStatusManager functionStatusManager) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
 

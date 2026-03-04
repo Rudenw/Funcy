@@ -1,4 +1,3 @@
-using Funcy.Console.Handlers;
 using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Factory;
@@ -13,29 +12,29 @@ namespace Funcy.Console.Ui;
 
 public sealed class MainContainer : IDisposable
 {
-    private readonly FunctionActionHandler _functionActionHandler;
-    private readonly FunctionAppUpdateHandler _functionAppUpdateHandler;
+    private readonly IActionDispatcher _actionDispatcher;
+    private readonly IDetailsLoader _detailsLoader;
     private readonly UiStateMarkupProvider _uiStateMarkupProvider;
     private readonly TopPanel _topPanel;
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    
+
     private readonly Stack<ListPanelContext> _contextStack = new();
-    
+
     public readonly Layout MainLayout;
     private bool _searchMode;
     private readonly ListPanelContextFactory _listPanelContextFactory;
-    
+
     private ListPanelContext Current => _contextStack.Peek();
 
     public MainContainer(ListPanelContextFactory listPanelContextFactory,
-        FunctionActionHandler functionActionHandler, 
-        FunctionAppUpdateHandler functionAppUpdateHandler,
+        IActionDispatcher actionDispatcher,
+        IDetailsLoader detailsLoader,
         UiStateMarkupProvider uiStateMarkupProvider,
         AppContext appContext)
     {
         _listPanelContextFactory = listPanelContextFactory;
-        _functionActionHandler = functionActionHandler;
-        _functionAppUpdateHandler = functionAppUpdateHandler;
+        _actionDispatcher = actionDispatcher;
+        _detailsLoader = detailsLoader;
         _uiStateMarkupProvider = uiStateMarkupProvider;
         _topPanel = new TopPanel(appContext);
 
@@ -171,7 +170,7 @@ public sealed class MainContainer : IDisposable
             return;
         }
         
-        _functionAppUpdateHandler.LoadDetails(currentKey);
+        _detailsLoader.LoadDetails(currentKey);
     }
 
     private void SyncSearchUi()
@@ -205,7 +204,7 @@ public sealed class MainContainer : IDisposable
             actionPanel.TryBuildAction(action, out var input)
             && input is not null)
         {
-            _ = _functionActionHandler.Dispatch(input);
+            _ = _actionDispatcher.Dispatch(input);
             return;
         }
 

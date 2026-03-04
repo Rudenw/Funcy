@@ -12,7 +12,7 @@ public class AppOrchestrator(
     ResizeHandler resizeHandler,
     AnimationHandler animationHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler,
-    FunctionActionHandler actionHandler,
+    IActionDispatcher actionDispatcher,
     ListPanelContextFactory listPanelContextFactory,
     UiStateMarkupProvider uiStateMarkupProvider,
     AppContext appContext)
@@ -23,7 +23,7 @@ public class AppOrchestrator(
     {
         var cts = new CancellationTokenSource();
 
-        _mainContainer = new MainContainer(listPanelContextFactory, actionHandler, functionAppUpdateHandler,
+        _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
             uiStateMarkupProvider, appContext);
         // InitializeAsync is now done in Program.cs before StartAsync
         _ = functionAppUpdateHandler.SynchronizeFunctionAppDataAsync();

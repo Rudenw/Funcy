@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Handlers;
 
-public class FunctionAppUpdateHandler
+public class FunctionAppUpdateHandler : IDetailsLoader
 {
     private readonly ILogger<FunctionAppUpdateHandler> _logger;
     private readonly IAzureFunctionService _functionService;
