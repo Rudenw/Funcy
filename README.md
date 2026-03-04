@@ -81,6 +81,30 @@ On startup, Funcy:
 
 ---
 
+## Configuration
+
+On first run, Funcy creates a `settings.json` file in the data directory:
+
+| Platform | Path |
+|----------|------|
+| Windows  | `%LOCALAPPDATA%\Funcy\settings.json` |
+| macOS    | `~/Library/Application Support/Funcy/settings.json` |
+| Linux    | `~/.local/share/funcy/settings.json` |
+
+Edit it to customize Funcy's behavior:
+
+```json
+{
+  "Funcy": {
+    "TagColumns": [ "System", "Team" ]
+  }
+}
+```
+
+**`TagColumns`** – which Azure resource tags to display as columns in the Function App list.
+
+---
+
 ## Subscription switching
 
 Funcy supports **switching Azure subscriptions at runtime**.
