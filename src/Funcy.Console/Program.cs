@@ -61,13 +61,13 @@ var host = Host.CreateDefaultBuilder(args)
         logging.ClearProviders();
         logging.AddSerilog();
     })
-    .ConfigureServices((context, services) =>
+    .ConfigureServices((_, services) =>
     {
-        services.Configure<FuncySettings>(context.Configuration.GetSection("Funcy"));
+        services.Configure<FuncySettings>(config.GetSection("Funcy"));
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
         {
-            var connectionString = DatabaseConnectionFactory.CreateConnectionString(context.Configuration);
+            var connectionString = DatabaseConnectionFactory.CreateConnectionString(config);
             options.UseSqlite(connectionString)
                 .UseLoggerFactory(LoggerFactory.Create(builder =>
                 {
