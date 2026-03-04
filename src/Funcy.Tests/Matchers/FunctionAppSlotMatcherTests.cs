@@ -1,5 +1,6 @@
 using Funcy.Console.Ui.Pagination.Matchers;
 using Funcy.Core.Model;
+using Xunit;
 
 namespace Funcy.Tests.Matchers;
 
