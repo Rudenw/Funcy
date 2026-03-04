@@ -41,6 +41,7 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 var host = Host.CreateDefaultBuilder(args)
+    .UseContentRoot(System.AppContext.BaseDirectory)
     .ConfigureLogging(logging =>
     {
         logging.ClearProviders();
