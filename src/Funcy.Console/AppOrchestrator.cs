@@ -12,7 +12,7 @@ public class AppOrchestrator(
     ResizeHandler resizeHandler,
     AnimationHandler animationHandler,
     FunctionAppUpdateHandler functionAppUpdateHandler,
-    FunctionActionHandler actionHandler,
+    IActionDispatcher actionDispatcher,
     ListPanelContextFactory listPanelContextFactory,
     UiStateMarkupProvider uiStateMarkupProvider,
     AppContext appContext)
@@ -24,7 +24,7 @@ public class AppOrchestrator(
         var cts = new CancellationTokenSource();
 
         await appContext.InitializeAppContext();
-        _mainContainer = new MainContainer(listPanelContextFactory, actionHandler, functionAppUpdateHandler,
+        _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
             uiStateMarkupProvider, appContext);
         await functionAppUpdateHandler.InitializeAsync();
         _ = functionAppUpdateHandler.SynchronizeFunctionAppDataAsync();

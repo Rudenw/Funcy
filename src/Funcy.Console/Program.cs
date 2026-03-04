@@ -52,7 +52,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<InputHandler>();
         services.AddTransient<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
-        services.AddTransient<FunctionActionHandler>();
+        services.AddTransient<IActionDispatcher, FunctionActionHandler>();
         services.AddSingleton<DefaultAzureCredential>();
         services.AddSingleton(sp =>
         {
