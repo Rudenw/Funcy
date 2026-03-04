@@ -27,6 +27,7 @@ var dataDirectory = DatabaseConnectionFactory.GetDataDirectory();
 Directory.CreateDirectory(dataDirectory);
 
 var config = new ConfigurationBuilder()
+    .SetBasePath(System.AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json")
     .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT") ?? "Production"}.json", optional: true)
     .AddInMemoryCollection(new Dictionary<string, string?>
