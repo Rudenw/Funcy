@@ -36,12 +36,12 @@ public static class ShellCommandRunner
         return output.Trim();
     }
 
-    private static string GetShellExecutable(string command)
+    public static string GetShellExecutable(string command)
     {
         return OperatingSystem.IsWindows() ? "cmd.exe" : command;
     }
 
-    private static string GetShellArguments(string command, string arguments)
+    public static string GetShellArguments(string command, string arguments)
     {
         return OperatingSystem.IsWindows() ? $"/c {command} {arguments}" : arguments;
     }

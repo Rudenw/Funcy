@@ -41,11 +41,11 @@ public class ToolValidationService
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-            
+
             var psi = new ProcessStartInfo
             {
-                FileName = command,
-                Arguments = arguments,
+                FileName = ShellCommandRunner.GetShellExecutable(command),
+                Arguments = ShellCommandRunner.GetShellArguments(command, arguments),
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -66,30 +66,6 @@ public class ToolValidationService
 
     private async Task<bool> IsGraphExtensionInstalledAsync()
     {
-        try
-        {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(TimeoutSeconds));
-            
-            var psi = new ProcessStartInfo
-            {
-                FileName = "az",
-                Arguments = "extension show --name resource-graph",
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true
-            };
-
-            using var process = new Process { StartInfo = psi };
-            process.Start();
-
-            await process.WaitForExitAsync(cts.Token);
-            return process.ExitCode == 0;
-        }
-        catch
-        {
-            return false;
-        }
+        return await IsToolInstalledAsync("az", "extension show --name resource-graph");
     }
 }
-

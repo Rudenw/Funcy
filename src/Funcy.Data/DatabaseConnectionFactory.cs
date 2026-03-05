@@ -24,12 +24,33 @@ public static class DatabaseConnectionFactory
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             var root = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                // Fallback if LocalApplicationData is not available
+                root = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (string.IsNullOrWhiteSpace(root))
+                {
+                    root = Environment.GetEnvironmentVariable("USERPROFILE") 
+                           ?? Environment.GetEnvironmentVariable("HOME")
+                           ?? Path.GetTempPath();
+                }
+                return Path.Combine(root, ".funcy");
+            }
             return Path.Combine(root, "Funcy");
         }
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
         {
             var root = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            if (string.IsNullOrWhiteSpace(root))
+            {
+                root = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (string.IsNullOrWhiteSpace(root))
+                {
+                    root = Environment.GetEnvironmentVariable("HOME") ?? Path.GetTempPath();
+                }
+                return Path.Combine(root, ".funcy");
+            }
             return Path.Combine(root, "Funcy");
         }
 
@@ -38,6 +59,10 @@ public static class DatabaseConnectionFactory
             return Path.Combine(xdgDataHome, "funcy");
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (string.IsNullOrWhiteSpace(home))
+        {
+            home = Environment.GetEnvironmentVariable("HOME") ?? Path.GetTempPath();
+        }
         return Path.Combine(home, ".local", "share", "funcy");
     }
 }
