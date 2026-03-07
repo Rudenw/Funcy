@@ -41,24 +41,38 @@ public class FunctionAppUpdateHandler : IDetailsLoader
 
     private async void OnSubscriptionChanged(SubscriptionDetails obj)
     {
+        // Cancel old synchronization immediately
         if (_syncCts is not null)
         {
             await _syncCts.CancelAsync();
-            _syncCts.Dispose();
         }
-        
-        if (_syncTask is not null)
+
+        // Start cleanup in background - don't wait for it
+        var oldTask = _syncTask;
+        var oldCts = _syncCts;
+        // ReSharper disable once MethodSupportsCancellation
+        _ = Task.Run(async () =>
         {
-            try
+            if (oldTask is not null)
             {
-                await _syncTask;
+                try
+                {
+                    await oldTask;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error waiting for old task during subscription change");
+                }
             }
-            catch (OperationCanceledException)
-            {
-                //Expected
-            }
-        }
-        
+            
+            oldCts?.Dispose();
+        });
+
+        // Initialize and start new synchronization immediately
         await InitializeAsync();
         await SynchronizeFunctionAppDataAsync();
     }
@@ -80,17 +94,43 @@ public class FunctionAppUpdateHandler : IDetailsLoader
 
     private async Task SynchronizeFunctionAppDataInternalAsync(CancellationToken token)
     {
-        _animationHandler.AddAppDetails("TopPanel");
-        _uiStatusState.BeginInventoryValidation();
-        var functionAppDetailsToUpdate =
-            _functionService.GetFunctionAppDetailsAsync(_appContext.CurrentSubscription.Id, token);
-        await UpdateFunctionAppList(functionAppDetailsToUpdate, token);
-        _uiStatusState.EndInventoryValidation();
-        _animationHandler.RemoveAppDetails("TopPanel");
+        try
+        {
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+            
+            _animationHandler.AddAppDetails("TopPanel");
+            _uiStatusState.BeginInventoryValidation();
+            var functionAppDetailsToUpdate =
+                _functionService.GetFunctionAppDetailsAsync(_appContext.CurrentSubscription.Id, token);
+            
+            await UpdateFunctionAppList(functionAppDetailsToUpdate, token);
+            
+            await _functionStateCoordinator.WaitForPendingUpdatesAsync();
+            
+            _uiStatusState.EndInventoryValidation();
+            _animationHandler.RemoveAppDetails("TopPanel");
 
-        _uiStatusState.BeginDetailsRefresh();
-        await LoadAllDetailsInBackground(token);
-        _uiStatusState.EndDetailsRefresh();
+            _uiStatusState.BeginDetailsRefresh();
+            await LoadAllDetailsInBackground(token);
+            _uiStatusState.EndDetailsRefresh();
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when subscription changes
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "Timeout waiting for database lock - previous sync did not complete in time");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during synchronization");
+            throw;
+        }
     }
     
     private async Task LoadAllDetailsInBackground(CancellationToken token)

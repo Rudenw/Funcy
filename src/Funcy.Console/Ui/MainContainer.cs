@@ -129,7 +129,7 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case var key when
-                key == ListPanelShortcuts.HideEmpty.Key && Current.IsSubscriptionPanel:
+                key == ListPanelShortcuts.HideEmpty.Key:
                 ToggleSubscriptionFilter();
                 break;
 
@@ -163,6 +163,11 @@ public sealed class MainContainer : IDisposable
 
     private void SubscriptionView()
     {
+        if (!Current.View.IsActionValid(FunctionAction.ChangeSubscription))
+        {
+            return;
+        }
+        
         var nextContext = _listPanelContextFactory.CreateSubscriptionPanel(() => _tcs.TrySetResult());
         _contextStack.Push(nextContext);
         RefreshMainLayout();
@@ -170,6 +175,11 @@ public sealed class MainContainer : IDisposable
 
     private void ToggleSubscriptionFilter()
     {
+        if (!Current.View.IsActionValid(FunctionAction.HideSubscription))
+        {
+            return;
+        }
+        
         _appContext.ToggleHideEmptySubscriptions();
         _contextStack.Pop();
         SubscriptionView();
