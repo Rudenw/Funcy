@@ -102,6 +102,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
         services.AddTransient<ToolValidationService>();
         services.AddTransient<SplashScreen>();
+        services.AddTransient<SubscriptionProbeHandler>();
     })
     .Build();
 

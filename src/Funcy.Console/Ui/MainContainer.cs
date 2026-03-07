@@ -16,6 +16,7 @@ public sealed class MainContainer : IDisposable
     private readonly IDetailsLoader _detailsLoader;
     private readonly UiStateMarkupProvider _uiStateMarkupProvider;
     private readonly TopPanel _topPanel;
+    private readonly AppContext _appContext;
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly Stack<ListPanelContext> _contextStack = new();
@@ -36,6 +37,7 @@ public sealed class MainContainer : IDisposable
         _actionDispatcher = actionDispatcher;
         _detailsLoader = detailsLoader;
         _uiStateMarkupProvider = uiStateMarkupProvider;
+        _appContext = appContext;
         _topPanel = new TopPanel(appContext);
 
         var context = _listPanelContextFactory.CreateRoot(() => _tcs.TrySetResult());
@@ -121,9 +123,14 @@ public sealed class MainContainer : IDisposable
                 LoadDetails();
                 break;
             
-            case var key when 
+            case var key when
                 key == ListPanelShortcuts.ChangeSubscription.Key:
                 SubscriptionView();
+                break;
+
+            case var key when
+                key == ListPanelShortcuts.HideEmpty.Key && Current.IsSubscriptionPanel:
+                ToggleSubscriptionFilter();
                 break;
 
             case ConsoleKey.Delete:
@@ -159,6 +166,13 @@ public sealed class MainContainer : IDisposable
         var nextContext = _listPanelContextFactory.CreateSubscriptionPanel(() => _tcs.TrySetResult());
         _contextStack.Push(nextContext);
         RefreshMainLayout();
+    }
+
+    private void ToggleSubscriptionFilter()
+    {
+        _appContext.ToggleHideEmptySubscriptions();
+        _contextStack.Pop();
+        SubscriptionView();
     }
 
     private void LoadDetails()
