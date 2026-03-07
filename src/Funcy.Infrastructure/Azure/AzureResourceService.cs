@@ -12,6 +12,29 @@ public class AzureResourceService : IAzureResourceService
         return await ShellCommandRunner.RunAsync("az", "account show --query id -o tsv");
     }
     
+    public async Task<bool> HasAnyFunctionAppsAsync(string subscriptionId)
+    {
+        var query =
+            $"Resources | where subscriptionId == '{subscriptionId}' " +
+            "| where type =~ 'microsoft.web/sites' " +
+            "| where kind has 'functionapp' " +
+            "| limit 1 " +
+            "| project id";
+
+        try
+        {
+            var graphArgs = BuildGraphArgs(query, 1, null);
+            var json = await ShellCommandRunner.RunAsync("az", graphArgs);
+            var response = JsonSerializer.Deserialize<GraphQueryResponse>(json,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return response?.Count > 0;
+        }
+        catch
+        {
+            return true; // Assume has apps if probe fails
+        }
+    }
+
     public async Task<List<FunctionAppGraphRow>> GetAllFunctionApps(string subscriptionId)
     {
         var options = new JsonSerializerOptions
@@ -79,4 +102,5 @@ public interface IAzureResourceService
 {
     Task<string> GetCurrentSubscriptionId();
     Task<List<FunctionAppGraphRow>> GetAllFunctionApps(string subscriptionId);
+    Task<bool> HasAnyFunctionAppsAsync(string subscriptionId);
 }

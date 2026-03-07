@@ -63,6 +63,11 @@ public class FunctionStateCoordinator
         return _cache.TryGetValue(subscriptionId, out var subCache) && subCache.IsEmpty;
     }
 
+    public void MarkSubscriptionAsEmpty(string subscriptionId)
+    {
+        _cache.TryAdd(subscriptionId, new ConcurrentDictionary<string, CachedFunctionAppModel>());
+    }
+
     public async Task PublishUpdateAsync(FunctionAppDetails details)
     {
         await _updateChannel.Writer.WriteAsync(details);
