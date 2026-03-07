@@ -29,9 +29,7 @@ public static class FunctionAppDetailsMapper
             State = functionApp.State,
             Subscription = functionApp.Subscription,
             ResourceGroup = functionApp.ResourceGroup,
-            Tags = string.IsNullOrEmpty(functionApp.System)
-                ? []
-                : new Dictionary<string, string> { ["System"] = functionApp.System },
+            Tags = functionApp.Tags.ToDictionary(t => t.Key, t => t.Value),
             Functions = functionApp.Functions.Select(x => x.Map()).ToList(),
             Slots = functionApp.Slots.Select(x => x.Map()).ToList(),
             LastUpdated = functionApp.UpdatedAt
