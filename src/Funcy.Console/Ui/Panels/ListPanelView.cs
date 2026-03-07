@@ -39,7 +39,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private UiStatusSnapshot _uiStatus;
 
 
-    public ListPanelView(IReadOnlyList<T> listObjects, ISearchMatcher<T> searchMatcher,
+    public ListPanelView(ISearchMatcher<T> searchMatcher,
         ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, IAnimationProvider animationProvider, Func<T, NavigationRequest>? onEnterNavigation, string header,
         Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation)
 
@@ -60,7 +60,6 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         Panel = new Panel(_renderer.Table)
             .Header(header, Justify.Center)
             .BorderColor(Color.Orange1);
-        SetItems(listObjects);
     }
     
     public void SetItems(IReadOnlyList<T> items)

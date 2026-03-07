@@ -35,7 +35,13 @@ public sealed class ListPanelContextFactory(
     {
         var panel = listPanelFactory.CreateSubscriptionPanel();
         var view = (IListPanelView<SubscriptionDetails>)panel;
-        var controller = new SnapshotListController<SubscriptionDetails>(view, appContext.GetSnapshot(), invalidate);
+
+        var allSubs = appContext.GetSnapshot().ToList();
+        var subsToShow = appContext.HideEmptySubscriptions
+            ? allSubs.Where(s => !coordinator.IsSubscriptionKnownEmpty(s.Id)).ToList()
+            : allSubs;
+        
+        var controller = new SnapshotListController<SubscriptionDetails>(view, subsToShow, invalidate);
         return new ListPanelContext
         {
             View = panel,
