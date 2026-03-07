@@ -68,9 +68,21 @@ public class FunctionStateCoordinator
         _cache.TryAdd(subscriptionId, new ConcurrentDictionary<string, CachedFunctionAppModel>());
     }
 
+    private int _pendingUpdates;
+    private TaskCompletionSource? _allUpdatesProcessed;
+
     public async Task PublishUpdateAsync(FunctionAppDetails details)
     {
+        Interlocked.Increment(ref _pendingUpdates);
         await _updateChannel.Writer.WriteAsync(details);
+    }
+
+    public async Task WaitForPendingUpdatesAsync()
+    {
+        if (_pendingUpdates == 0) return;
+        
+        _allUpdatesProcessed = new TaskCompletionSource();
+        await _allUpdatesProcessed.Task;
     }
     
     private async Task PublishRemoveAsync(FunctionAppDetails removedApp)
@@ -94,6 +106,11 @@ public class FunctionStateCoordinator
         {
             if (update.Subscription != _currentSubscriptionId)
             {
+                Interlocked.Decrement(ref _pendingUpdates);
+                if (_pendingUpdates == 0)
+                {
+                    _allUpdatesProcessed?.TrySetResult();
+                }
                 continue;
             }
             
@@ -116,6 +133,11 @@ public class FunctionStateCoordinator
             finally
             {
                 _uiUpdateLock.Release();
+            }
+            
+            if (Interlocked.Decrement(ref _pendingUpdates) == 0)
+            {
+                _allUpdatesProcessed?.TrySetResult();
             }
         }
     }

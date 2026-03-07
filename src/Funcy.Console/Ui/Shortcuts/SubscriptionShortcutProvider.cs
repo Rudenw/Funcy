@@ -17,6 +17,10 @@ public class SubscriptionShortcutProvider(AppContext appContext) : IShortcutProv
 
     public bool IsActionValid(SubscriptionDetails getSelectedItem, FunctionAction action)
     {
-        return false;
+        return action switch
+        {
+            FunctionAction.HideSubscription => true,
+            _ => false
+        };
     }
 }

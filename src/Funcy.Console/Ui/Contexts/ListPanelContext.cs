@@ -9,5 +9,4 @@ public class ListPanelContext
     public SearchInputManager SearchInputManager { get; } = new();
     public required IListController Controller { get; set; }
     public required IListPanel View { get; init; }
-    public bool IsSubscriptionPanel { get; init; }
 }

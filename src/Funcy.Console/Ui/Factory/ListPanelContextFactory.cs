@@ -45,8 +45,7 @@ public sealed class ListPanelContextFactory(
         return new ListPanelContext
         {
             View = panel,
-            Controller = controller,
-            IsSubscriptionPanel = true
+            Controller = controller
         };
     }
 
