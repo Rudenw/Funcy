@@ -76,16 +76,34 @@ public sealed class ListPanelFactory(
 
     public IListPanel CreateSubscriptionPanel()
     {
-        return CreateFromList(appContext.GetSnapshot(),
+        var allSubs = appContext.GetSnapshot();
+        IReadOnlyList<SubscriptionDetails> subsToShow;
+        string header;
+
+        if (appContext.HideEmptySubscriptions)
+        {
+            subsToShow = allSubs.Where(s => !coordinator.IsSubscriptionKnownEmpty(s.Id)).ToList();
+            var hiddenCount = allSubs.Count - subsToShow.Count;
+            header = hiddenCount > 0
+                ? $"Switch Subscription [dim grey]({hiddenCount} hidden - H to show)[/]"
+                : "Switch Subscription";
+        }
+        else
+        {
+            subsToShow = allSubs;
+            header = "Switch Subscription";
+        }
+
+        return CreateFromList(subsToShow,
             new SubscriptionMatcher(),
             new SubscriptionLayoutRenderer(),
-            new SubscriptionShortcutProvider(),
+            new SubscriptionShortcutProvider(appContext),
             s =>
             {
                 appContext.ChangeSubscription(s.Key);
                 return new NavigationRequest(PanelTarget.FunctionApps, s.Key);
             },
-            "Switch Subscription");
+            header);
     }
     
     public IListPanel Create(NavigationRequest request)

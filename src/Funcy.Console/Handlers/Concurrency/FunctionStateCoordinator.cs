@@ -58,6 +58,11 @@ public class FunctionStateCoordinator
         return app?.FunctionAppDetails;
     }
 
+    public bool IsSubscriptionKnownEmpty(string subscriptionId)
+    {
+        return _cache.TryGetValue(subscriptionId, out var subCache) && subCache.IsEmpty;
+    }
+
     public async Task PublishUpdateAsync(FunctionAppDetails details)
     {
         await _updateChannel.Writer.WriteAsync(details);
