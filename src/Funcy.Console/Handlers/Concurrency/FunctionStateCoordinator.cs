@@ -151,21 +151,11 @@ public class FunctionStateCoordinator
         {
             return update.Details;
         }
+        
+        update.Details.Functions = existing.FunctionAppDetails.Functions;
+        update.Details.Slots = existing.FunctionAppDetails.Slots;
 
-        return new FunctionAppDetails
-        {
-            Name = update.Details.Name,
-            State = update.Details.State,
-            Status = update.Details.Status,
-            Tags = update.Details.Tags,
-            Slots = existing.FunctionAppDetails.Slots,
-            Functions = existing.FunctionAppDetails.Functions,
-            ResourceGroup = update.Details.ResourceGroup,
-            Subscription = update.Details.Subscription,
-            AnimatingFrame = update.Details.AnimatingFrame,
-            LastUpdated = update.Details.LastUpdated,
-            Id = update.Details.Id
-        };
+        return update.Details;
     }
     
     private async Task ProcessRemovalsAsync()
