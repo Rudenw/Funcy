@@ -49,4 +49,16 @@ public static class UiStyles
     {
         return new Markup($"[bold {UiHelper.GetStatusColor(status)}]{status.ToDisplayLabel()}[/]");
     }
+
+    public static string? CreateFunctionsEmptyStateText(FunctionAppDetails app)
+    {
+        if (app.Status.Status == StatusType.InProgress && app.Status.Action == FunctionAction.Start)
+        {
+            return $"[{Hint}]Function app is starting. Functions will load when startup completes.[/]";
+        }
+
+        return app.State == FunctionState.Stopped
+            ? $"[{Hint}]Function app is stopped. Start it to load functions.[/]"
+            : null;
+    }
 }

@@ -45,7 +45,6 @@ public class FunctionActionHandler(
             {
                 case FunctionAction.Start:
                     await functionAppManagement.StartFunction(details);
-                    details.State = FunctionState.Running;
                     details = await LoadStartedFunctionAppDetails(details);
                     break;
                 case FunctionAction.Stop:
@@ -75,10 +74,11 @@ public class FunctionActionHandler(
     private async Task<FunctionAppDetails> LoadStartedFunctionAppDetails(FunctionAppDetails details)
     {
         const int maxAttempts = 5;
+        var runningDetails = CreateRunningDetails(details);
 
         for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            var updatedDetails = await functionService.GetFunctionAppDetails(details);
+            var updatedDetails = await functionService.GetFunctionAppDetails(runningDetails);
             if (updatedDetails.Functions.Count > 0 || attempt == maxAttempts)
             {
                 return updatedDetails;
@@ -87,6 +87,24 @@ public class FunctionActionHandler(
             await Task.Delay(TimeSpan.FromSeconds(attempt));
         }
 
-        return details;
+        return runningDetails;
+    }
+
+    private static FunctionAppDetails CreateRunningDetails(FunctionAppDetails details)
+    {
+        return new FunctionAppDetails
+        {
+            Name = details.Name,
+            State = FunctionState.Running,
+            Status = details.Status,
+            Tags = details.Tags,
+            Slots = details.Slots,
+            Functions = details.Functions,
+            ResourceGroup = details.ResourceGroup,
+            Subscription = details.Subscription,
+            AnimatingFrame = details.AnimatingFrame,
+            LastUpdated = details.LastUpdated,
+            Id = details.Id
+        };
     }
 }

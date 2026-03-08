@@ -119,9 +119,7 @@ public sealed class ListPanelFactory(
                     new FunctionShortcutProvider(),
                     null,
                     "Azure Functions",
-                    emptyStateMessage: () => app.State == FunctionState.Stopped
-                        ? "[grey]Function app is stopped. Start it to load functions.[/]"
-                        : null);
+                    emptyStateMessage: () => UiStyles.CreateFunctionsEmptyStateText(app));
             }
             case PanelTarget.Slots:
             {
