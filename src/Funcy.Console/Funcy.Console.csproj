@@ -5,7 +5,6 @@
         <TargetFramework>net9.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <MinVerTagPrefix>v</MinVerTagPrefix>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -17,6 +16,7 @@
         <Description>TUI tool for monitoring and administering Azure Function Apps</Description>
         <PackageTags>azure;functions;tui;cli</PackageTags>
         <RepositoryUrl>https://github.com/Rudenw/Funcy</RepositoryUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
     <ItemGroup>
@@ -51,6 +51,7 @@
       <Content Include="appsettings.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
+      <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
 </Project>
