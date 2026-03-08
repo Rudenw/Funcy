@@ -21,7 +21,6 @@ public sealed class ListPanelFactory(
     IOptions<FuncySettings> settings)
 {
     public IListPanel CreateFromList<T>(
-        IReadOnlyList<T> items,
         ISearchMatcher<T> matcher,
         ILayoutRenderer<T> layout,
         IShortcutProvider<T> shortcuts,
@@ -32,7 +31,6 @@ public sealed class ListPanelFactory(
         where T : IComparable<T>, IHasKey
     {
         return new ListPanelView<T>(
-            items,
             matcher,
             layout,
             shortcuts,
@@ -46,7 +44,7 @@ public sealed class ListPanelFactory(
 
     public IListPanel CreateFunctionAppPanel(IReadOnlyList<FunctionAppDetails> apps)
     {
-        return CreateFromList(apps,
+        return CreateFromList(
             new FunctionAppMatcher(settings.Value.TagColumns),
             new FunctionAppLayoutRenderer(settings.Value.TagColumns),
             new FunctionAppShortcutProvider(),
@@ -76,16 +74,31 @@ public sealed class ListPanelFactory(
 
     public IListPanel CreateSubscriptionPanel()
     {
-        return CreateFromList(appContext.GetSnapshot(),
-            new SubscriptionMatcher(),
+        var allSubs = appContext.GetSnapshot();
+        string header;
+
+        if (appContext.HideEmptySubscriptions)
+        {
+            var subsToShow = allSubs.Count(s => !coordinator.IsSubscriptionKnownEmpty(s.Id));
+            var hiddenCount = allSubs.Count - subsToShow;
+            header = hiddenCount > 0
+                ? $"Switch Subscription [dim grey]({hiddenCount} hidden - H to show)[/]"
+                : "Switch Subscription";
+        }
+        else
+        {
+            header = "Switch Subscription";
+        }
+
+        return CreateFromList(new SubscriptionMatcher(),
             new SubscriptionLayoutRenderer(),
-            new SubscriptionShortcutProvider(),
+            new SubscriptionShortcutProvider(appContext),
             s =>
             {
                 appContext.ChangeSubscription(s.Key);
                 return new NavigationRequest(PanelTarget.FunctionApps, s.Key);
             },
-            "Switch Subscription");
+            header);
     }
     
     public IListPanel Create(NavigationRequest request)
@@ -99,8 +112,7 @@ public sealed class ListPanelFactory(
         {
             case PanelTarget.Functions:
             {
-                return CreateFromList(app.Functions,
-                    new FunctionMatcher(),
+                return CreateFromList(new FunctionMatcher(),
                     new FunctionLayoutRenderer(),
                     new FunctionShortcutProvider(),
                     null,
@@ -108,8 +120,7 @@ public sealed class ListPanelFactory(
             }
             case PanelTarget.Slots:
             {
-                return CreateFromList(app.Slots,
-                    new FunctionAppSlotMatcher(),
+                return CreateFromList(new FunctionAppSlotMatcher(),
                     new FunctionAppSlotLayoutRenderer(),
                     new FunctionAppSlotShortcutProvider() { FunctionApp = app },
                     null,

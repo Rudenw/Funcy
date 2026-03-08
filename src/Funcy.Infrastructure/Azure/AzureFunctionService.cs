@@ -23,10 +23,12 @@ public class AzureFunctionService(
     ArmClient client,
     IDbContextFactory<FunctionAppDbContext> dbContextFactory) : IAzureFunctionService
 {
+    private static readonly SemaphoreSlim DbWriteLock = new(1, 1);
+    
     public async Task<List<FunctionAppDetails>> GetFunctionsFromDatabase(string subscriptionId)
     {
         await using var dbContext = await dbContextFactory.CreateDbContextAsync();
-        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots)
+        var functionAppList = dbContext.FunctionApps.Include(x => x.Functions).Include(x => x.Slots).Include(x => x.Tags)
             .Where(f => f.Subscription == subscriptionId);
         var functionAppDetailsList = functionAppList.Select(x => x.Map()).ToList();
         functionAppDetailsList.Sort();
@@ -45,19 +47,39 @@ public class AzureFunctionService(
 
         var cleanupTask = CleanUpFunctionApps(subscriptionId, allFunctionApps, cancellationToken);
 
-        var existingApps = await dbContext.FunctionApps
-            .Where(f => f.Subscription == subscriptionId)
-            .ToDictionaryAsync(f => f.AzureId, cancellationToken);
-
-        foreach (var functionAppGraphRow in allFunctionApps)
+        // Lock database access to prevent concurrent writes from multiple subscriptions
+        // Use a timeout to allow cancelled operations to complete first
+        var lockAcquired = await DbWriteLock.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+        
+        if (!lockAcquired)
         {
-            existingApps.TryGetValue(functionAppGraphRow.Id, out var existing);
-            var functionApp = AddOrUpdateFunctionApp(existing, functionAppGraphRow, dbContext);
-            var details = functionApp.Map();
-            await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppGraphRow.Name, details),
-                cancellationToken);
+            logger.LogWarning("Could not acquire database write lock within timeout for subscription {SubscriptionId}", subscriptionId);
+            throw new TimeoutException("Database write lock could not be acquired - another synchronization is still running");
         }
-        await dbContext.SaveChangesAsync(cancellationToken);
+        
+        try
+        {
+            var existingApps = await dbContext.FunctionApps
+                .Include(f => f.Tags)
+                .Where(f => f.Subscription == subscriptionId)
+                .ToDictionaryAsync(f => f.AzureId, cancellationToken);
+
+            foreach (var functionAppGraphRow in allFunctionApps)
+            {
+                existingApps.TryGetValue(functionAppGraphRow.Id, out var existing);
+                var functionApp = AddOrUpdateFunctionApp(existing, functionAppGraphRow, dbContext);
+                var details = functionApp.Map();
+                await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppGraphRow.Name, details),
+                    cancellationToken);
+            }
+
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        finally
+        {
+            DbWriteLock.Release();
+        }
+        
         await cleanupTask;
         channel.Writer.Complete();
 
@@ -169,6 +191,7 @@ public class AzureFunctionService(
         var existing = await dbContext.FunctionApps
             .Include(f => f.Functions)
             .Include(f => f.Slots)
+            .Include(f => f.Tags)
             .FirstAsync(f => f.AzureId == functionAppDetails.Id);
 
         var webSiteResource = client.GetWebSiteResource(ResourceIdentifier.Parse(functionAppDetails.Id));
@@ -277,17 +300,11 @@ public class AzureFunctionService(
     {
         if (functionApp is null)
         {
-            var system = functionAppGraphRow.Tags is not null &&
-                         functionAppGraphRow.Tags.TryGetValue("System", out var s)
-                ? s
-                : string.Empty;
-
             functionApp = new FunctionApp()
             {
                 AzureId = functionAppGraphRow.Id,
                 Name = functionAppGraphRow.Name,
                 State = Enum.Parse<FunctionState>(functionAppGraphRow.State),
-                System = system,
                 Subscription = functionAppGraphRow.SubscriptionId,
                 ResourceGroup = functionAppGraphRow.ResourceGroup,
                 UpdatedAt = DateTime.UtcNow
@@ -298,7 +315,12 @@ public class AzureFunctionService(
         {
             functionApp.State = Enum.Parse<FunctionState>(functionAppGraphRow.State);
             functionApp.UpdatedAt = DateTime.UtcNow;
+            dbContext.FunctionAppTags.RemoveRange(functionApp.Tags);
         }
+
+        functionApp.Tags = (functionAppGraphRow.Tags ?? [])
+            .Select(kvp => new FunctionAppTag { Key = kvp.Key, Value = kvp.Value })
+            .ToList();
 
         return functionApp;
     }

@@ -25,7 +25,7 @@ public class FunctionAppSlotShortcutProvider : IShortcutProvider<FunctionAppSlot
             FunctionAction.Start => CanStart(getSelectedItem),
             FunctionAction.Stop => CanStop(getSelectedItem),
             FunctionAction.Swap => CanSwap(getSelectedItem),
-            _ => true
+            _ => false
         };
     }
 

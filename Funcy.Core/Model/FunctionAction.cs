@@ -5,7 +5,9 @@ public enum FunctionAction
     Start,
     Stop,
     Swap,
-    Refresh
+    Refresh,
+    ChangeSubscription,
+    HideSubscription
 }
 
 public static class FunctionActionExtensions

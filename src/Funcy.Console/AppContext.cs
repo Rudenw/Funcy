@@ -11,6 +11,10 @@ public class AppContext(AzureSubscriptionService azureSubscriptionService)
     private Dictionary<string, SubscriptionDetails> CachedSubscriptions { get; set; } = [];
     public event Action<SubscriptionDetails>? OnSubscriptionChange;
 
+    public bool HideEmptySubscriptions { get; private set; } = true;
+
+    public void ToggleHideEmptySubscriptions() => HideEmptySubscriptions = !HideEmptySubscriptions;
+
     public async Task InitializeAppContext()
     {
         var subscriptions = await azureSubscriptionService.GetSubscriptions();
