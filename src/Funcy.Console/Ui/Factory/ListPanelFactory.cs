@@ -28,7 +28,7 @@ public sealed class ListPanelFactory(
         string header,
         Func<FunctionAction, T, InputActionResult?>? onAction = null,
         Func<T, NavigationRequest>? onActionNavigation = null,
-        Func<string?>? emptyStateMessage = null)
+        Func<UiStatusSnapshot, string?>? emptyStateMessage = null)
         where T : IComparable<T>, IHasKey
     {
         return new ListPanelView<T>(
@@ -119,7 +119,11 @@ public sealed class ListPanelFactory(
                     new FunctionShortcutProvider(),
                     null,
                     "Azure Functions",
-                    emptyStateMessage: () => UiStyles.CreateFunctionsEmptyStateText(app));
+                    emptyStateMessage: uiStatus =>
+                    {
+                        var currentApp = coordinator.TryGet(request.Key);
+                        return currentApp is null ? null : UiStyles.CreateFunctionsEmptyStateText(currentApp, uiStatus);
+                    });
             }
             case PanelTarget.Slots:
             {

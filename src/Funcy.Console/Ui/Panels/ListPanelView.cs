@@ -25,7 +25,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private readonly Func<T, NavigationRequest?>? _onEnterNavigation;
     private readonly Func<T, NavigationRequest?>? _onActionNavigation;
     private readonly Func<FunctionAction, T, InputActionResult?>? _onAction; 
-    private readonly Func<string?>? _emptyStateMessage;
+    private readonly Func<UiStatusSnapshot, string?>? _emptyStateMessage;
 
     private readonly Dictionary<string, RowMarkup> _markupCache = [];
     private List<RowMarkup> _visibleRows = [];
@@ -43,7 +43,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     public ListPanelView(ISearchMatcher<T> searchMatcher,
         ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, IAnimationProvider animationProvider, Func<T, NavigationRequest>? onEnterNavigation, string header,
         Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation,
-        Func<string?>? emptyStateMessage = null)
+        Func<UiStatusSnapshot, string?>? emptyStateMessage = null)
 
     {
         _searchMatcher = searchMatcher;
@@ -77,6 +77,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     public void SetUiStatus(UiStatusSnapshot uiStatusSnapshot)
     {
         _uiStatus = uiStatusSnapshot;
+        RenderCurrentView();
     }
 
     public void HandleResize()
@@ -199,7 +200,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
             return null;
         }
 
-        return _emptyStateMessage?.Invoke();
+        return _emptyStateMessage?.Invoke(_uiStatus);
     }
 
     public bool TryGetNavigationRequest(out NavigationRequest? navigationRequest)

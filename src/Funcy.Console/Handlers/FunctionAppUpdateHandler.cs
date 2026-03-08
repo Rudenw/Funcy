@@ -166,7 +166,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 existingFunctionAppNames.Add(newApp.Name);
                 if (newApp.IsSuccess)
                 {
-                    await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!);
+                    await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!, newApp.UpdateKind);
                     _uiStatusState.IncrementDetailsInFlight();
                 }
             }
