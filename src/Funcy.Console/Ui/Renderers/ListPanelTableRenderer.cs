@@ -35,7 +35,7 @@ public class ListPanelTableRenderer<T>
         var index = 0;
         foreach (var column in _columns)
         {
-            Table.Columns[index].Header(UiStyles.CreateHeaderText(column.Header, column.Selector is not null ? index : null, descending,
+            Table.Columns[index].Header(UiStyles.CreateHeaderText(column.Header, column.Selector is not null ? index+1 : null, descending,
                 columnIndex is not null && columnIndex.Value == index + 1));
             index++;
         }
