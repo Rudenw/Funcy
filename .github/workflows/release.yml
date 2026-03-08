@@ -75,12 +75,10 @@ jobs:
 
       - name: Pack
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "Building NuGet package version: $VERSION"
           dotnet pack src/Funcy.Console/Funcy.Console.csproj \
             -c Release \
             --output nupkg \
-            /p:Version=$VERSION
+            /p:MinVerTagPrefix=v
 
       - name: Push to NuGet
         run: |
