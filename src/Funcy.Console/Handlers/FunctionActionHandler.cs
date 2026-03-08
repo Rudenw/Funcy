@@ -10,6 +10,7 @@ namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
+    IAzureFunctionService functionService,
     FunctionStatusManager functionStatusManager) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
@@ -27,29 +28,65 @@ public class FunctionActionHandler(
     {
         if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
         {
-            var dispatchedTask = inputResult.Action switch
-            {
-                FunctionAction.Start => functionAppManagement.StartFunction(inputResult.FunctionAppDetails),
-                FunctionAction.Stop => functionAppManagement.StopFunction(inputResult.FunctionAppDetails),
-                FunctionAction.Swap => functionAppManagement.SwapFunction(inputResult.FunctionAppDetails, inputResult.SlotDetails),
-                _ => null!
-            };
-            
             await AddNewTask(inputResult.FunctionAppDetails.Name,
                 new DispatchedFunction(inputResult.Action, inputResult.FunctionAppDetails));
 
-            _ = dispatchedTask.ContinueWith(async t =>
-            {
-                if (inputResult.Action != FunctionAction.Swap)
-                {
-                    inputResult.FunctionAppDetails.State = inputResult.Action.GetFunctionState();                                    
-                }
-
-                await functionStatusManager.CompleteOperation(inputResult.FunctionAppDetails, inputResult.Action,
-                    t.IsCompletedSuccessfully);
-                            
-                _currentTasks.TryRemove(inputResult.FunctionAppDetails.Name, out _);
-            });
+            _ = ExecuteActionAsync(inputResult);
         }
+    }
+
+    private async Task ExecuteActionAsync(InputActionResult inputResult)
+    {
+        var details = inputResult.FunctionAppDetails;
+
+        try
+        {
+            switch (inputResult.Action)
+            {
+                case FunctionAction.Start:
+                    await functionAppManagement.StartFunction(details);
+                    details.State = FunctionState.Running;
+                    details = await LoadStartedFunctionAppDetails(details);
+                    break;
+                case FunctionAction.Stop:
+                    await functionAppManagement.StopFunction(details);
+                    details.State = FunctionState.Stopped;
+                    details.Functions = [];
+                    break;
+                case FunctionAction.Swap:
+                    await functionAppManagement.SwapFunction(details, inputResult.SlotDetails);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+
+            await functionStatusManager.CompleteOperation(details, inputResult.Action, true);
+        }
+        catch
+        {
+            await functionStatusManager.CompleteOperation(details, inputResult.Action, false);
+        }
+        finally
+        {
+            _currentTasks.TryRemove(inputResult.FunctionAppDetails.Name, out _);
+        }
+    }
+
+    private async Task<FunctionAppDetails> LoadStartedFunctionAppDetails(FunctionAppDetails details)
+    {
+        const int maxAttempts = 5;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var updatedDetails = await functionService.GetFunctionAppDetails(details);
+            if (updatedDetails.Functions.Count > 0 || attempt == maxAttempts)
+            {
+                return updatedDetails;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(attempt));
+        }
+
+        return details;
     }
 }

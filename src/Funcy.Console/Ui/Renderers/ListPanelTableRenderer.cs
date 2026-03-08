@@ -43,31 +43,48 @@ public class ListPanelTableRenderer<T>
 
     public void Render(IEnumerable<RowMarkup> rows, int selectedIndex, List<AnimationContext>? animatingKeys)
     {
+        Table.Rows.Clear();
 
-            Table.Rows.Clear();
-
-            var i = 0;
-            foreach (var row in rows)
+        var i = 0;
+        foreach (var row in rows)
+        {
+            List<IRenderable> markupsToRender = [];
+            foreach (var column in _columns)
             {
-                List<IRenderable> markupsToRender = [];
-                foreach (var column in _columns)
+                var isSelected = i == selectedIndex;
+
+                if (column.AnimationColumn && animatingKeys is not null)
                 {
-                    var isSelected = i == selectedIndex;
-
-                    if (column.AnimationColumn && animatingKeys is not null)
-                    {
-                        var animationContext = animatingKeys.FirstOrDefault(a => a.FunctionAppKey == row.Key);
-                        if (animationContext is null) continue;
-                        markupsToRender.Add(new Markup(animationContext.AnimationFrame));
-                    }
-                    else
-                    {
-                        markupsToRender.Add(row.GetCell(column.Header, isSelected));
-                    }
+                    var animationContext = animatingKeys.FirstOrDefault(a => a.FunctionAppKey == row.Key);
+                    if (animationContext is null) continue;
+                    markupsToRender.Add(new Markup(animationContext.AnimationFrame));
                 }
-
-                Table.AddRow(markupsToRender);
-                i++;
+                else
+                {
+                    markupsToRender.Add(row.GetCell(column.Header, isSelected));
+                }
             }
+
+            Table.AddRow(markupsToRender);
+            i++;
+        }
+    }
+
+    public void RenderEmpty(string? message = null)
+    {
+        Table.Rows.Clear();
+
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return;
+        }
+
+        var cells = new List<IRenderable> { new Markup(message) };
+        for (var i = 1; i < _columns.Count; i++)
+        {
+            cells.Add(new Markup(" "));
+        }
+
+        Table.AddRow(cells);
     }
 }

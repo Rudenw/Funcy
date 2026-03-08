@@ -33,7 +33,7 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
     {
         if (string.Equals(FunctionAppKey, functionAppKey))
         {
-            Store.UpsertMany(updated);
+            Store.UpdateAll(updated);
             PushSnapshotToView();
             _invalidate?.Invoke();
         }

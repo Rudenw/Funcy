@@ -27,7 +27,8 @@ public sealed class ListPanelFactory(
         Func<T, NavigationRequest>? onEnter,
         string header,
         Func<FunctionAction, T, InputActionResult?>? onAction = null,
-        Func<T, NavigationRequest>? onActionNavigation = null)
+        Func<T, NavigationRequest>? onActionNavigation = null,
+        Func<string?>? emptyStateMessage = null)
         where T : IComparable<T>, IHasKey
     {
         return new ListPanelView<T>(
@@ -38,7 +39,8 @@ public sealed class ListPanelFactory(
             onEnter,
             header,
             onAction,
-            onActionNavigation);
+            onActionNavigation,
+            emptyStateMessage);
     }
 
 
@@ -116,7 +118,10 @@ public sealed class ListPanelFactory(
                     new FunctionLayoutRenderer(),
                     new FunctionShortcutProvider(),
                     null,
-                    "Azure Functions");
+                    "Azure Functions",
+                    emptyStateMessage: () => app.State == FunctionState.Stopped
+                        ? "[grey]Function app is stopped. Start it to load functions.[/]"
+                        : null);
             }
             case PanelTarget.Slots:
             {
