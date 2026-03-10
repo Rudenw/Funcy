@@ -19,9 +19,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Reference Include="Microsoft.Extensions.Http">
-        <HintPath>..\..\..\..\.nuget\packages\microsoft.extensions.http\9.0.4\lib\net10.0\Microsoft.Extensions.Http.dll</HintPath>
-      </Reference>
+      <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.4" />
     </ItemGroup>
 
 </Project>
