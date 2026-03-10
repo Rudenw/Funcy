@@ -69,7 +69,10 @@ public class AzureFunctionService(
                 existingApps.TryGetValue(functionAppGraphRow.Id, out var existing);
                 var functionApp = AddOrUpdateFunctionApp(existing, functionAppGraphRow, dbContext);
                 var details = functionApp.Map();
-                await channel.Writer.WriteAsync(new FunctionAppFetchResult(functionAppGraphRow.Name, details),
+                await channel.Writer.WriteAsync(new FunctionAppFetchResult(
+                        functionAppGraphRow.Name,
+                        details,
+                        FunctionAppUpdateKind.Inventory),
                     cancellationToken);
             }
 
@@ -135,8 +138,11 @@ public class AzureFunctionService(
                         try
                         {
                             var updatedDetails = await GetFunctionAppDetails(functionAppDetail);
-                            await channel.Writer.WriteAsync(new FunctionAppFetchResult(updatedDetails.Name,
-                                updatedDetails), cancellationToken);
+                            await channel.Writer.WriteAsync(new FunctionAppFetchResult(
+                                    updatedDetails.Name,
+                                    updatedDetails,
+                                    FunctionAppUpdateKind.Details),
+                                cancellationToken);
                         }
                         catch (OperationCanceledException)
                         {
@@ -147,7 +153,11 @@ public class AzureFunctionService(
                             if (!cancellationToken.IsCancellationRequested)
                             {
                                 await channel.Writer.WriteAsync(
-                                    new FunctionAppFetchResult(functionAppDetail.Name, null, e.Message),
+                                    new FunctionAppFetchResult(
+                                        functionAppDetail.Name,
+                                        null,
+                                        FunctionAppUpdateKind.Details,
+                                        e.Message),
                                     CancellationToken.None);
                             }
                         }

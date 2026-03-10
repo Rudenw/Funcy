@@ -7,7 +7,7 @@ namespace Funcy.Console.Handlers.Concurrency;
 
 public class FunctionStateCoordinator
 {
-    private readonly Channel<FunctionAppDetails> _updateChannel = Channel.CreateUnbounded<FunctionAppDetails>();
+    private readonly Channel<FunctionAppUpdate> _updateChannel = Channel.CreateUnbounded<FunctionAppUpdate>();
     private readonly Channel<FunctionAppDetails> _removeChannel = Channel.CreateUnbounded<FunctionAppDetails>();
 
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, CachedFunctionAppModel>> _cache = new();
@@ -71,10 +71,10 @@ public class FunctionStateCoordinator
     private int _pendingUpdates;
     private TaskCompletionSource? _allUpdatesProcessed;
 
-    public async Task PublishUpdateAsync(FunctionAppDetails details)
+    public async Task PublishUpdateAsync(FunctionAppDetails details, FunctionAppUpdateKind updateKind = FunctionAppUpdateKind.StateOnly)
     {
         Interlocked.Increment(ref _pendingUpdates);
-        await _updateChannel.Writer.WriteAsync(details);
+        await _updateChannel.Writer.WriteAsync(new FunctionAppUpdate(details, updateKind));
     }
 
     public async Task WaitForPendingUpdatesAsync()
@@ -104,7 +104,7 @@ public class FunctionStateCoordinator
     {
         await foreach (var update in _updateChannel.Reader.ReadAllAsync())
         {
-            if (update.Subscription != _currentSubscriptionId)
+            if (update.Details.Subscription != _currentSubscriptionId)
             {
                 Interlocked.Decrement(ref _pendingUpdates);
                 if (_pendingUpdates == 0)
@@ -115,20 +115,16 @@ public class FunctionStateCoordinator
             }
             
             var subCache = GetCurrentCache();
-            var status = update.Status;
-            subCache[update.Name] =
-                new CachedFunctionAppModel(update, update.LastUpdated)
-                {
-                    FunctionAppDetails =
-                    {
-                        Status = status
-                    }
-                };
+            var mergedDetails = MergeUpdate(subCache, update);
+            subCache[mergedDetails.Name] = new CachedFunctionAppModel(mergedDetails, mergedDetails.LastUpdated);
             await _uiUpdateLock.WaitAsync();
             try
             {
-                OnFunctionAppUpdated?.Invoke(update);
-                OnFunctionListUpdated?.Invoke(update.Key, update.Functions);
+                OnFunctionAppUpdated?.Invoke(mergedDetails);
+                if (update.UpdateKind != FunctionAppUpdateKind.Inventory)
+                {
+                    OnFunctionListUpdated?.Invoke(mergedDetails.Key, mergedDetails.Functions);
+                }
             }
             finally
             {
@@ -140,6 +136,26 @@ public class FunctionStateCoordinator
                 _allUpdatesProcessed?.TrySetResult();
             }
         }
+    }
+
+    private static FunctionAppDetails MergeUpdate(
+        ConcurrentDictionary<string, CachedFunctionAppModel> subCache,
+        FunctionAppUpdate update)
+    {
+        if (update.UpdateKind != FunctionAppUpdateKind.Inventory)
+        {
+            return update.Details;
+        }
+
+        if (!subCache.TryGetValue(update.Details.Name, out var existing))
+        {
+            return update.Details;
+        }
+        
+        update.Details.Functions = existing.FunctionAppDetails.Functions;
+        update.Details.Slots = existing.FunctionAppDetails.Slots;
+
+        return update.Details;
     }
     
     private async Task ProcessRemovalsAsync()

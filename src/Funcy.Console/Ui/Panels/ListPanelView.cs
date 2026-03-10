@@ -25,6 +25,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private readonly Func<T, NavigationRequest?>? _onEnterNavigation;
     private readonly Func<T, NavigationRequest?>? _onActionNavigation;
     private readonly Func<FunctionAction, T, InputActionResult?>? _onAction; 
+    private readonly Func<UiStatusSnapshot, string?>? _emptyStateMessage;
 
     private readonly Dictionary<string, RowMarkup> _markupCache = [];
     private List<RowMarkup> _visibleRows = [];
@@ -41,7 +42,8 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
     public ListPanelView(ISearchMatcher<T> searchMatcher,
         ILayoutRenderer<T> layoutRenderer, IShortcutProvider<T> shortcuts, IAnimationProvider animationProvider, Func<T, NavigationRequest>? onEnterNavigation, string header,
-        Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation)
+        Func<FunctionAction, T, InputActionResult?>? onAction, Func<T, NavigationRequest>? onActionNavigation,
+        Func<UiStatusSnapshot, string?>? emptyStateMessage = null)
 
     {
         _searchMatcher = searchMatcher;
@@ -51,6 +53,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         _onEnterNavigation = onEnterNavigation;
         _onAction = onAction;
         _onActionNavigation = onActionNavigation;
+        _emptyStateMessage = emptyStateMessage;
         _paginator = new ListPanelPaginator();
         
         var columnLayout = _layoutRenderer.CreateColumnLayout();
@@ -74,6 +77,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     public void SetUiStatus(UiStatusSnapshot uiStatusSnapshot)
     {
         _uiStatus = uiStatusSnapshot;
+        RenderCurrentView();
     }
 
     public void HandleResize()
@@ -136,6 +140,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
     public void RenderCurrentView()
     {
+        if (_visibleRows.Count == 0)
+        {
+            _renderer.RenderEmpty(GetEmptyStateMessage());
+            return;
+        }
+
         _renderer.Render(_visibleRows, _paginator.SelectedIndex, _animationProvider.GetAnimations());
     }
 
@@ -182,6 +192,17 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
             _markupCache[app.Key] = _layoutRenderer.CreateRowMarkup(app);
         }
     }
+
+    private string? GetEmptyStateMessage()
+    {
+        if (!string.IsNullOrWhiteSpace(_searchText) || _snapshot.Count > 0)
+        {
+            return null;
+        }
+
+        return _emptyStateMessage?.Invoke(_uiStatus);
+    }
+
     public bool TryGetNavigationRequest(out NavigationRequest? navigationRequest)
     {
         navigationRequest = null;

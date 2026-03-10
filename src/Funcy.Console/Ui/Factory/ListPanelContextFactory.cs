@@ -60,7 +60,7 @@ public sealed class ListPanelContextFactory(
             case PanelTarget.Functions:
             {
                 var view = (IListPanelView<FunctionDetails>)panel;
-                var controller = new FunctionListController(view, app.Key, app.Functions, coordinator, invalidate);
+                var controller = new FunctionListController(view, app.Key, app.Functions, coordinator, uiStatusState, invalidate);
                 return new ListPanelContext
                 {
                     View = panel,
