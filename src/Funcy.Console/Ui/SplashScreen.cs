@@ -1,103 +1,133 @@
 using Funcy.Console.Handlers;
+using Funcy.Console.Ui.Splash;
 using Funcy.Infrastructure.Shell;
-using Spectre.Console;
 
 namespace Funcy.Console.Ui;
+
+using Spectre.Console;
 
 public class SplashScreen
 {
     private readonly ToolValidationService _toolValidationService;
     private readonly AnimationHandler _animationHandler;
-    private readonly Table _contentTable = new();
-    public Panel Panel { get; private set; } = null!;
+    private readonly SplashScreenContent _content = new();
     private const string SplashAnimationKey = "SplashScreen";
 
     public SplashScreen(ToolValidationService toolValidationService, AnimationHandler animationHandler)
     {
         _toolValidationService = toolValidationService;
         _animationHandler = animationHandler;
-        InitializePanel();
-    }
-
-    private void InitializePanel()
-    {
-        _contentTable.Border(TableBorder.None);
-        _contentTable.ShowHeaders = false;
-        _contentTable.AddColumn("", column => column.Width(113));
-        
-        var figlet = new FigletText("Funcy")
-            .Color(Color.Orange1);
-        
-        _contentTable.AddRow(figlet);
-        _contentTable.AddRow(new Markup(""));
-        _contentTable.AddRow(new Markup("[orange1]●[/] Initializing..."));
-        
-        Panel = new Panel(_contentTable)
-        {
-            Width = 119
-        };
-        Panel.BorderColor(Color.Orange1);
     }
 
     public async Task<bool> ShowAsync(Task[] backgroundTasks, Func<Task>? continuationTask = null)
     {
         AnsiConsole.Clear();
         AnsiConsole.Cursor.Hide();
-        
+
         ToolValidationResult? validationResult = null;
-        
-        // Starta animation
+        Exception? startupException = null;
+
         _animationHandler.AddAppDetails(SplashAnimationKey);
-        
-        await AnsiConsole.Live(Panel)
+
+        await AnsiConsole.Live(_content.Panel)
             .StartAsync(async ctx =>
             {
                 ctx.Refresh();
-                
+
                 var validationTask = _toolValidationService.ValidateRequiredToolsAsync();
                 var allTasks = Task.WhenAll(backgroundTasks.Append(validationTask));
-                
-                // Animera medan tasks körs
+
                 while (!allTasks.IsCompleted)
                 {
                     await Task.WhenAny(allTasks, _animationHandler.WaitForTriggerAsync());
-                    
+
                     if (_animationHandler.IsTriggered)
                     {
-                        UpdateInitializingRow();
+                        var frame = _animationHandler.GetAnimation(SplashAnimationKey)?.AnimationFrame ?? "●";
+                        _content.UpdateInitializingRow(frame);
                         _animationHandler.ResetTrigger();
                         ctx.Refresh();
                     }
                 }
-                
-                // Vänta på att alla tasks är klara
-                await allTasks;
-                
-                validationResult = await validationTask;
-                
-                // Om validation lyckades och det finns en continuation task, kör den nu
-                if (validationResult is not null && validationResult.IsValid && continuationTask is not null)
+
+                try
                 {
-                    await continuationTask();
+                    await allTasks;
+                    validationResult = await validationTask;
+
+                    if (validationResult is not null && validationResult.IsValid && continuationTask is not null)
+                    {
+                        await continuationTask();
+                    }
                 }
-                
-                // Stoppa animation
-                _animationHandler.RemoveAppDetails(SplashAnimationKey);
-                
-                if (validationResult is null || !validationResult.IsValid)
+                catch (Exception ex)
                 {
-                    UpdatePanelWithErrors(validationResult);
+                    startupException = ex;
+                }
+
+                _animationHandler.RemoveAppDetails(SplashAnimationKey);
+
+                if (startupException is not null && SplashStartupErrorClassifier.IsAzureNotLoggedInError(startupException))
+                {
+                    _content.ShowAzureLoginPrompt();
+                }
+                else if (startupException is not null)
+                {
+                    _content.ShowStartupError(startupException);
+                }
+                else if (validationResult is null || !validationResult.IsValid)
+                {
+                    _content.ShowValidationErrors(validationResult);
                 }
                 else
                 {
-                    UpdatePanelWithSuccess();
+                    _content.ShowSuccess();
                 }
-                
+
                 ctx.Refresh();
             });
-        
-        
+
         System.Console.CursorVisible = false;
+
+        if (startupException is not null)
+        {
+            if (!SplashStartupErrorClassifier.IsAzureNotLoggedInError(startupException))
+            {
+                System.Console.ReadKey(true);
+                return false;
+            }
+
+            var wantsLogin = AzureLoginWorkflow.PromptForAzureLogin();
+            if (!wantsLogin)
+            {
+                return false;
+            }
+
+            var loginSucceeded = await AzureLoginWorkflow.TryAzureLoginAsync();
+            if (!loginSucceeded)
+            {
+                return false;
+            }
+
+            if (continuationTask is null)
+            {
+                return true;
+            }
+
+            try
+            {
+                await continuationTask();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Login succeeded but startup still failed:[/] [gray]{Markup.Escape(ex.Message)}[/]");
+                AnsiConsole.MarkupLine("[gray]Press any key to exit...[/]");
+                System.Console.ReadKey(true);
+                return false;
+            }
+        }
+
         if (validationResult is null || !validationResult.IsValid)
         {
             System.Console.ReadKey(true);
@@ -106,56 +136,5 @@ public class SplashScreen
 
         System.Console.ReadKey(true);
         return true;
-    }
-
-    private void UpdateInitializingRow()
-    {
-        var animation = _animationHandler.GetAnimation(SplashAnimationKey);
-        var frame = animation?.AnimationFrame ?? "●";
-        _contentTable.Rows.Update(2, 0, new Markup($"[orange1]{frame}[/] Initializing..."));
-    }
-
-    private void UpdatePanelWithErrors(ToolValidationResult? result)
-    {
-        // Ta bort initializing raden
-        _contentTable.Rows.RemoveAt(2);
-        
-        // Lägg till error information
-        _contentTable.AddRow(new Markup("[bold red]Missing required tools:[/]"));
-        _contentTable.AddRow(new Markup(""));
-        
-        if (result?.MissingTools != null)
-        {
-            foreach (var tool in result.MissingTools)
-            {
-                _contentTable.AddRow(new Markup($"  [red]✗[/] {tool}"));
-            }
-        }
-        
-        _contentTable.AddRow(new Markup(""));
-        _contentTable.AddRow(new Markup("[bold yellow]Installation instructions:[/]"));
-        _contentTable.AddRow(new Markup(""));
-        
-        if (result?.InstallInstructions != null)
-        {
-            foreach (var instruction in result.InstallInstructions)
-            {
-                _contentTable.AddRow(new Markup($"  [gray]→[/] {instruction}"));
-            }
-        }
-        
-        _contentTable.AddRow(new Markup(""));
-        _contentTable.AddRow(new Markup("[bold red]Please install the missing tools and restart the application.[/]"));
-        _contentTable.AddRow(new Markup("[gray]Press any key to exit...[/]"));
-        
-        Panel.BorderColor(Color.Red);
-    }
-
-    private void UpdatePanelWithSuccess()
-    {
-        // Uppdatera initializing raden till success
-        _contentTable.Rows.Update(2, 0, new Markup("[green]✓[/] All required tools are installed"));
-        _contentTable.AddRow(new Markup(""));
-        _contentTable.AddRow(new Markup("[gray]Press any key to continue...[/]"));
     }
 }
