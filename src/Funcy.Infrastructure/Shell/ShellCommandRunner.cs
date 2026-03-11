@@ -36,6 +36,29 @@ public static class ShellCommandRunner
         return output.Trim();
     }
 
+    public static async Task<int> RunInteractiveAsync(string command, string arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = GetShellExecutable(command),
+            Arguments = GetShellArguments(command, arguments),
+            RedirectStandardOutput = false,
+            RedirectStandardError = false,
+            RedirectStandardInput = false,
+            UseShellExecute = false,
+            CreateNoWindow = false
+        };
+
+        using var process = new Process
+        {
+            StartInfo = psi
+        };
+
+        process.Start();
+        await process.WaitForExitAsync();
+        return process.ExitCode;
+    }
+
     public static string GetShellExecutable(string command)
     {
         return OperatingSystem.IsWindows() ? "cmd.exe" : command;

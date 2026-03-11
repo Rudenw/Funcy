@@ -116,14 +116,17 @@ var animationTask = animationHandler.StartAsync(animationCts.Token);
 // Starta bakgrundsuppgifter som körs under splash screen
 var dbMigrationTask = host.Services.MigrateDatabaseAsync(CancellationToken.None);
 var appContext = host.Services.GetRequiredService<AppContext>();
-var appContextInitTask = appContext.InitializeAppContext();
 
 // Hämta functionAppUpdateHandler för continuation
 var functionAppUpdateHandler = host.Services.GetRequiredService<FunctionAppUpdateHandler>();
 
 var canContinue = await splashScreen.ShowAsync(
-    [dbMigrationTask, appContextInitTask],
-    async () => await functionAppUpdateHandler.InitializeAsync());
+    [dbMigrationTask],
+    async () =>
+    {
+        await appContext.InitializeAppContext();
+        await functionAppUpdateHandler.InitializeAsync();
+    });
 
 if (!canContinue)
 {
