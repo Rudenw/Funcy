@@ -103,6 +103,8 @@ Edit it to customize Funcy's behavior:
 
 **`TagColumns`** – which Azure resource tags to display as columns in the Function App list.
 
+**`SubscriptionRefreshIntervalMinutes`** – minimum time between automatic full refreshes for an already-loaded subscription.
+
 ---
 
 ## Subscription switching
@@ -114,7 +116,8 @@ Funcy supports **switching Azure subscriptions at runtime**.
 - Selecting a new subscription:
   - Updates the global application context
   - Clears cached Function Apps
-  - Reloads data for the new subscription (cache → Azure)
+  - Loads cached data immediately
+  - Runs a full Azure refresh only if the subscription has not been refreshed recently
 
 After switching, you always return to the Function Apps view.
 
@@ -125,7 +128,8 @@ After switching, you always return to the Function Apps view.
 ### Global
 
 - **F** – Filter
-- **R** – Refresh
+- **R** – Refresh selected Function App
+- **A** – Refresh all Function Apps
 - **S** – Start Function App
 - **T** – Stop Function App
 - **W** – Swap slot to production
@@ -151,5 +155,4 @@ After switching, you always return to the Function Apps view.
 - Favorites / pinned Function Apps
 - Hide functionality for subscriptions
 - Improved error surfacing in UI
-- Throttle refresh on subscription change (max once every 5 minutes)
 - View Service Bus message count

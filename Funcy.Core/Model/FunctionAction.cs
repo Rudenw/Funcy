@@ -6,6 +6,7 @@ public enum FunctionAction
     Stop,
     Swap,
     Refresh,
+    RefreshAll,
     ChangeSubscription,
     HideSubscription
 }
