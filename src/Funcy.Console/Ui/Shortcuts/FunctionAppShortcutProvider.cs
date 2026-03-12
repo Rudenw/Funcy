@@ -1,9 +1,9 @@
+using Funcy.Console.Ui.State;
 using Funcy.Core.Model;
-using Spectre.Console;
 
 namespace Funcy.Console.Ui.Shortcuts;
 
-public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
+public class FunctionAppShortcutProvider(IUiStatusState uiStatusState) : IShortcutProvider<FunctionAppDetails>
 {
     public Dictionary<TableIndex, ShortcutMap> Describe(FunctionAppDetails? app)
     {
@@ -14,7 +14,7 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
             {new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, CanRefresh(app))},
             {new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, CanStart(app))},
             {new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, CanStop(app))},
-            {new TableIndex(1, 4), new ShortcutMap(ListPanelShortcuts.Swap, CanSwap(app))}
+            {new TableIndex(1, 4), new ShortcutMap(ListPanelShortcuts.RefreshAll, CanRefreshAll())}
         };
         return shortcutList;
     }
@@ -27,9 +27,16 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
             FunctionAction.Stop => CanStop(getSelectedItem),
             FunctionAction.Swap => CanSwap(getSelectedItem),
             FunctionAction.Refresh => CanRefresh(getSelectedItem),
+            FunctionAction.RefreshAll => CanRefreshAll(),
             FunctionAction.ChangeSubscription => true,
             _ => false
         };
+    }
+
+    private bool CanRefreshAll()
+    {
+        var status = uiStatusState.GetSnapshot();
+        return !status.IsInventoryValidating && !status.IsDetailsRefreshing;
     }
 
     private static bool CanStart(FunctionAppDetails? app) =>
@@ -40,7 +47,7 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
 
     private static bool CanSwap(FunctionAppDetails? app) =>
         app is not null && app.Status.Status != StatusType.InProgress && app.Slots.Count >= 0;
-    
-    private static bool CanRefresh(FunctionAppDetails? app) => 
+
+    private static bool CanRefresh(FunctionAppDetails? app) =>
         app is not null && app.Status.Status != StatusType.InProgress;
 }

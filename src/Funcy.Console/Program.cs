@@ -33,7 +33,8 @@ if (!File.Exists(settingsPath))
         """
         {
           "Funcy": {
-            "TagColumns": [ "System" ]
+            "TagColumns": [ "System" ],
+            "SubscriptionRefreshIntervalMinutes": 60
           }
         }
         """);
