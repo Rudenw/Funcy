@@ -153,3 +153,7 @@ After switching, you always return to the Function Apps view.
 - Improved error surfacing in UI
 - Throttle refresh on subscription change (max once every 5 minutes)
 - View Service Bus message count
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](./LICENSE) for details.
