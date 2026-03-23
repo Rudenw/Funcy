@@ -45,7 +45,8 @@ public class FunctionActionHandler(
             {
                 case FunctionAction.Start:
                     await functionAppManagement.StartFunction(details);
-                    details = await LoadStartedFunctionAppDetails(details);
+                    details = await functionService.GetFunctionAppDetails(details);
+                    details.State = FunctionState.Running;
                     break;
                 case FunctionAction.Stop:
                     await functionAppManagement.StopFunction(details);
