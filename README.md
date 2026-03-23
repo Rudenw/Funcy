@@ -22,7 +22,7 @@ It is built with **Spectre.Console** and inspired by tools like **btop** and **k
 
 ### Runtime
 
-- **.NET 9**
+- **.NET 10**
 - **Azure CLI (`az`)**
 
 ### Azure CLI extensions

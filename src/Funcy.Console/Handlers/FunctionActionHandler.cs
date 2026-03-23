@@ -46,6 +46,7 @@ public class FunctionActionHandler(
                 case FunctionAction.Start:
                     await functionAppManagement.StartFunction(details);
                     details = await functionService.GetFunctionAppDetails(details);
+                    details.State = FunctionState.Running;
                     break;
                 case FunctionAction.Stop:
                     await functionAppManagement.StopFunction(details);
@@ -69,5 +70,24 @@ public class FunctionActionHandler(
         {
             _currentTasks.TryRemove(inputResult.FunctionAppDetails.Name, out _);
         }
+    }
+    
+    private async Task<FunctionAppDetails> LoadStartedFunctionAppDetails(FunctionAppDetails details)
+    {
+        const int maxAttempts = 5;
+        details.State = FunctionState.Running;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            var updatedDetails = await functionService.GetFunctionAppDetails(details);
+            if (updatedDetails.Functions.Count > 0 || attempt == maxAttempts)
+            {
+                return updatedDetails;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(attempt));
+        }
+
+        return details;
     }
 }
