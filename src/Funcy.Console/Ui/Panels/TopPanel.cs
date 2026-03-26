@@ -29,7 +29,7 @@ public class TopPanel
         
         Panel = new Panel(layoutTable)
         {
-            Width = 119
+            Width = 139
         };
         Panel.BorderColor(Color.Orange1);
 
@@ -59,17 +59,7 @@ public class TopPanel
         _dataTable.AddColumn("", column => column.Width = 15);
         _dataTable.AddColumn("", column =>
         {
-            column.Width = 30;
-            column.LeftAligned();
-        });
-        _dataTable.AddColumn("", column =>
-        {
-            column.Width = 20;
-            column.LeftAligned();
-        });
-        _dataTable.AddColumn("", column =>
-        {
-            column.Width = 20;
+            column.Width = 35;
             column.LeftAligned();
         });
         _dataTable.AddColumn("", column =>
@@ -77,15 +67,32 @@ public class TopPanel
             column.Width = 15;
             column.LeftAligned();
         });
-            
+        _dataTable.AddColumn("", column =>
+        {
+            column.Width = 15;
+            column.LeftAligned();
+        });
+        _dataTable.AddColumn("", column =>
+        {
+            column.Width = 20;
+            column.LeftAligned();
+        });
+        _dataTable.AddColumn("", column =>
+        {
+            column.Width = 18;
+            column.LeftAligned();
+        });
+
         _renderedShortcuts.Add(new TableIndex(0, 2), new ShortcutMap(ListPanelShortcuts.Filter, true));
-        _renderedShortcuts.Add(new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, true));
-        _renderedShortcuts.Add(new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, true));
         _renderedShortcuts.Add(new TableIndex(0, 3), new ShortcutMap(ListPanelShortcuts.Swap, true));
         _renderedShortcuts.Add(new TableIndex(0, 4), new ShortcutMap(ListPanelShortcuts.Refresh, true));
+        _renderedShortcuts.Add(new TableIndex(0, 5), new ShortcutMap(ListPanelShortcuts.RefreshAll, true));
+        _renderedShortcuts.Add(new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.Start, true));
+        _renderedShortcuts.Add(new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.Stop, true));
+        _renderedShortcuts.Add(new TableIndex(1, 4), new ShortcutMap(ListPanelShortcuts.ChangeSubscription, true));
 
-        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""));
-        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""));
+        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Subscription:"), new Markup($"{_subscriptionName}"), new Markup(""), new Markup(""), new Markup(""), new Markup(""));
+        _dataTable.AddRow(UiStyles.CreateLabelMarkup("Filter:"), new Markup(""), new Markup(""), new Markup(""), new Markup(""), new Markup(""));
 
         UpdateShortcuts();
     }

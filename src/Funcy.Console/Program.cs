@@ -33,7 +33,8 @@ if (!File.Exists(settingsPath))
         """
         {
           "Funcy": {
-            "TagColumns": [ "System" ]
+            "TagColumns": [ "System" ],
+            "SubscriptionRefreshIntervalMinutes": 60
           }
         }
         """);
@@ -76,7 +77,7 @@ var host = Host.CreateDefaultBuilder(args)
         });
         
         services.AddTransient<InputHandler>();
-        services.AddTransient<FunctionAppUpdateHandler>();
+        services.AddSingleton<FunctionAppUpdateHandler>();
         services.AddTransient<ResizeHandler>();
         services.AddTransient<IActionDispatcher, FunctionActionHandler>();
         services.AddSingleton<DefaultAzureCredential>();

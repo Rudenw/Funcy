@@ -23,7 +23,7 @@ public class SplashScreen
     {
         _contentTable.Border(TableBorder.None);
         _contentTable.ShowHeaders = false;
-        _contentTable.AddColumn("", column => column.Width(113));
+        _contentTable.AddColumn("", column => column.Width(133));
         
         var figlet = new FigletText("Funcy")
             .Color(Color.Orange1);
@@ -34,7 +34,7 @@ public class SplashScreen
         
         Panel = new Panel(_contentTable)
         {
-            Width = 119
+            Width = 139
         };
         Panel.BorderColor(Color.Orange1);
     }

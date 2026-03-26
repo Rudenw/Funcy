@@ -61,6 +61,9 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         _sorter = new ListPanelSorter<T>(columnLayout);
         
         Panel = new Panel(_renderer.Table)
+        {
+            Width = 139
+        }
             .Header(header, Justify.Center)
             .BorderColor(Color.Orange1);
     }

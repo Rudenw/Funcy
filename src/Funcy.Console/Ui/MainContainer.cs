@@ -118,9 +118,14 @@ public sealed class MainContainer : IDisposable
                 HandleActionKey(keyInfo.Key);
                 break;
             
-            case var key when 
+            case var key when
                 key == ListPanelShortcuts.Refresh.Key:
                 LoadDetails();
+                break;
+
+            case var key when
+                key == ListPanelShortcuts.RefreshAll.Key:
+                LoadAllDetails();
                 break;
             
             case var key when
@@ -188,13 +193,23 @@ public sealed class MainContainer : IDisposable
     private void LoadDetails()
     {
         var currentKey = Current.View.GetSelectedItemKey();
-        
+
         if (!Current.View.IsActionValid(FunctionAction.Refresh))
         {
             return;
         }
-        
+
         _detailsLoader.LoadDetails(currentKey);
+    }
+
+    private void LoadAllDetails()
+    {
+        if (!_detailsLoader.CanRefreshAll())
+        {
+            return;
+        }
+
+        _ = _detailsLoader.LoadAllDetailsAsync();
     }
 
     private void SyncSearchUi()

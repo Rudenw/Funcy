@@ -18,7 +18,8 @@ public sealed class ListPanelFactory(
     FunctionStateCoordinator coordinator,
     IAnimationProvider animationProvider,
     AppContext appContext,
-    IOptions<FuncySettings> settings)
+    IOptions<FuncySettings> settings,
+    IUiStatusState uiStatusState)
 {
     public IListPanel CreateFromList<T>(
         ISearchMatcher<T> matcher,
@@ -49,7 +50,7 @@ public sealed class ListPanelFactory(
         return CreateFromList(
             new FunctionAppMatcher(settings.Value.TagColumns),
             new FunctionAppLayoutRenderer(settings.Value.TagColumns),
-            new FunctionAppShortcutProvider(),
+            new FunctionAppShortcutProvider(uiStatusState),
             f => new NavigationRequest(PanelTarget.Functions, f.Key),
             "Azure Function Apps",
             (act, app) => act switch

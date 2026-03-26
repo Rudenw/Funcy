@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using Funcy.Console.Handlers.Concurrency;
+using Funcy.Console.Settings;
 using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Funcy.Console.Handlers;
 
@@ -16,9 +19,12 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly IUiStatusState _uiStatusState;
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
-    
+    private readonly FuncySettings _settings;
+
     private CancellationTokenSource? _syncCts;
     private Task? _syncTask;
+
+    private readonly ConcurrentDictionary<string, DateTime> _lastSubscriptionSyncUtc = new();
 
     public FunctionAppUpdateHandler(ILogger<FunctionAppUpdateHandler> logger,
         IAzureFunctionService functionService,
@@ -26,7 +32,8 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         AnimationHandler animationHandler,
         IUiStatusState uiStatusState,
         FunctionStatusManager functionStatusManager,
-        AppContext appContext)
+        AppContext appContext,
+        IOptions<FuncySettings> settings)
     {
         _logger = logger;
         _functionService = functionService;
@@ -35,48 +42,77 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _uiStatusState = uiStatusState;
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
-        
+        _settings = settings.Value;
+
         _appContext.OnSubscriptionChange += OnSubscriptionChanged;
     }
 
     private async void OnSubscriptionChanged(SubscriptionDetails obj)
     {
-        // Cancel old synchronization immediately
-        if (_syncCts is not null)
+        await CancelCurrentSyncAsync();
+
+        await InitializeAsync();
+
+        if (ShouldRefreshSubscription(obj.Id))
         {
-            await _syncCts.CancelAsync();
+            await SynchronizeFunctionAppDataAsync();
+        }
+    }
+
+    private async Task CancelCurrentSyncAsync()
+    {
+        var oldCts = _syncCts;
+        var oldTask = _syncTask;
+        _syncCts = null;
+        _syncTask = null;
+
+        if (oldCts is not null)
+        {
+            try
+            {
+                await oldCts.CancelAsync();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Already disposed
+            }
         }
 
-        // Start cleanup in background - don't wait for it
-        var oldTask = _syncTask;
-        var oldCts = _syncCts;
-        // ReSharper disable once MethodSupportsCancellation
-        _ = Task.Run(async () =>
+        if (oldTask is not null)
         {
-            if (oldTask is not null)
+            try
             {
-                try
-                {
-                    await oldTask;
-                }
-                catch (OperationCanceledException)
-                {
-                    // Expected
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error waiting for old task during subscription change");
-                }
+                await oldTask;
             }
-            
-            oldCts?.Dispose();
-        });
+            catch (OperationCanceledException)
+            {
+                // Expected
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error waiting for old task during subscription change");
+            }
+        }
 
-        // Initialize and start new synchronization immediately
-        await InitializeAsync();
-        await SynchronizeFunctionAppDataAsync();
+        oldCts?.Dispose();
     }
-    
+
+    private bool ShouldRefreshSubscription(string subscriptionId)
+    {
+        var intervalMinutes = _settings.SubscriptionRefreshIntervalMinutes;
+        if (intervalMinutes == 0)
+        {
+            return true;
+        }
+
+        if (!_lastSubscriptionSyncUtc.TryGetValue(subscriptionId, out var lastSync))
+        {
+            return true;
+        }
+
+        return (DateTime.UtcNow - lastSync).TotalMinutes >= intervalMinutes;
+    }
+
     public async Task InitializeAsync()
     {
         _functionStateCoordinator.SetSubscription(_appContext.CurrentSubscription.Id);
@@ -100,22 +136,24 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             {
                 return;
             }
-            
+
             _animationHandler.AddAppDetails("TopPanel");
             _uiStatusState.BeginInventoryValidation();
             var functionAppDetailsToUpdate =
                 _functionService.GetFunctionAppDetailsAsync(_appContext.CurrentSubscription.Id, token);
-            
+
             await UpdateFunctionAppList(functionAppDetailsToUpdate, token);
-            
+
             await _functionStateCoordinator.WaitForPendingUpdatesAsync();
-            
+
             _uiStatusState.EndInventoryValidation();
             _animationHandler.RemoveAppDetails("TopPanel");
 
             _uiStatusState.BeginDetailsRefresh();
             await LoadAllDetailsInBackground(token);
             _uiStatusState.EndDetailsRefresh();
+
+            _lastSubscriptionSyncUtc[_appContext.CurrentSubscription.Id] = DateTime.UtcNow;
         }
         catch (OperationCanceledException)
         {
@@ -132,7 +170,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             throw;
         }
     }
-    
+
     private async Task LoadAllDetailsInBackground(CancellationToken token)
     {
         var allApps = _functionStateCoordinator.GetCachedFunctionAppDetails();
@@ -140,18 +178,52 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         var updatedFunctionApps = _functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
         await UpdateFunctionAppList(updatedFunctionApps, token);
     }
-    
+
     public void LoadDetails(string currentKey)
     {
         var functionAppDetails = _functionStateCoordinator.TryGet(currentKey);
         if (functionAppDetails is null) return;
-        
+
         _ = Task.Run(async () =>
         {
             await _functionStatusManager.BeginOperation(functionAppDetails, FunctionAction.Refresh);
             var updatedDetails = await _functionService.GetFunctionAppDetails(functionAppDetails);
             await _functionStatusManager.CompleteOperation(updatedDetails, FunctionAction.Refresh, true);
         });
+    }
+
+    public async Task LoadAllDetailsAsync()
+    {
+        if (!CanRefreshAll()) return;
+
+        _syncCts = new CancellationTokenSource();
+        var token = _syncCts.Token;
+
+        _syncTask = Task.Run(async () =>
+        {
+            try
+            {
+                _uiStatusState.BeginDetailsRefresh();
+                await LoadAllDetailsInBackground(token);
+                _uiStatusState.EndDetailsRefresh();
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during refresh all");
+            }
+        }, token);
+
+        await _syncTask;
+    }
+
+    public bool CanRefreshAll()
+    {
+        var snapshot = _uiStatusState.GetSnapshot();
+        return !snapshot.IsInventoryValidating && !snapshot.IsDetailsRefreshing;
     }
 
     private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate,
