@@ -18,7 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Funcy.Console\Funcy.Console.csproj" />
-    <ProjectReference Include="..\..\Funcy.Core\Funcy.Core.csproj" />
   </ItemGroup>
 
 </Project>
