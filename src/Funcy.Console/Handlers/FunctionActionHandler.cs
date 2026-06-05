@@ -55,6 +55,8 @@ public class FunctionActionHandler(
                     break;
                 case FunctionAction.Swap:
                     await functionAppManagement.SwapFunction(details, inputResult.SlotDetails);
+                    details = await functionService.GetFunctionAppDetails(details);
+                    details.State = FunctionState.Running;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
