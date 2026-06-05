@@ -186,7 +186,7 @@ public sealed class MainContainer : IDisposable
         }
         
         _appContext.ToggleHideEmptySubscriptions();
-        _contextStack.Pop();
+        _contextStack.Pop().Controller.Dispose();
         SubscriptionView();
     }
 
@@ -260,7 +260,7 @@ public sealed class MainContainer : IDisposable
         if (_contextStack.Count <= 1)
             return;
 
-        _contextStack.Pop();
+        _contextStack.Pop().Controller.Dispose();
         RefreshMainLayout();
     }
 
@@ -295,6 +295,11 @@ public sealed class MainContainer : IDisposable
 
     public void Dispose()
     {
+        foreach (var context in _contextStack)
+        {
+            context.Controller.Dispose();
+        }
+
         _contextStack.Clear();
     }
 }

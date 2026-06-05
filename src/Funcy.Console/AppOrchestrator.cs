@@ -26,18 +26,25 @@ public class AppOrchestrator(
 
         _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
             uiStateMarkupProvider, appContext);
-        // InitializeAsync is now done in Program.cs before StartAsync
-        _ = functionAppUpdateHandler.SynchronizeFunctionAppDataAsync();
-        _ = subscriptionProbeHandler.ProbeAllSubscriptionsAsync(cts.Token);
-        
-        var resizeTask = resizeHandler.StartPolling(cts.Token);
-        var inputTask = inputHandler.StartListeningAsync(cts.Token);
-        
-        await HandleInputAndRenderAsync(cts.Token);
-        
-        await cts.CancelAsync();
-        await inputTask;
-        await resizeTask;
+        try
+        {
+            // InitializeAsync is now done in Program.cs before StartAsync
+            _ = functionAppUpdateHandler.SynchronizeFunctionAppDataAsync();
+            _ = subscriptionProbeHandler.ProbeAllSubscriptionsAsync(cts.Token);
+
+            var resizeTask = resizeHandler.StartPolling(cts.Token);
+            var inputTask = inputHandler.StartListeningAsync(cts.Token);
+
+            await HandleInputAndRenderAsync(cts.Token);
+
+            await cts.CancelAsync();
+            await inputTask;
+            await resizeTask;
+        }
+        finally
+        {
+            _mainContainer.Dispose();
+        }
     }
     
     private async Task WaitForAnyTriggerAsync()
