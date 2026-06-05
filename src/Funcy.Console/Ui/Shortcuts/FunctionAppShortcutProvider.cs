@@ -30,14 +30,14 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
         return shortcutList;
     }
 
-    public bool IsActionValid(FunctionAppDetails getSelectedItem, FunctionAction action)
+    public bool IsActionValid(FunctionAppDetails? getSelectedItem, FunctionAction action)
     {
         return action switch
         {
-            FunctionAction.Start => CanStart(getSelectedItem),
-            FunctionAction.Stop => CanStop(getSelectedItem),
-            FunctionAction.Swap => CanSwap(getSelectedItem),
-            FunctionAction.Refresh => CanRefresh(getSelectedItem),
+            FunctionAction.Start => getSelectedItem is not null && CanStart(getSelectedItem),
+            FunctionAction.Stop => getSelectedItem is not null && CanStop(getSelectedItem),
+            FunctionAction.Swap => getSelectedItem is not null && CanSwap(getSelectedItem),
+            FunctionAction.Refresh => getSelectedItem is not null && CanRefresh(getSelectedItem),
             FunctionAction.RefreshAll => !_uiStatusState.GetSnapshot().IsInventoryValidating
                                         && !_uiStatusState.GetSnapshot().IsDetailsRefreshing,
             FunctionAction.ChangeSubscription => true,
@@ -52,7 +52,7 @@ public class FunctionAppShortcutProvider : IShortcutProvider<FunctionAppDetails>
         app is not null && app.State == FunctionState.Running && app.Status.Status != StatusType.InProgress;
 
     private static bool CanSwap(FunctionAppDetails? app) =>
-        app is not null && app.Status.Status != StatusType.InProgress && app.Slots.Count >= 0;
+        app is not null && app.Status.Status != StatusType.InProgress && app.Slots.Count > 0;
 
     private static bool CanRefresh(FunctionAppDetails? app) =>
         app is not null && app.Status.Status != StatusType.InProgress;

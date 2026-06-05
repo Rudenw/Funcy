@@ -138,6 +138,11 @@ public sealed class MainContainer : IDisposable
                 ToggleSubscriptionFilter();
                 break;
 
+            case var key when
+                key == ListPanelShortcuts.ToggleVisibility.Key:
+                ToggleSelectedSubscriptionVisibility();
+                break;
+
             case ConsoleKey.Delete:
                 Current.SearchInputManager.ClearSearchText();
                 SyncSearchUi();
@@ -184,9 +189,25 @@ public sealed class MainContainer : IDisposable
         {
             return;
         }
-        
+
         _appContext.ToggleHideEmptySubscriptions();
         _contextStack.Pop().Controller.Dispose();
+        SubscriptionView();
+    }
+
+    private void ToggleSelectedSubscriptionVisibility()
+    {
+        if (!Current.View.IsActionValid(FunctionAction.ToggleSubscriptionVisibility))
+        {
+            return;
+        }
+
+        var selectedKey = Current.View.GetSelectedItemKey();
+        var sub = _appContext.GetSnapshot().FirstOrDefault(s => s.Key == selectedKey);
+        if (sub is null) return;
+
+        _appContext.ToggleSubscriptionVisibility(sub.Id);
+        _contextStack.Pop();
         SubscriptionView();
     }
 
