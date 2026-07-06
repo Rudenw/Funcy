@@ -75,6 +75,16 @@ public sealed class ListPanelFactory(
 
     }
 
+    // The functions panel is seeded per app; resolve the owning app (and its ARM id) from the
+    // coordinator cache by the app key so the toggle action can target the app-settings write.
+    private InputActionResult? BuildToggleAction(string appKey, FunctionDetails function)
+    {
+        var app = coordinator.TryGet(appKey);
+        return app is null
+            ? null
+            : new InputActionResult(FunctionAction.ToggleDisabled, app, FunctionDetails: function);
+    }
+
     private InputActionResult? OnSwapAction(FunctionAppDetails app)
     {
         if (app.Slots.Count != 1)
@@ -130,6 +140,9 @@ public sealed class ListPanelFactory(
                     new FunctionShortcutProvider(),
                     null,
                     "Azure Functions",
+                    (act, func) => act == FunctionAction.ToggleDisabled
+                        ? BuildToggleAction(request.Key, func)
+                        : null,
                     emptyStateMessage: uiStatus =>
                     {
                         var currentApp = coordinator.TryGet(request.Key);

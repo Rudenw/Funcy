@@ -129,10 +129,11 @@ public sealed class MainContainer : IDisposable
                 }
                 break;
 
-            case var key when 
+            case var key when
                 key == ListPanelShortcuts.Start.Key ||
                 key == ListPanelShortcuts.Stop.Key ||
-                key == ListPanelShortcuts.Swap.Key:
+                key == ListPanelShortcuts.Swap.Key ||
+                key == ListPanelShortcuts.DisableEnable.Key:
                 HandleActionKey(keyInfo.Key);
                 break;
             
@@ -351,7 +352,8 @@ public sealed class MainContainer : IDisposable
         var action =
             key == ListPanelShortcuts.Start.Key ? FunctionAction.Start :
             key == ListPanelShortcuts.Stop.Key ? FunctionAction.Stop :
-            FunctionAction.Swap;
+            key == ListPanelShortcuts.Swap.Key ? FunctionAction.Swap :
+            FunctionAction.ToggleDisabled;
 
         if (!Current.View.IsActionValid(action))
         {
