@@ -35,7 +35,9 @@ public class ShortcutProviderGridTests
         Assert.Equal(new ShortcutMap(ListPanelShortcuts.Start, false), grid[new TableIndex(1, 2)]);
         Assert.Equal(new ShortcutMap(ListPanelShortcuts.Stop, true), grid[new TableIndex(1, 3)]);
         Assert.Equal(new ShortcutMap(ListPanelShortcuts.ChangeSubscription, true), grid[new TableIndex(1, 4)]);
-        Assert.Equal(7, grid.Count);
+        // feat/pinned-function-apps: the Pin shortcut (P) was added to the app panel grid.
+        Assert.Equal(new ShortcutMap(ListPanelShortcuts.Pin, true), grid[new TableIndex(1, 5)]);
+        Assert.Equal(8, grid.Count);
     }
 
     [Fact]
