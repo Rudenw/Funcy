@@ -89,10 +89,11 @@ public class LayoutRendererTests
     // ---- FunctionLayoutRenderer ----
 
     [Fact]
-    public void Function_ColumnLayout_IsNameAndTrigger()
+    public void Function_ColumnLayout_IsNameTriggerAndServiceBusColumns()
     {
+        // feat/servicebus-trigger-insight: functions list gained Listens to / Msgs / DLQ.
         var layout = new FunctionLayoutRenderer().CreateColumnLayout();
-        Assert.Equal(["Name", "Trigger"], layout.Columns.Select(c => c.Header));
+        Assert.Equal(["Name", "Trigger", "Listens to", "Msgs", "DLQ"], layout.Columns.Select(c => c.Header));
     }
 
     [Fact]
