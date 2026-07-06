@@ -46,7 +46,7 @@ Testsviten är **inmergad i alla feature-brancher**. Utfall per branch: 6 av 9 h
 5. `ListPanelPaginator.MaxVisibleRows` kan bli negativ i terminaler lägre än 8 rader.
 6. Selektion är indexbaserad — tar man bort vald rad glider nästa rad in under markören.
 
-Säg till vilka av dessa som ska fixas, så blir det små separata PR:ar (1 och 4 är de jag skulle prioritera).
+Beslut: **1–5 fixade** i [#35](https://github.com/Rudenw/Funcy/pull/35) (baserad på testsviten — merga #33 först). **6 behålls medvetet**: indexbaserad selektion är standardbeteende i TUI-verktyg (k9s gör likadant), och negativa `MaxVisibleRows` kastade aldrig (LINQ `Take(-n)` ger tom sekvens) men golvas nu på 0 ändå.
 
 ## Ytterligare features som borde finnas (ej implementerade)
 
