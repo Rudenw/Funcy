@@ -6,6 +6,7 @@ using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
@@ -17,6 +18,7 @@ public sealed class MainContainer : IDisposable
     private readonly UiStateMarkupProvider _uiStateMarkupProvider;
     private readonly TopPanel _topPanel;
     private readonly AppContext _appContext;
+    private readonly IAzureSessionMonitor _sessionMonitor;
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly Stack<ListPanelContext> _contextStack = new();
@@ -31,14 +33,20 @@ public sealed class MainContainer : IDisposable
         IActionDispatcher actionDispatcher,
         IDetailsLoader detailsLoader,
         UiStateMarkupProvider uiStateMarkupProvider,
-        AppContext appContext)
+        AppContext appContext,
+        IAzureSessionMonitor sessionMonitor)
     {
         _listPanelContextFactory = listPanelContextFactory;
         _actionDispatcher = actionDispatcher;
         _detailsLoader = detailsLoader;
         _uiStateMarkupProvider = uiStateMarkupProvider;
         _appContext = appContext;
+        _sessionMonitor = sessionMonitor;
         _topPanel = new TopPanel(appContext);
+
+        // Background session-state changes wake the render loop; the banner is computed on the
+        // render thread in UpdateUiStatus (no Spectre access off the render thread).
+        _sessionMonitor.Changed += OnSessionChanged;
 
         var context = _listPanelContextFactory.CreateRoot(() => _tcs.TrySetResult());
         _contextStack.Push(context);
@@ -80,8 +88,19 @@ public sealed class MainContainer : IDisposable
         UpdateUiStatus();
     }
 
+    private void OnSessionChanged() => _tcs.TrySetResult();
+
     private void UpdateUiStatus()
     {
+        // An unhealthy Azure session takes over the status line with a can't-miss banner;
+        // otherwise the normal status markup is shown.
+        var banner = UiStyles.CreateSessionBanner(_sessionMonitor.State);
+        if (banner is not null)
+        {
+            _topPanel.SetUiStatusText(banner);
+            return;
+        }
+
         var uiStatusSnapshot = Current.View.GetUiStatusSnapshot();
         _topPanel.SetUiStatusText(_uiStateMarkupProvider.CreateMarkupFromUiStatusState(uiStatusSnapshot));
     }
@@ -144,6 +163,12 @@ public sealed class MainContainer : IDisposable
             case var key when
                 key == ListPanelShortcuts.ToggleVisibility.Key:
                 ToggleSelectedSubscriptionVisibility();
+                break;
+
+            case var key when
+                key == ListPanelShortcuts.ReLogin.Key:
+                // Only acts when the session is Expired; the monitor ignores it otherwise.
+                _sessionMonitor.BeginReLogin();
                 break;
 
             case ConsoleKey.Delete:
@@ -319,6 +344,8 @@ public sealed class MainContainer : IDisposable
 
     public void Dispose()
     {
+        _sessionMonitor.Changed -= OnSessionChanged;
+
         foreach (var context in _contextStack)
         {
             context.Controller.Dispose();

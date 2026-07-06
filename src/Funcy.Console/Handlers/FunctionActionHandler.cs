@@ -5,13 +5,15 @@ using Funcy.Console.Ui;
 using Funcy.Console.Ui.Input;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 
 namespace Funcy.Console.Handlers;
 
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
     IAzureFunctionService functionService,
-    FunctionStatusManager functionStatusManager) : IActionDispatcher
+    FunctionStatusManager functionStatusManager,
+    IAzureSessionMonitor sessionMonitor) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
 
@@ -64,8 +66,9 @@ public class FunctionActionHandler(
 
             await functionStatusManager.CompleteOperation(details, inputResult.Action, true);
         }
-        catch
+        catch (Exception ex)
         {
+            sessionMonitor.ReportPossibleAuthFailure(ex);
             await functionStatusManager.CompleteOperation(details, inputResult.Action, false);
         }
         finally

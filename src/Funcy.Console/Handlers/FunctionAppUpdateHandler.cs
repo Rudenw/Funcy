@@ -5,6 +5,7 @@ using Funcy.Console.Settings;
 using Funcy.Console.Ui;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly IUiStatusState _uiStatusState;
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
+    private readonly IAzureSessionMonitor _sessionMonitor;
     private readonly FuncySettings _settings;
 
     // The CancellationTokenSource and its Task are correlated and touched from three entry
@@ -40,6 +42,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         IUiStatusState uiStatusState,
         FunctionStatusManager functionStatusManager,
         AppContext appContext,
+        IAzureSessionMonitor sessionMonitor,
         IOptions<FuncySettings> settings)
     {
         _logger = logger;
@@ -49,6 +52,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _uiStatusState = uiStatusState;
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
+        _sessionMonitor = sessionMonitor;
         _settings = settings.Value;
 
         _appContext.OnSubscriptionChange += OnSubscriptionChanged;
@@ -214,6 +218,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during synchronization");
+            _sessionMonitor.ReportPossibleAuthFailure(ex);
             throw;
         }
         finally
@@ -266,6 +271,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during refresh all");
+                _sessionMonitor.ReportPossibleAuthFailure(ex);
             }
             finally
             {
@@ -294,6 +300,12 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 {
                     await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!, newApp.UpdateKind);
                     _uiStatusState.IncrementDetailsInFlight();
+                }
+                else
+                {
+                    // Per-app fetch failures stream their error text here; classify so an expired
+                    // session is caught even when the overall sync does not throw.
+                    _sessionMonitor.ReportPossibleAuthFailure(newApp.ErrorMessage);
                 }
             }
         }
