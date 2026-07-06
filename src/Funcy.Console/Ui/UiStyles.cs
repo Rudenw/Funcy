@@ -45,6 +45,19 @@ public static class UiStyles
     public static Markup CreateStateCell(FunctionState state)
         => new($"[bold {UiHelper.GetStateColor(state)}]{state.ToDisplayLabel()}[/]");
 
+    public static Markup CreateFunctionStateCell(bool isDisabled, bool isToggling)
+    {
+        var label = isDisabled ? "Disabled" : "Enabled";
+        if (isToggling)
+        {
+            return new Markup($"[{Hint}]{label}...[/]");
+        }
+
+        return new Markup(isDisabled
+            ? $"[{Danger}]{label}[/]"
+            : $"[bold green]{label}[/]");
+    }
+
     public static Markup CreateStatusCell(FunctionStatus status)
     {
         return new Markup($"[bold {UiHelper.GetStatusColor(status)}]{status.ToDisplayLabel()}[/]");
