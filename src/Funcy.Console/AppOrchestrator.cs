@@ -17,7 +17,8 @@ public class AppOrchestrator(
     ListPanelContextFactory listPanelContextFactory,
     UiStateMarkupProvider uiStateMarkupProvider,
     AppContext appContext,
-    ITagCatalog tagCatalog)
+    ITagCatalog tagCatalog,
+    IFuncySettingsService settingsService)
 {
     private MainContainer _mainContainer = null!;
 
@@ -26,7 +27,7 @@ public class AppOrchestrator(
         var cts = new CancellationTokenSource();
 
         _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
-            uiStateMarkupProvider, appContext, tagCatalog);
+            uiStateMarkupProvider, appContext, tagCatalog, settingsService);
         try
         {
             // InitializeAsync is now done in Program.cs before StartAsync
