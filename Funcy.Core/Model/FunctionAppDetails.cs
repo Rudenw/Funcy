@@ -1,11 +1,12 @@
 namespace Funcy.Core.Model;
 
-public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey
+public class FunctionAppDetails : IComparable<FunctionAppDetails>, IHasKey, IPinnable
 {
     public required string Name { get; init; }
     public string Key => Name;
     public required FunctionState State { get; set; }
     public FunctionStatus Status { get; set; } = new();
+    public bool IsPinned { get; set; }
     public Dictionary<string, string> Tags { get; init; } = [];
     public List<FunctionAppSlotDetails> Slots { get; set; } = [];
     public List<FunctionDetails> Functions { get; set; } = [];

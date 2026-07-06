@@ -11,7 +11,10 @@ public class FunctionAppLayoutRenderer(IReadOnlyList<string> tagColumns, Func<st
         {
             Key = item.Key
         };
-        rowMarkup.Add("Name", new RowCell(UiStyles.CreateSelectedCell(item.Name), new Markup(item.Name)));
+        // Pinned apps get a glyph prefix; the Name sort key stays item.Name so ordering is unaffected.
+        var displayName = item.IsPinned ? $"{UiStyles.PinGlyph} {item.Name}" : item.Name;
+        var unselectedName = item.IsPinned ? $"[{UiStyles.Sort}]{UiStyles.PinGlyph}[/] {item.Name}" : item.Name;
+        rowMarkup.Add("Name", new RowCell(UiStyles.CreateSelectedCell(displayName), new Markup(unselectedName)));
 
         foreach (var tag in tagColumns)
         {

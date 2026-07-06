@@ -15,6 +15,7 @@ public static class UiStyles
     
     private static readonly string ArrowUp = Unicode ? "↑" : "^";
     private static readonly string ArrowDown = Unicode ? "↓" : "v";
+    public static readonly string PinGlyph = Unicode ? "★" : "*";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
