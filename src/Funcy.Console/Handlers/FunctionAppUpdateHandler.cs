@@ -280,6 +280,24 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         return !snapshot.IsInventoryValidating && !snapshot.IsDetailsRefreshing;
     }
 
+    public async Task TogglePinAsync(string key)
+    {
+        var details = _functionStateCoordinator.TryGet(key);
+        if (details is null)
+        {
+            return;
+        }
+
+        var newValue = !details.IsPinned;
+        await _functionService.SetPinnedAsync(details.Id, newValue);
+
+        // Mutate the cached details and republish so the row re-sorts (pinned first) and the
+        // glyph is rebuilt immediately, mirroring how status updates flow through the pipeline.
+        details.IsPinned = newValue;
+        details.LastUpdated = DateTime.UtcNow;
+        await _functionStateCoordinator.PublishUpdateAsync(details);
+    }
+
     private async Task UpdateFunctionAppList(IAsyncEnumerable<FunctionAppFetchResult> functionAppDetailsToUpdate,
         CancellationToken syncCtsToken)
     {
