@@ -66,6 +66,7 @@ var host = Host.CreateDefaultBuilder(args)
     {
         services.Configure<FuncySettings>(config.GetSection("Funcy"));
         services.AddSingleton<IFuncySettingsService, FuncySettingsService>();
+        services.AddTransient<ITagCatalog, TagCatalog>();
         services.AddMemoryCache();
         services.AddDbContextFactory<FunctionAppDbContext>(options =>
         {
@@ -103,6 +104,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IKeyVaultSecretResolver, KeyVaultSecretResolver>();
         services.AddScoped<IAzureResourceService, AzureResourceService>();
+        services.AddSingleton<IServiceBusInsightService, ServiceBusInsightService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();
         services.AddTransient<ToolValidationService>();
         services.AddTransient<SplashScreen>();

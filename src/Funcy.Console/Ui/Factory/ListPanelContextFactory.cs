@@ -19,6 +19,8 @@ public sealed class ListPanelContextFactory(
     AppContext appContext,
     IAppSettingsService appSettingsService,
     IKeyVaultSecretResolver secretResolver,
+    IServiceBusInsightService serviceBusInsightService,
+    ILogger<FunctionListController> functionListLogger,
     IFuncySettingsService settingsService,
     ILoggerFactory loggerFactory)
 {
@@ -106,7 +108,8 @@ public sealed class ListPanelContextFactory(
             case PanelTarget.Functions:
             {
                 var view = (IListPanelView<FunctionDetails>)panel;
-                var controller = new FunctionListController(view, app.Key, app.Functions, coordinator, uiStatusState, invalidate);
+                var controller = new FunctionListController(view, app.Key, app.Functions, coordinator,
+                    serviceBusInsightService, functionListLogger, uiStatusState, invalidate);
                 return new ListPanelContext
                 {
                     View = panel,
