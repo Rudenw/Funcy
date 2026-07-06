@@ -4,6 +4,7 @@ using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
@@ -11,6 +12,19 @@ namespace Funcy.Tests.Handlers;
 
 public class FunctionActionHandlerErrorTests
 {
+    // Inert session monitor: these tests exercise the error-log path, not session detection.
+    private sealed class NoopSessionMonitor : IAzureSessionMonitor
+    {
+        public event Action? Changed { add { } remove { } }
+        public AzureSessionState State => AzureSessionState.Healthy;
+        public Func<Task>? ReAuthenticatedCallback { get; set; }
+        public Task RunProbeLoopAsync(CancellationToken token) => Task.CompletedTask;
+        public Task ProbeOnceAsync(CancellationToken token) => Task.CompletedTask;
+        public void ReportPossibleAuthFailure(Exception? ex) { }
+        public void ReportPossibleAuthFailure(string? outputOrMessage) { }
+        public void BeginReLogin() { }
+    }
+
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(5);
     private const string Subscription = "sub-1";
 
@@ -35,7 +49,8 @@ public class FunctionActionHandlerErrorTests
             statusManager,
             coordinator,
             NullLogger<FunctionActionHandler>.Instance,
-            errorLog);
+            errorLog,
+            new NoopSessionMonitor());
         return (handler, coordinator);
     }
 

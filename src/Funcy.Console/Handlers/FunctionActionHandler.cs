@@ -6,6 +6,7 @@ using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Handlers;
@@ -16,7 +17,8 @@ public class FunctionActionHandler(
     FunctionStatusManager functionStatusManager,
     FunctionStateCoordinator coordinator,
     ILogger<FunctionActionHandler> logger,
-    IUiErrorLog uiErrorLog) : IActionDispatcher
+    IUiErrorLog uiErrorLog,
+    IAzureSessionMonitor sessionMonitor) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
 
@@ -84,7 +86,8 @@ public class FunctionActionHandler(
         catch (Exception ex)
         {
             // Keep the transient row-level Error status; additionally surface it persistently
-            // (cancellations are not real failures, so they are not logged).
+            // (cancellations are not real failures, so they are not logged) and classify for auth.
+            sessionMonitor.ReportPossibleAuthFailure(ex);
             await functionStatusManager.CompleteOperation(details, inputResult.Action, false);
             if (ex is not OperationCanceledException)
             {
@@ -125,6 +128,7 @@ public class FunctionActionHandler(
         }
         catch (Exception e)
         {
+            sessionMonitor.ReportPossibleAuthFailure(e);
             logger.LogError(e, "Failed to toggle function {FunctionName} on {FunctionAppName}", function.Name, app.Name);
             function.IsDisabled = !target; // revert on failure
             if (e is not OperationCanceledException)

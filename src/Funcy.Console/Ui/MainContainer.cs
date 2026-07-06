@@ -9,6 +9,7 @@ using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Spectre.Console;
 
 namespace Funcy.Console.Ui;
@@ -21,6 +22,7 @@ public sealed class MainContainer : IDisposable
     private readonly IUiErrorLog _errorLog;
     private readonly TopPanel _topPanel;
     private readonly AppContext _appContext;
+    private readonly IAzureSessionMonitor _sessionMonitor;
     private static readonly Markup EmptyMarkup = new("");
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -48,6 +50,7 @@ public sealed class MainContainer : IDisposable
         UiStateMarkupProvider uiStateMarkupProvider,
         IUiErrorLog errorLog,
         AppContext appContext,
+        IAzureSessionMonitor sessionMonitor,
         ITagCatalog tagCatalog,
         IFuncySettingsService settingsService)
     {
@@ -57,6 +60,7 @@ public sealed class MainContainer : IDisposable
         _uiStateMarkupProvider = uiStateMarkupProvider;
         _errorLog = errorLog;
         _appContext = appContext;
+        _sessionMonitor = sessionMonitor;
         _tagCatalog = tagCatalog;
         _settingsService = settingsService;
         _settingsService.ColumnsChanged += RebuildRootPanel;
@@ -64,6 +68,9 @@ public sealed class MainContainer : IDisposable
 
         // New errors arrive on background threads; wake the render loop so the indicator updates.
         _errorLog.Changed += OnErrorLogChanged;
+        // Background session-state changes wake the render loop; the banner is computed on the
+        // render thread in UpdateUiStatus (no Spectre access off the render thread).
+        _sessionMonitor.Changed += OnSessionChanged;
 
         var context = _listPanelContextFactory.CreateRoot(() => _tcs.TrySetResult());
         _contextStack.Push(context);
@@ -107,6 +114,7 @@ public sealed class MainContainer : IDisposable
     }
 
     private void OnErrorLogChanged() => _tcs.TrySetResult();
+    private void OnSessionChanged() => _tcs.TrySetResult();
 
     // Applies a completed tag-suggestion fetch on the render thread. Called from HandleUpdate,
     // which the background fetch wakes via the trigger; this keeps the edit-cell mutation off
@@ -123,6 +131,15 @@ public sealed class MainContainer : IDisposable
 
     private void UpdateUiStatus()
     {
+        // An unhealthy Azure session takes over the status line with a can't-miss banner;
+        // otherwise the normal status markup is shown.
+        var banner = UiStyles.CreateSessionBanner(_sessionMonitor.State);
+        if (banner is not null)
+        {
+            _topPanel.SetUiStatusText(banner);
+            return;
+        }
+
         var uiStatusSnapshot = Current.View.GetUiStatusSnapshot();
         _topPanel.SetUiStatusText(_uiStateMarkupProvider.CreateMarkupFromUiStatusState(uiStatusSnapshot));
         _topPanel.SetErrorIndicator(UiStyles.CreateErrorIndicator(_errorLog.Count) ?? EmptyMarkup);
@@ -207,6 +224,12 @@ public sealed class MainContainer : IDisposable
             case var key when
                 key == ListPanelShortcuts.ClearIssues.Key:
                 ClearIssues();
+                break;
+
+            case var key when
+                key == ListPanelShortcuts.ReLogin.Key:
+                // Only acts when the session is Expired; the monitor ignores it otherwise.
+                _sessionMonitor.BeginReLogin();
                 break;
 
             case var key when
@@ -601,6 +624,7 @@ public sealed class MainContainer : IDisposable
     public void Dispose()
     {
         _errorLog.Changed -= OnErrorLogChanged;
+        _sessionMonitor.Changed -= OnSessionChanged;
         _settingsService.ColumnsChanged -= RebuildRootPanel;
 
         foreach (var context in _contextStack)

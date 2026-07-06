@@ -6,6 +6,7 @@ using Funcy.Console.Ui;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Funcy.Infrastructure.Azure;
 using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Handlers;
@@ -20,6 +21,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly IUiErrorLog _uiErrorLog;
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
+    private readonly IAzureSessionMonitor _sessionMonitor;
     private readonly IFuncySettingsService _settingsService;
     private readonly IServiceBusInsightService _serviceBusInsightService;
 
@@ -47,6 +49,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         IUiErrorLog uiErrorLog,
         FunctionStatusManager functionStatusManager,
         AppContext appContext,
+        IAzureSessionMonitor sessionMonitor,
         IFuncySettingsService settingsService,
         IServiceBusInsightService serviceBusInsightService)
     {
@@ -58,6 +61,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _uiErrorLog = uiErrorLog;
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
+        _sessionMonitor = sessionMonitor;
         _settingsService = settingsService;
         _serviceBusInsightService = serviceBusInsightService;
 
@@ -226,6 +230,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         {
             _logger.LogError(ex, "Error during synchronization");
             _uiErrorLog.Report("Sync", ex.Message);
+            _sessionMonitor.ReportPossibleAuthFailure(ex);
             throw;
         }
         finally
@@ -385,6 +390,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             {
                 _logger.LogError(ex, "Error during refresh all");
                 _uiErrorLog.Report("Sync", ex.Message);
+                _sessionMonitor.ReportPossibleAuthFailure(ex);
             }
             finally
             {
@@ -443,8 +449,10 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 }
                 else
                 {
-                    // Per-app fetch failure streamed from the Azure service — surface it persistently.
+                    // Per-app fetch failure streamed from the Azure service — surface it persistently
+                    // and classify so an expired session is caught even when the sync does not throw.
                     _uiErrorLog.Report(newApp.Name, newApp.ErrorMessage ?? "Failed to fetch function app details");
+                    _sessionMonitor.ReportPossibleAuthFailure(newApp.ErrorMessage);
                 }
             }
         }
