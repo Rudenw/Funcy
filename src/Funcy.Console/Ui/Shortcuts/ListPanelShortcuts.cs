@@ -14,6 +14,7 @@ public static class ListPanelShortcuts
     public static readonly Shortcut ShowAll = new(ConsoleKey.H, "H", "Show all");
     public static readonly Shortcut ToggleVisibility = new(ConsoleKey.X, "X", "Toggle hidden");
     public static readonly Shortcut ReLogin = new(ConsoleKey.L, "L", "Re-login");
+    public static readonly Shortcut Pin = new(ConsoleKey.P, "P", "Pin");
     public static readonly Shortcut Options = new(ConsoleKey.O, "O", "Options");
     public static readonly Shortcut Edit = new(ConsoleKey.Enter, "↩", "Edit");
 }
