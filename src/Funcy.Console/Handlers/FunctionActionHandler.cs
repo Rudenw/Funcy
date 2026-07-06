@@ -6,6 +6,7 @@ using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Handlers;
 
@@ -13,9 +14,14 @@ public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
     IAzureFunctionService functionService,
     FunctionStatusManager functionStatusManager,
+    FunctionStateCoordinator coordinator,
+    ILogger<FunctionActionHandler> logger,
     IUiErrorLog uiErrorLog) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
+
+    // Guards concurrent disable/enable toggles per function (keyed by FunctionDetails.Key).
+    private readonly ConcurrentDictionary<string, byte> _togglingFunctions = [];
 
     private async Task AddNewTask(string name, DispatchedFunction dispatchedFunction)
     {
@@ -28,6 +34,15 @@ public class FunctionActionHandler(
     
     public async Task Dispatch(InputActionResult inputResult)
     {
+        // A function-level toggle is intentionally kept off the app-level status/animation
+        // machinery: it changes one function, not the whole app. It uses an optimistic inline
+        // cue on the row instead (the "toggling" state) and its own in-flight guard.
+        if (inputResult.Action == FunctionAction.ToggleDisabled)
+        {
+            await ToggleFunctionDisabledAsync(inputResult);
+            return;
+        }
+
         if (!_currentTasks.ContainsKey(inputResult.FunctionAppDetails.Name))
         {
             await AddNewTask(inputResult.FunctionAppDetails.Name,
@@ -82,6 +97,49 @@ public class FunctionActionHandler(
         }
     }
     
+    private async Task ToggleFunctionDisabledAsync(InputActionResult inputResult)
+    {
+        var app = inputResult.FunctionAppDetails;
+        var function = inputResult.FunctionDetails;
+        if (function is null)
+        {
+            return;
+        }
+
+        if (!_togglingFunctions.TryAdd(function.Key, 0))
+        {
+            return;
+        }
+
+        var target = !function.IsDisabled;
+
+        // Optimistic UI: flip the row immediately and mark it in-flight, then republish the list
+        // through the coordinator so the controller re-renders on the UI thread.
+        function.IsDisabled = target;
+        function.IsToggling = true;
+        await coordinator.PublishUpdateAsync(app);
+
+        try
+        {
+            await functionAppManagement.SetFunctionDisabled(app, function.Name, target);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Failed to toggle function {FunctionName} on {FunctionAppName}", function.Name, app.Name);
+            function.IsDisabled = !target; // revert on failure
+            if (e is not OperationCanceledException)
+            {
+                uiErrorLog.Report(app.Name, $"{(target ? "Disable" : "Enable")} {function.Name} failed: {e.Message}");
+            }
+        }
+        finally
+        {
+            function.IsToggling = false;
+            await coordinator.PublishUpdateAsync(app);
+            _togglingFunctions.TryRemove(function.Key, out _);
+        }
+    }
+
     private async Task<FunctionAppDetails> LoadStartedFunctionAppDetails(FunctionAppDetails details)
     {
         const int maxAttempts = 5;

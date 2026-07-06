@@ -4,6 +4,7 @@ using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
+using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
 
 namespace Funcy.Tests.Handlers;
@@ -28,7 +29,13 @@ public class FunctionActionHandlerErrorTests
         var coordinator = new FunctionStateCoordinator();
         coordinator.SetSubscription(Subscription);
         var statusManager = new FunctionStatusManager(coordinator, new AnimationHandler());
-        var handler = new FunctionActionHandler(management, new ThrowingFunctionService(), statusManager, errorLog);
+        var handler = new FunctionActionHandler(
+            management,
+            new ThrowingFunctionService(),
+            statusManager,
+            coordinator,
+            NullLogger<FunctionActionHandler>.Instance,
+            errorLog);
         return (handler, coordinator);
     }
 
@@ -82,6 +89,8 @@ public class FunctionActionHandlerErrorTests
         public Task StartFunction(FunctionAppDetails functionAppDetails) => throw toThrow;
         public Task StopFunction(FunctionAppDetails functionAppDetails) => throw toThrow;
         public Task SwapFunction(FunctionAppDetails functionAppDetails, FunctionAppSlotDetails functionAppSlot)
+            => throw toThrow;
+        public Task SetFunctionDisabled(FunctionAppDetails functionAppDetails, string functionName, bool disabled)
             => throw toThrow;
     }
 

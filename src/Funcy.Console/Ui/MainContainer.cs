@@ -2,6 +2,7 @@ using Funcy.Console.Ui.ConsoleHelper;
 using Funcy.Console.Ui.Contexts;
 using Funcy.Console.Ui.Controllers;
 using Funcy.Console.Ui.Factory;
+using Funcy.Console.Ui.Input;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
@@ -26,6 +27,9 @@ public sealed class MainContainer : IDisposable
 
     public readonly Layout MainLayout;
     private bool _searchMode;
+    private bool _editMode;
+    private string? _editError;
+    private readonly SettingEditManager _editManager = new();
     private readonly ListPanelContextFactory _listPanelContextFactory;
 
     private ListPanelContext Current => _contextStack.Peek();
@@ -105,17 +109,27 @@ public sealed class MainContainer : IDisposable
 
     public void HandleInput(ConsoleKeyInfo keyInfo)
     {
+        if (_editMode)
+        {
+            HandleEditInput(keyInfo);
+            return;
+        }
+
         if (_searchMode)
         {
             _searchMode = Current.SearchInputManager.HandleInput(keyInfo);
             SyncSearchUi();
             return;
         }
-        
+
         switch (keyInfo.Key)
         {
             case var key when key == ListPanelShortcuts.Filter.Key:
                 EnterSearchMode();
+                break;
+
+            case var key when key == ListPanelShortcuts.Options.Key:
+                SettingsView();
                 break;
             
             case var key when ConsoleKeyHelper.TryGetDigit(key) is { } digit:
@@ -125,10 +139,11 @@ public sealed class MainContainer : IDisposable
                 }
                 break;
 
-            case var key when 
+            case var key when
                 key == ListPanelShortcuts.Start.Key ||
                 key == ListPanelShortcuts.Stop.Key ||
-                key == ListPanelShortcuts.Swap.Key:
+                key == ListPanelShortcuts.Swap.Key ||
+                key == ListPanelShortcuts.DisableEnable.Key:
                 HandleActionKey(keyInfo.Key);
                 break;
             
@@ -173,7 +188,15 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case ConsoleKey.Enter:
-                TryPushNextPanelFromSelection();
+                if (Current.Controller is IEditablePanel editable
+                    && editable.TryBeginEdit(out var editKey, out var currentValue))
+                {
+                    EnterEditMode(editKey, currentValue);
+                }
+                else
+                {
+                    TryPushNextPanelFromSelection();
+                }
                 break;
 
             case ConsoleKey.Escape:
@@ -220,6 +243,19 @@ public sealed class MainContainer : IDisposable
         RefreshMainLayout();
     }
 
+    private void SettingsView()
+    {
+        // Avoid stacking a second settings panel when one is already open.
+        if (Current.Controller is SettingsListController)
+        {
+            return;
+        }
+
+        var nextContext = _listPanelContextFactory.CreateSettingsPanel(() => _tcs.TrySetResult());
+        _contextStack.Push(nextContext);
+        RefreshMainLayout();
+    }
+
     private void ClearIssues()
     {
         // Clear is only meaningful inside the Issues panel.
@@ -229,6 +265,67 @@ public sealed class MainContainer : IDisposable
         }
 
         _errorLog.Clear();
+    }
+
+    private void EnterEditMode(string key, string currentValue)
+    {
+        _editMode = true;
+        _editError = null;
+        _editManager.Begin(key, currentValue);
+        SyncEditUi();
+    }
+
+    private void HandleEditInput(ConsoleKeyInfo keyInfo)
+    {
+        var result = _editManager.HandleInput(keyInfo);
+        switch (result)
+        {
+            case EditInputResult.Commit:
+                CommitEdit();
+                break;
+            case EditInputResult.Cancel:
+                ExitEditMode();
+                break;
+            default:
+                _editError = null;
+                SyncEditUi();
+                break;
+        }
+    }
+
+    private void CommitEdit()
+    {
+        if (Current.Controller is not IEditablePanel editable)
+        {
+            ExitEditMode();
+            return;
+        }
+
+        // Single-user, small file: the persistence is effectively synchronous, so blocking the
+        // input thread here is acceptable and keeps the edit flow simple.
+        var error = editable.CommitEditAsync(_editManager.Key, _editManager.Text).GetAwaiter().GetResult();
+        if (error is not null)
+        {
+            // Keep the user in edit mode with their input intact so they can correct it.
+            _editError = error;
+            SyncEditUi();
+            return;
+        }
+
+        ExitEditMode();
+        RefreshMainLayout();
+    }
+
+    private void ExitEditMode()
+    {
+        _editMode = false;
+        _editError = null;
+        SyncSearchUi();
+    }
+
+    private void SyncEditUi()
+    {
+        _topPanel.SetSearchText(_editManager.GetMarkup(_editError));
     }
 
     private void ToggleSubscriptionFilter()
@@ -299,7 +396,8 @@ public sealed class MainContainer : IDisposable
         var action =
             key == ListPanelShortcuts.Start.Key ? FunctionAction.Start :
             key == ListPanelShortcuts.Stop.Key ? FunctionAction.Stop :
-            FunctionAction.Swap;
+            key == ListPanelShortcuts.Swap.Key ? FunctionAction.Swap :
+            FunctionAction.ToggleDisabled;
 
         if (!Current.View.IsActionValid(action))
         {
