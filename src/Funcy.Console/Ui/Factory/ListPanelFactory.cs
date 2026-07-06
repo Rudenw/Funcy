@@ -60,7 +60,8 @@ public sealed class ListPanelFactory(
         return CreateFromList(
             new FunctionAppMatcher(settings.TagColumns),
             new FunctionAppLayoutRenderer(settings.TagColumns, tag =>
-                settings.TagColumnWidths.TryGetValue(tag, out var w) ? w : settings.DefaultTagColumnWidth),
+                settings.TagColumnWidths.TryGetValue(tag, out var w) ? w : settings.DefaultTagColumnWidth,
+                settings.ShowServiceBusInAppList),
             new FunctionAppShortcutProvider(uiStatusState),
             f => new NavigationRequest(PanelTarget.Functions, f.Key),
             "Azure Function Apps",
