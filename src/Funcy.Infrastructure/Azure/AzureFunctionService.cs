@@ -265,7 +265,8 @@ public class AzureFunctionService(
                     QueueName = serviceBusTarget?.QueueName,
                     TopicName = serviceBusTarget?.TopicName,
                     SubscriptionName = serviceBusTarget?.SubscriptionName,
-                    ConnectionSetting = serviceBusTarget?.ConnectionSetting
+                    ConnectionSetting = serviceBusTarget?.ConnectionSetting,
+                    IsDisabled = websiteFunction.Data.IsDisabled ?? false
                 });
             }
 

@@ -33,6 +33,9 @@ namespace Funcy.Data.Migrations
                     b.Property<long>("FunctionAppId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("IsDisabled")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");

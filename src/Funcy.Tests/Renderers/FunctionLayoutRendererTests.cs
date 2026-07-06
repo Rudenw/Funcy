@@ -8,12 +8,16 @@ public class FunctionLayoutRendererTests
 {
     private readonly FunctionLayoutRenderer _sut = new();
 
+    private static FunctionDetails MakeFunction(bool isDisabled) =>
+        new() { Name = "ProcessPayment", FunctionAppName = "appA", Trigger = "HttpTrigger", IsDisabled = isDisabled };
+
     [Fact]
     public void ColumnLayout_ExposesTriggerInsightColumns()
     {
         var headers = _sut.CreateColumnLayout().Columns.Select(c => c.Header).ToList();
 
-        Assert.Equal(new[] { "Name", "Trigger", "Listens to", "Msgs", "DLQ" }, headers);
+        // feat/function-disable-toggle contributes State; feat/servicebus-trigger-insight contributes Listens to / Msgs / DLQ.
+        Assert.Equal(new[] { "Name", "Trigger", "State", "Listens to", "Msgs", "DLQ" }, headers);
     }
 
     [Fact]
@@ -36,6 +40,31 @@ public class FunctionLayoutRendererTests
         Assert.True(markup.Cells.ContainsKey("Listens to"));
         Assert.True(markup.Cells.ContainsKey("Msgs"));
         Assert.True(markup.Cells.ContainsKey("DLQ"));
+    }
+
+    [Fact]
+    public void CreateColumnLayout_ExposesStateColumn()
+    {
+        var layout = _sut.CreateColumnLayout();
+
+        Assert.Contains(layout.Columns, c => c.Header == "State");
+    }
+
+    [Fact]
+    public void StateColumn_Selector_ReflectsDisabledState()
+    {
+        var stateColumn = _sut.CreateColumnLayout().Columns.Single(c => c.Header == "State");
+
+        Assert.Equal("Disabled", stateColumn.Selector!(MakeFunction(isDisabled: true)));
+        Assert.Equal("Enabled", stateColumn.Selector!(MakeFunction(isDisabled: false)));
+    }
+
+    [Fact]
+    public void CreateRowMarkup_IncludesStateCell()
+    {
+        var row = _sut.CreateRowMarkup(MakeFunction(isDisabled: true));
+
+        Assert.True(row.Cells.ContainsKey("State"));
     }
 }
 

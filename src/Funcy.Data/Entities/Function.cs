@@ -14,6 +14,7 @@ public class Function
     public string? SubscriptionName { get; init; }
     public string? ConnectionSetting { get; init; }
 
+    public bool IsDisabled { get; set; }
     public long FunctionAppId { get; set; }
     public FunctionApp? FunctionApp { get; set; }
 }

@@ -15,7 +15,8 @@ public static class FunctionDetailsMapper
             QueueName = function.QueueName,
             TopicName = function.TopicName,
             SubscriptionName = function.SubscriptionName,
-            ConnectionSetting = function.ConnectionSetting
+            ConnectionSetting = function.ConnectionSetting,
+            IsDisabled = function.IsDisabled
         };
     }
 }
