@@ -7,7 +7,6 @@ using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Funcy.Console.Handlers;
 
@@ -21,7 +20,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
     private readonly IAzureSessionMonitor _sessionMonitor;
-    private readonly FuncySettings _settings;
+    private readonly IFuncySettingsService _settingsService;
 
     // The CancellationTokenSource and its Task are correlated and touched from three entry
     // points (SynchronizeFunctionAppDataAsync, LoadAllDetailsAsync, OnSubscriptionChanged) on
@@ -43,7 +42,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         FunctionStatusManager functionStatusManager,
         AppContext appContext,
         IAzureSessionMonitor sessionMonitor,
-        IOptions<FuncySettings> settings)
+        IFuncySettingsService settingsService)
     {
         _logger = logger;
         _functionService = functionService;
@@ -53,7 +52,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
         _sessionMonitor = sessionMonitor;
-        _settings = settings.Value;
+        _settingsService = settingsService;
 
         _appContext.OnSubscriptionChange += OnSubscriptionChanged;
     }
@@ -105,7 +104,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
 
     private bool ShouldRefreshSubscription(string subscriptionId)
     {
-        var intervalMinutes = _settings.SubscriptionRefreshIntervalMinutes;
+        var intervalMinutes = _settingsService.Current.SubscriptionRefreshIntervalMinutes;
         if (intervalMinutes == 0)
         {
             return true;
