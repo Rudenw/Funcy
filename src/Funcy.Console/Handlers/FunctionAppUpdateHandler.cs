@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Settings;
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly FunctionStateCoordinator _functionStateCoordinator;
     private readonly AnimationHandler _animationHandler;
     private readonly IUiStatusState _uiStatusState;
+    private readonly IUiErrorLog _uiErrorLog;
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
     private readonly FuncySettings _settings;
@@ -38,6 +40,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         FunctionStateCoordinator functionStateCoordinator,
         AnimationHandler animationHandler,
         IUiStatusState uiStatusState,
+        IUiErrorLog uiErrorLog,
         FunctionStatusManager functionStatusManager,
         AppContext appContext,
         IOptions<FuncySettings> settings)
@@ -47,6 +50,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _functionStateCoordinator = functionStateCoordinator;
         _animationHandler = animationHandler;
         _uiStatusState = uiStatusState;
+        _uiErrorLog = uiErrorLog;
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
         _settings = settings.Value;
@@ -209,11 +213,13 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         catch (TimeoutException ex)
         {
             _logger.LogWarning(ex, "Timeout waiting for database lock - previous sync did not complete in time");
+            _uiErrorLog.Report("Sync", ex.Message);
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during synchronization");
+            _uiErrorLog.Report("Sync", ex.Message);
             throw;
         }
         finally
@@ -266,6 +272,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during refresh all");
+                _uiErrorLog.Report("Sync", ex.Message);
             }
             finally
             {
@@ -294,6 +301,11 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 {
                     await _functionStateCoordinator.PublishUpdateAsync(newApp.Details!, newApp.UpdateKind);
                     _uiStatusState.IncrementDetailsInFlight();
+                }
+                else
+                {
+                    // Per-app fetch failure streamed from the Azure service — surface it persistently.
+                    _uiErrorLog.Report(newApp.Name, newApp.ErrorMessage ?? "Failed to fetch function app details");
                 }
             }
         }

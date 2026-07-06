@@ -3,6 +3,7 @@ using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Handlers.Models;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Input;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 
@@ -11,7 +12,8 @@ namespace Funcy.Console.Handlers;
 public class FunctionActionHandler(
     IFunctionAppManagementService functionAppManagement,
     IAzureFunctionService functionService,
-    FunctionStatusManager functionStatusManager) : IActionDispatcher
+    FunctionStatusManager functionStatusManager,
+    IUiErrorLog uiErrorLog) : IActionDispatcher
 {
     private readonly ConcurrentDictionary<string, DispatchedFunction> _currentTasks = [];
 
@@ -64,9 +66,15 @@ public class FunctionActionHandler(
 
             await functionStatusManager.CompleteOperation(details, inputResult.Action, true);
         }
-        catch
+        catch (Exception ex)
         {
+            // Keep the transient row-level Error status; additionally surface it persistently
+            // (cancellations are not real failures, so they are not logged).
             await functionStatusManager.CompleteOperation(details, inputResult.Action, false);
+            if (ex is not OperationCanceledException)
+            {
+                uiErrorLog.Report(details.Name, $"{inputResult.Action} failed: {ex.Message}");
+            }
         }
         finally
         {
