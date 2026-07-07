@@ -16,6 +16,7 @@ public static class FunctionDetailsMapper
             TopicName = function.TopicName,
             SubscriptionName = function.SubscriptionName,
             ConnectionSetting = function.ConnectionSetting,
+            ServiceBusNamespaceId = function.ServiceBusNamespaceId,
             IsDisabled = function.IsDisabled
         };
     }

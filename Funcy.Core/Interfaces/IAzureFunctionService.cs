@@ -13,4 +13,7 @@ public interface IAzureFunctionService
         List<FunctionAppDetails> functionAppDetails, CancellationToken cancellationToken);
 
     Task SetPinnedAsync(string azureId, bool isPinned);
+
+    // Persists resolved Service Bus namespace ids for an app's functions so the lookup is done once.
+    Task SaveServiceBusNamespacesAsync(string functionAppArmId, IReadOnlyList<(string FunctionName, string NamespaceId)> resolved);
 }

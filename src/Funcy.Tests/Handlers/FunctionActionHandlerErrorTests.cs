@@ -125,5 +125,8 @@ public class FunctionActionHandlerErrorTests
             => throw new NotSupportedException();
 
         public Task SetPinnedAsync(string azureId, bool isPinned) => throw new NotSupportedException();
+
+        public Task SaveServiceBusNamespacesAsync(string functionAppArmId,
+            IReadOnlyList<(string FunctionName, string NamespaceId)> resolved) => throw new NotSupportedException();
     }
 }

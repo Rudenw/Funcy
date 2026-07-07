@@ -251,6 +251,12 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         var updatedFunctionApps = _functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
         await UpdateFunctionAppList(updatedFunctionApps, token);
 
+        // Details are now reflected in the UI. End the details-refresh status here (before the
+        // Service Bus count pass) so the TopPanel shows "Last Updated" instead of holding on
+        // "Refreshing function app details 0/N" for the whole, much slower, best-effort count pass.
+        // The counts then trickle in as background StateOnly updates per app.
+        _uiStatusState.EndDetailsRefresh();
+
         // Counts depend on the functions fetched above, so this always runs after the details pass.
         // It is a no-op (zero extra work, zero Azure calls) unless the setting is enabled. Shares
         // the caller's cancellation token (the SyncScope) so it is torn down with the sync it follows.
@@ -321,6 +327,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             }
 
             var byKey = serviceBusFunctions.ToDictionary(f => f.Key);
+            var newlyResolvedNamespaces = new List<(string FunctionName, string NamespaceId)>();
             foreach (var result in results)
             {
                 if (!byKey.TryGetValue(result.FunctionKey, out var function))
@@ -333,6 +340,19 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 function.CountStatus = result.Success
                     ? ServiceBusCountStatus.Loaded
                     : ServiceBusCountStatus.Failed;
+
+                // First-time namespace resolution: cache it on the model and stage it for the
+                // one-time SQLite write so future refreshes skip the lookup entirely.
+                if (string.IsNullOrEmpty(function.ServiceBusNamespaceId) && !string.IsNullOrEmpty(result.NamespaceId))
+                {
+                    function.ServiceBusNamespaceId = result.NamespaceId;
+                    newlyResolvedNamespaces.Add((function.Name, result.NamespaceId));
+                }
+            }
+
+            if (newlyResolvedNamespaces.Count > 0)
+            {
+                await _functionService.SaveServiceBusNamespacesAsync(app.Id, newlyResolvedNamespaces);
             }
 
             await _functionStateCoordinator.PublishUpdateAsync(app);

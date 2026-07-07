@@ -324,26 +324,34 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     {
         if (string.IsNullOrWhiteSpace(_searchText))
         {
-            // No filter: still float active-operation rows to the top so a swap/start/stop stays
-            // watchable without having to filter. These are not "bypassed" (Bypassed=false) — they
-            // render with normal cached markup; the dim bypass cue is reserved for rows shown
-            // despite a non-matching filter. Relative order is preserved within each partition.
-            var active = new List<Candidate>();
-            var idle = new List<Candidate>();
-            foreach (var item in sorted)
+            // No filter: float a row with an active operation to the top ONLY when it is off-screen,
+            // so a long-running swap on a hidden app can be watched — while acting on a row you can
+            // already see (stop/start/refresh all finish well under a second) leaves it in place
+            // instead of jumping it up and then straight back down. "Off-screen" is judged against
+            // the natural (un-floated) window position, which does not change when a row floats, so a
+            // floated row keeps a stable spot and never oscillates. These are not "bypassed"
+            // (Bypassed=false) — the dim bypass cue is reserved for rows shown despite a filter.
+            var windowStart = sorted.Count <= _paginator.MaxVisibleRows ? 0 : _paginator.VisibleStartIndex;
+            var windowEnd = windowStart + _paginator.MaxVisibleRows;
+
+            var floated = new List<Candidate>();
+            var inPlace = new List<Candidate>();
+            for (var i = 0; i < sorted.Count; i++)
             {
-                if (item is IOperationVisibility { HasActiveOperation: true })
+                var item = sorted[i];
+                var offScreen = i < windowStart || i >= windowEnd;
+                if (offScreen && item is IOperationVisibility { HasActiveOperation: true })
                 {
-                    active.Add(new Candidate(item, false));
+                    floated.Add(new Candidate(item, false));
                 }
                 else
                 {
-                    idle.Add(new Candidate(item, false));
+                    inPlace.Add(new Candidate(item, false));
                 }
             }
 
-            active.AddRange(idle);
-            return active;
+            floated.AddRange(inPlace);
+            return floated;
         }
 
         var matches = new List<Candidate>();

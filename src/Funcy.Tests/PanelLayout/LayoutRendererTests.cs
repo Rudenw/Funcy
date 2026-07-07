@@ -32,14 +32,16 @@ public class LayoutRendererTests
         var layout = renderer.CreateColumnLayout();
 
         Assert.Equal(["Name", "System", "State", "Status", ""], layout.Columns.Select(c => c.Header));
-        Assert.Equal(40, layout.Columns[0].Width);
+        Assert.Equal(20, layout.Columns[0].Width);        // small floor; flexes for the spare width
+        Assert.True(layout.Columns[0].Flex);
         Assert.Equal(25, layout.Columns[1].Width); // tag width from getColumnWidth
+        Assert.False(layout.Columns[1].Flex);             // tag columns are content-sized, not flexed
         Assert.Equal(10, layout.Columns[2].Width);
-        // Bug A: Status shrank 20 -> 13 (fits the widest label "Refreshing..."); the freed
-        // width now flows to the flexing Name column.
+        // Bug A: Status shrank 20 -> 13 (fits the widest label "Refreshing...").
         Assert.Equal(13, layout.Columns[3].Width);
         Assert.Equal(10, layout.Columns[4].Width);
         Assert.True(layout.Columns[4].AnimationColumn);   // last (animation) column
+        Assert.True(layout.Columns[4].Flex);              // ...flexes to park spare width as margin
         Assert.Null(layout.Columns[4].Selector);          // animation column has no selector
     }
 
@@ -107,12 +109,13 @@ public class LayoutRendererTests
         Assert.Equal(["Name", "State", "Status", "Msgs", "DLQ", ""], layout.Columns.Select(c => c.Header));
         var msgs = layout.Columns.Single(c => c.Header == "Msgs");
         var dlq = layout.Columns.Single(c => c.Header == "DLQ");
-        Assert.Equal(7, msgs.Width);
-        Assert.Equal(7, dlq.Width);
+        Assert.Equal(11, msgs.Width);
+        Assert.Equal(11, dlq.Width);
         Assert.Equal(Spectre.Console.Justify.Right, msgs.Alignment);
         Assert.Equal(Spectre.Console.Justify.Right, dlq.Alignment);
-        // Name column is shrunk by the two count widths to protect the fixed table budget.
-        Assert.Equal(40 - 14, layout.Columns[0].Width);
+        // Name flexes from a small floor; it and the tag columns share the spare width.
+        Assert.Equal(20, layout.Columns[0].Width);
+        Assert.True(layout.Columns[0].Flex);
     }
 
     [Fact]

@@ -65,6 +65,29 @@ public class ColumnWidthFitsContentTests
         Assert.True(WidthOf(layout, "DLQ") >= "999999".Length);
     }
 
+    // The sort marker the header renderer (UiStyles.CreateHeaderText) appends to a sortable column:
+    // "(n) ↓" for a single-digit column index. The column must be wide enough for header + marker or
+    // the marker wraps onto a second terminal line.
+    private const int SortMarkerWidth = 5;
+
+    [Fact]
+    public void FunctionApps_CountColumns_FitHeaderWithSortMarker()
+    {
+        var layout = new FunctionAppLayoutRenderer([], _ => 20, showServiceBusCounts: true).CreateColumnLayout();
+
+        Assert.True(WidthOf(layout, "Msgs") >= "Msgs".Length + SortMarkerWidth);
+        Assert.True(WidthOf(layout, "DLQ") >= "DLQ".Length + SortMarkerWidth);
+    }
+
+    [Fact]
+    public void Functions_CountColumns_FitHeaderWithSortMarker()
+    {
+        var layout = new FunctionLayoutRenderer().CreateColumnLayout();
+
+        Assert.True(WidthOf(layout, "Msgs") >= "Msgs".Length + SortMarkerWidth);
+        Assert.True(WidthOf(layout, "DLQ") >= "DLQ".Length + SortMarkerWidth);
+    }
+
     [Fact]
     public void Slots_StateColumn_FitsWidestStateLabel()
     {

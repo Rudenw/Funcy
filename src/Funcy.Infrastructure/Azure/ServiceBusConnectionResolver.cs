@@ -15,23 +15,31 @@ public sealed class ServiceBusConnectionResolver(IReadOnlyDictionary<string, str
     public const string DefaultConnectionSetting = "AzureWebJobsServiceBus";
 
     public string? ResolveNamespace(string? connectionSetting)
+        => ExtractNamespace(ResolveConnectionValue(connectionSetting));
+
+    // Returns the raw app-setting value the namespace is extracted from — a fully qualified
+    // namespace host, a Service Bus connection string, or a @Microsoft.KeyVault(...) reference the
+    // caller must resolve to its secret before extracting. Null when no matching setting exists.
+    // Kept separate from ResolveNamespace so a Key Vault-backed connection string (ARM returns the
+    // reference expression, not the secret) can be resolved before ExtractNamespace runs.
+    public string? ResolveConnectionValue(string? connectionSetting)
     {
         var name = string.IsNullOrWhiteSpace(connectionSetting) ? DefaultConnectionSetting : connectionSetting;
         name = ResolveIndirection(name);
 
         if (TryGet($"{name}__fullyQualifiedNamespace", out var fqns))
         {
-            return ExtractNamespace(fqns);
+            return fqns;
         }
 
         if (TryGet(name, out var connectionString))
         {
-            return ExtractNamespace(connectionString);
+            return connectionString;
         }
 
         if (TryGet($"AzureWebJobs{name}", out var legacy))
         {
-            return ExtractNamespace(legacy);
+            return legacy;
         }
 
         return null;

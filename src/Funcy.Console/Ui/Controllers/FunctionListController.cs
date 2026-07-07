@@ -127,6 +127,12 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
 
                     function.ActiveMessages = result.ActiveMessages;
                     function.DeadLetteredMessages = result.DeadLetteredMessages;
+                    // Cache the resolved namespace on the model so a repeat fetch in this view skips
+                    // resolution; the app-list sync is what persists it to SQLite.
+                    if (string.IsNullOrEmpty(function.ServiceBusNamespaceId) && !string.IsNullOrEmpty(result.NamespaceId))
+                    {
+                        function.ServiceBusNamespaceId = result.NamespaceId;
+                    }
                     // Publish the resolved %SettingName% binding names so "Listens to" shows the real
                     // target. This is a per-runtime display value; the raw names remain in SQLite.
                     function.QueueName = result.QueueName;

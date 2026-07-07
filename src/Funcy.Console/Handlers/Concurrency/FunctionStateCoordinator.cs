@@ -68,21 +68,53 @@ public class FunctionStateCoordinator
         _cache.TryAdd(subscriptionId, new ConcurrentDictionary<string, CachedFunctionAppModel>());
     }
 
+    // The counter and the waiter's TaskCompletionSource are mutated from both the publishing
+    // threads and the single processor loop, so they are kept coherent under one lock. Doing the
+    // "is it zero?" check and the TCS assignment atomically closes a lost-wakeup race: without it a
+    // caller could read a non-zero count, the processor could drain to zero (completing a stale
+    // TCS), and only then would the caller install a fresh TCS that nothing ever completes — the
+    // await would hang forever. The TCS uses RunContinuationsAsynchronously so its awaiter never
+    // runs inline while the lock is held.
+    private readonly object _pendingLock = new();
     private int _pendingUpdates;
     private TaskCompletionSource? _allUpdatesProcessed;
 
     public async Task PublishUpdateAsync(FunctionAppDetails details, FunctionAppUpdateKind updateKind = FunctionAppUpdateKind.StateOnly)
     {
-        Interlocked.Increment(ref _pendingUpdates);
+        lock (_pendingLock)
+        {
+            _pendingUpdates++;
+        }
         await _updateChannel.Writer.WriteAsync(new FunctionAppUpdate(details, updateKind));
     }
 
-    public async Task WaitForPendingUpdatesAsync()
+    public Task WaitForPendingUpdatesAsync()
     {
-        if (_pendingUpdates == 0) return;
-        
-        _allUpdatesProcessed = new TaskCompletionSource();
-        await _allUpdatesProcessed.Task;
+        lock (_pendingLock)
+        {
+            if (_pendingUpdates == 0)
+            {
+                return Task.CompletedTask;
+            }
+
+            return (_allUpdatesProcessed ??=
+                new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously)).Task;
+        }
+    }
+
+    // Signals that the processor has finished handling one published update. Completing the waiter
+    // when the count reaches zero happens under the same lock as WaitForPendingUpdatesAsync, and the
+    // waiter is cleared so the next wait cycle starts from a fresh TCS.
+    private void OnUpdateProcessed()
+    {
+        lock (_pendingLock)
+        {
+            if (--_pendingUpdates == 0)
+            {
+                _allUpdatesProcessed?.TrySetResult();
+                _allUpdatesProcessed = null;
+            }
+        }
     }
     
     private async Task PublishRemoveAsync(FunctionAppDetails removedApp)
@@ -106,11 +138,7 @@ public class FunctionStateCoordinator
         {
             if (update.Details.Subscription != _currentSubscriptionId)
             {
-                Interlocked.Decrement(ref _pendingUpdates);
-                if (_pendingUpdates == 0)
-                {
-                    _allUpdatesProcessed?.TrySetResult();
-                }
+                OnUpdateProcessed();
                 continue;
             }
             
@@ -131,10 +159,7 @@ public class FunctionStateCoordinator
                 _uiUpdateLock.Release();
             }
             
-            if (Interlocked.Decrement(ref _pendingUpdates) == 0)
-            {
-                _allUpdatesProcessed?.TrySetResult();
-            }
+            OnUpdateProcessed();
         }
     }
 

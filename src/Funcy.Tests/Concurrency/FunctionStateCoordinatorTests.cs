@@ -66,6 +66,27 @@ public class FunctionStateCoordinatorTests
     }
 
     [Fact]
+    public async Task WaitForPendingUpdates_CompletesAcrossRepeatedCycles()
+    {
+        var coordinator = new FunctionStateCoordinator();
+        coordinator.SetSubscription("sub-1");
+        coordinator.InitCache([]);
+
+        // Each cycle publishes a burst and then waits for it to drain. A lost-wakeup in the wait
+        // gate (stale TaskCompletionSource) surfaces as a wait that never completes, so every cycle
+        // is bounded by a timeout. Several cycles exercise the "wait -> publish -> wait again" reuse.
+        for (var cycle = 0; cycle < 25; cycle++)
+        {
+            for (var i = 0; i < 10; i++)
+            {
+                await coordinator.PublishUpdateAsync(MakeApp($"app-{cycle}-{i}", "sub-1"), FunctionAppUpdateKind.Inventory);
+            }
+
+            await coordinator.WaitForPendingUpdatesAsync().WaitAsync(Timeout);
+        }
+    }
+
+    [Fact]
     public async Task PublishUpdate_AddsAppToCache_AndRaisesEvent()
     {
         var coordinator = new FunctionStateCoordinator();

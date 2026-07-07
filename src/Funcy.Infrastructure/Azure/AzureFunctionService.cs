@@ -213,6 +213,19 @@ public class AzureFunctionService(
 
         if (functionTask.Result is not null)
         {
+            // Carry over the resolved Service Bus namespace (a once-only lookup) onto the freshly
+            // fetched rows so replacing the functions on a refresh does not wipe the cached id.
+            var namespaceByName = existing.Functions
+                .Where(f => !string.IsNullOrEmpty(f.ServiceBusNamespaceId))
+                .ToDictionary(f => f.Name, f => f.ServiceBusNamespaceId);
+            foreach (var fetched in functionTask.Result)
+            {
+                if (namespaceByName.TryGetValue(fetched.Name, out var namespaceId))
+                {
+                    fetched.ServiceBusNamespaceId = namespaceId;
+                }
+            }
+
             dbContext.Functions.RemoveRange(existing.Functions);
             existing.Functions = functionTask.Result;
         }
@@ -359,5 +372,46 @@ public class AzureFunctionService(
 
         functionApp.IsPinned = isPinned;
         await dbContext.SaveChangesAsync();
+    }
+
+    public async Task SaveServiceBusNamespacesAsync(string functionAppArmId,
+        IReadOnlyList<(string FunctionName, string NamespaceId)> resolved)
+    {
+        if (resolved.Count == 0)
+        {
+            return;
+        }
+
+        // Serialized behind the same lock as the inventory/detail writes so we never race SQLite's
+        // single writer. Only the namespace column is touched.
+        if (!await DbWriteLock.WaitAsync(TimeSpan.FromSeconds(5)))
+        {
+            logger.LogWarning("Could not acquire database write lock to persist Service Bus namespaces for {App}",
+                functionAppArmId);
+            return;
+        }
+
+        try
+        {
+            await using var dbContext = await dbContextFactory.CreateDbContextAsync();
+            var functions = await dbContext.Functions
+                .Where(f => f.FunctionApp!.AzureId == functionAppArmId)
+                .ToListAsync();
+
+            var byName = resolved.ToDictionary(r => r.FunctionName, r => r.NamespaceId);
+            foreach (var function in functions)
+            {
+                if (byName.TryGetValue(function.Name, out var namespaceId))
+                {
+                    function.ServiceBusNamespaceId = namespaceId;
+                }
+            }
+
+            await dbContext.SaveChangesAsync();
+        }
+        finally
+        {
+            DbWriteLock.Release();
+        }
     }
 }

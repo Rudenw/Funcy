@@ -12,6 +12,10 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
     // Name/Listens to stay the only flex columns that soak up the spare width.
     private const int TriggerWidth = 17;
 
+    // Msgs/DLQ hold small right-aligned numbers, so the header ("Msgs") plus the sort marker the
+    // header renderer appends ("(n) ↓") and the cell padding is the binding width: 4 + 5 + 2 = 11.
+    private const int CountWidth = 11;
+
     // Grows with the table (see SetResolvedWidths); starts at the configured minimum so the
     // first markup build before any resize still truncates sanely.
     private int _listensToWidth = ListensToWidth;
@@ -58,8 +62,8 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
             new Column<FunctionDetails>("Trigger", f => f.Trigger, TriggerWidth),
             new Column<FunctionDetails>("State", f => f.IsDisabled ? "Disabled" : "Enabled", 10),
             new Column<FunctionDetails>("Listens to", f => f.ListensTo, ListensToWidth, Flex: true),
-            new Column<FunctionDetails>("Msgs", f => f.ActiveMessages, 7, Alignment: Justify.Right),
-            new Column<FunctionDetails>("DLQ", f => f.DeadLetteredMessages, 7, Alignment: Justify.Right));
+            new Column<FunctionDetails>("Msgs", f => f.ActiveMessages, CountWidth, Alignment: Justify.Right),
+            new Column<FunctionDetails>("DLQ", f => f.DeadLetteredMessages, CountWidth, Alignment: Justify.Right));
     }
 
     private static string CountText(long? value, ServiceBusCountStatus status) => status switch

@@ -74,9 +74,23 @@ public class AzureResourceService : IAzureResourceService
         return results;
     }
     
+    public async Task<IReadOnlyList<(string Id, string Name)>> GetServiceBusNamespacesAsync(string subscriptionId)
+    {
+        var query =
+            $"Resources | where subscriptionId == '{subscriptionId}' " +
+            "| where type =~ 'microsoft.servicebus/namespaces' " +
+            "| project id, name";
+
+        var graphArgs = BuildGraphArgs(query, 100, null);
+        var json = await ShellCommandRunner.RunAsync("az", graphArgs);
+        var response = JsonSerializer.Deserialize<NamespaceGraphResponse>(json,
+            new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        return response?.Data.Select(n => (n.Id, n.Name)).ToList() ?? [];
+    }
+
     public async Task<string?> GetServiceBusNamespaceIdAsync(string namespaceName)
     {
-        // Not filtered to the current subscription: the namespace may live in a different one.
+        // Not filtered to a subscription: a function may reference a namespace in a different one.
         var query =
             "Resources | where type =~ 'microsoft.servicebus/namespaces' " +
             $"| where name =~ '{namespaceName}' " +
@@ -118,5 +132,6 @@ public interface IAzureResourceService
     Task<string> GetCurrentSubscriptionId();
     Task<List<FunctionAppGraphRow>> GetAllFunctionApps(string subscriptionId);
     Task<bool> HasAnyFunctionAppsAsync(string subscriptionId);
+    Task<IReadOnlyList<(string Id, string Name)>> GetServiceBusNamespacesAsync(string subscriptionId);
     Task<string?> GetServiceBusNamespaceIdAsync(string namespaceName);
 }
