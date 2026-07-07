@@ -7,6 +7,11 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
 {
     private const int ListensToWidth = 28;
 
+    // Widest common Azure trigger binding type ("ServiceBusTrigger" = 17). The old 15 truncated
+    // it (and EventGridTrigger, 16) on every row; sized so the reported trigger names fit while
+    // Name/Listens to stay the only flex columns that soak up the spare width.
+    private const int TriggerWidth = 17;
+
     // Grows with the table (see SetResolvedWidths); starts at the configured minimum so the
     // first markup build before any resize still truncates sanely.
     private int _listensToWidth = ListensToWidth;
@@ -50,7 +55,7 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
     {
         return new ColumnLayout<FunctionDetails>(
             new Column<FunctionDetails>("Name", f => f.Name, 28, Flex: true),
-            new Column<FunctionDetails>("Trigger", f => f.Trigger, 15),
+            new Column<FunctionDetails>("Trigger", f => f.Trigger, TriggerWidth),
             new Column<FunctionDetails>("State", f => f.IsDisabled ? "Disabled" : "Enabled", 10),
             new Column<FunctionDetails>("Listens to", f => f.ListensTo, ListensToWidth, Flex: true),
             new Column<FunctionDetails>("Msgs", f => f.ActiveMessages, 7, Alignment: Justify.Right),

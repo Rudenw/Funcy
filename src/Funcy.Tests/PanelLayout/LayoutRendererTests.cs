@@ -35,7 +35,9 @@ public class LayoutRendererTests
         Assert.Equal(40, layout.Columns[0].Width);
         Assert.Equal(25, layout.Columns[1].Width); // tag width from getColumnWidth
         Assert.Equal(10, layout.Columns[2].Width);
-        Assert.Equal(20, layout.Columns[3].Width);
+        // Bug A: Status shrank 20 -> 13 (fits the widest label "Refreshing..."); the freed
+        // width now flows to the flexing Name column.
+        Assert.Equal(13, layout.Columns[3].Width);
         Assert.Equal(10, layout.Columns[4].Width);
         Assert.True(layout.Columns[4].AnimationColumn);   // last (animation) column
         Assert.Null(layout.Columns[4].Selector);          // animation column has no selector
