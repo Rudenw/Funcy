@@ -11,6 +11,12 @@ public class FunctionAppLayoutRenderer(
     private const int NameWidth = 40;
     private const int CountWidth = 7;
 
+    // The State/Status columns are enum-labelled, so size them to their widest label instead of a
+    // round guess. State: "Running"/"Stopped" (7). Status: widest is "Refreshing..." (13) — the old
+    // 20 wasted 7 columns that now flow to the flexing Name column.
+    private const int StateWidth = 10;
+    private const int StatusWidth = 13;
+
     // With the two count columns enabled we trim the Name column by their combined width so the
     // fixed table budget is not pushed out further than the tag columns already do. A dedicated
     // adaptive-width PR is in flight; this is the graceful stop-gap, not proper distribution.
@@ -97,8 +103,8 @@ public class FunctionAppLayoutRenderer(
             columns.Add(new Column<FunctionAppDetails>(tagCopy, f => f.Tags.TryGetValue(tagCopy, out var v) ? v : null, getColumnWidth(tagCopy)));
         }
 
-        columns.Add(new Column<FunctionAppDetails>("State", f => f.State, 10));
-        columns.Add(new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), 20));
+        columns.Add(new Column<FunctionAppDetails>("State", f => f.State, StateWidth));
+        columns.Add(new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), StatusWidth));
 
         if (showServiceBusCounts)
         {
