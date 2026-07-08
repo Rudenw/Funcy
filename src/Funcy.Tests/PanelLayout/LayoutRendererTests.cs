@@ -36,9 +36,8 @@ public class LayoutRendererTests
         Assert.True(layout.Columns[0].Flex);
         Assert.Equal(25, layout.Columns[1].Width); // tag width from getColumnWidth
         Assert.False(layout.Columns[1].Flex);             // tag columns are content-sized, not flexed
-        Assert.Equal(10, layout.Columns[2].Width);
-        // Bug A: Status shrank 20 -> 13 (fits the widest label "Refreshing...").
-        Assert.Equal(13, layout.Columns[3].Width);
+        Assert.Equal(13, layout.Columns[2].Width);        // State: widest label 7 + breathing room
+        Assert.Equal(16, layout.Columns[3].Width);        // Status: widest label 13 + breathing room
         Assert.Equal(10, layout.Columns[4].Width);
         Assert.True(layout.Columns[4].AnimationColumn);   // last (animation) column
         Assert.True(layout.Columns[4].Flex);              // ...flexes to park spare width as margin

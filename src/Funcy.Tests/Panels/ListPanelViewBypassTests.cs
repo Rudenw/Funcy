@@ -84,45 +84,45 @@ public class ListPanelViewBypassTests
     }
 
     [Fact]
-    public void RebuildVisibleRows_EmptyFilter_ShowsAllWithoutBypassMarkup()
+    public void RebuildVisibleRows_NoFilter_NoActiveOps_ShowsPlainSortedOrder()
     {
         var layout = new TrackingLayoutRenderer();
         var view = MakeView(layout);
-        view.SetAll([new OpItem("opti-app", active: false), new OpItem("extenda-app", active: true)]);
+        view.SetAll([new OpItem("opti-app", active: false), new OpItem("bcd-app", active: false)]);
 
         view.RenderIfNeeded();
 
-        // Everything fits on screen, so nothing floats — plain sorted order, no dim bypass markup.
-        Assert.Equal(["extenda-app", "opti-app"], view.GetVisibleKeys());
+        // Nothing active: plain sorted order, nothing pinned, no dim bypass markup.
+        Assert.Equal(["bcd-app", "opti-app"], view.GetVisibleKeys());
         Assert.Empty(layout.BypassKeys);
     }
 
     [Fact]
-    public void RebuildVisibleRows_NoFilter_OnScreenActiveRow_DoesNotFloat()
+    public void RebuildVisibleRows_NoFilter_ActiveRowOnScreen_ShownInPlaceNotPinned()
     {
         var layout = new TrackingLayoutRenderer();
         var view = MakeView(layout);
         view.SetAll([
             new OpItem("aaa-idle", active: false),
             new OpItem("mmm-idle", active: false),
-            new OpItem("zzz-active", active: true), // sorts last, has an active operation, but is visible
+            new OpItem("zzz-active", active: true), // active, but on screen (short list)
         ]);
 
         view.RenderIfNeeded();
 
-        // The active row is already on screen, so acting on it must not make it jump to the top.
+        // On screen already: no pinned copy, no jump, no dim markup — just its natural place.
         Assert.Equal(["aaa-idle", "mmm-idle", "zzz-active"], view.GetVisibleKeys());
         Assert.Empty(layout.BypassKeys);
     }
 
     [Fact]
-    public void RebuildVisibleRows_NoFilter_OffScreenActiveRow_FloatsToTop()
+    public void RebuildVisibleRows_NoFilter_ActiveRowOffScreen_PinnedDimmedAtTopOnce()
     {
         var layout = new TrackingLayoutRenderer();
         var view = MakeView(layout);
 
-        // A list larger than the window (MaxVisibleRows = windowHeight 30 - 8 = 22) with the only
-        // active row sorted last, so it starts off-screen and must float up to be watchable.
+        // Longer than the window (MaxVisibleRows = windowHeight 30 - 8 = 22), only the last row
+        // active, so it starts scrolled off and must be pinned to the top to stay watchable.
         var items = new List<OpItem>();
         for (var i = 0; i < 25; i++)
         {
@@ -133,9 +133,10 @@ public class ListPanelViewBypassTests
 
         view.RenderIfNeeded();
 
-        Assert.Equal("zzz-active", view.GetVisibleKeys()[0]);
-        // Floated (unfiltered) rows are not "bypassed", so no dim bypass markup is produced.
-        Assert.Empty(layout.BypassKeys);
+        var keys = view.GetVisibleKeys();
+        Assert.Equal("zzz-active", keys[0]);                       // pinned at the top
+        Assert.Contains("zzz-active", layout.BypassKeys);          // rendered dimmed (bypass path)
+        Assert.Single(keys, k => k == "zzz-active");               // off-screen -> shown once, no duplicate
     }
 
     private static ListPanelView<OpItem> MakeView(TrackingLayoutRenderer layout)

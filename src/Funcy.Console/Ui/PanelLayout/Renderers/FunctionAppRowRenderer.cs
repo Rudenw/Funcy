@@ -17,10 +17,11 @@ public class FunctionAppLayoutRenderer(
     // 4 + SortMarkerAndPadding = 11.
     private const int CountWidth = 11;
 
-    // The State/Status columns are enum-labelled, so size them to their widest label instead of a
-    // round guess. State: "Running"/"Stopped" (7). Status: widest is "Refreshing..." (13).
-    private const int StateWidth = 10;
-    private const int StatusWidth = 13;
+    // The State/Status columns are enum-labelled. Sized a little wider than the widest label
+    // ("Running"/"Stopped" = 7; "Refreshing..." = 13) so they get some breathing room instead of
+    // sitting flush against the next column. The spare comes from the flexing right-hand margin.
+    private const int StateWidth = 13;
+    private const int StatusWidth = 16;
 
     // Name flexes together with the trailing (animation) column, so the spare width is split
     // between Name and a right-hand margin instead of Name (the sole flex column before) swallowing

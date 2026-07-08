@@ -41,6 +41,12 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
     private List<RowMarkup> _visibleRows = [];
 
+    // Number of leading rows in _visibleRows that are sticky (pinned off-screen active operations),
+    // not part of the scrollable content. The selection index is relative to the content, so it is
+    // shifted by this count when locating or highlighting the selected row. Touched only on the
+    // render thread (RebuildVisibleRows / GetSelectedItem / RenderCurrentView).
+    private int _stickyCount;
+
     public Panel Panel { get; }
 
     private readonly ListPanelPaginator _paginator;
@@ -227,8 +233,9 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
         // Defensive clamp: RebuildVisibleRows keeps SelectedIndex inside the window, but this is
         // also reachable between a background model change and the next rebuild, so never let a
-        // stale index run off the end of the rows actually on screen.
-        var selectedIndex = Math.Clamp(_paginator.SelectedIndex, 0, rows.Count - 1);
+        // stale index run off the end of the rows actually on screen. The sticky rows occupy the
+        // leading slots, so the selected content row sits _stickyCount further down.
+        var selectedIndex = Math.Clamp(_paginator.SelectedIndex + _stickyCount, 0, rows.Count - 1);
         var selectedItemKey = rows[selectedIndex].Key;
         lock (_gate)
         {
@@ -280,80 +287,104 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
             return;
         }
 
-        _renderer.Render(_visibleRows, _paginator.SelectedIndex, _animationProvider.GetAnimations());
+        // Offset the highlight past the sticky (pinned) rows so it lands on the selected content row.
+        var highlight = Math.Clamp(_paginator.SelectedIndex + _stickyCount, 0, _visibleRows.Count - 1);
+        _renderer.Render(_visibleRows, highlight, _animationProvider.GetAnimations());
     }
 
     private void RebuildVisibleRows()
     {
         List<RowMarkup> rows;
-        int totalCount;
+        var stickyCount = 0;
 
         lock (_gate)
         {
             var sorted = GetSortedItemsLocked();
-            var candidates = FilterCandidatesLocked(sorted);
 
-            totalCount = candidates.Count;
+            if (string.IsNullOrWhiteSpace(_searchText))
+            {
+                (rows, stickyCount) = BuildUnfilteredRowsLocked(sorted);
+            }
+            else
+            {
+                var candidates = FilterCandidatesLocked(sorted);
 
-            // Reconcile the paginator to the current candidate count *before* slicing, so the
-            // scroll offset and selection are clamped into range and the window we cut below can
-            // never start past the end or point the selection outside _visibleRows.
-            _paginator.UpdateTotalRows(totalCount);
+                // No pinned rows under a filter (the bypass already floats active rows), so release
+                // any reservation a previous unfiltered frame left behind.
+                _paginator.SetReservedRows(0);
 
-            // Keep short result sets visible: if everything fits, ignore the scroll offset.
-            var skip = candidates.Count < _paginator.MaxVisibleRows ? 0 : _paginator.VisibleStartIndex;
+                // Reconcile the paginator to the current candidate count *before* slicing, so the
+                // scroll offset and selection are clamped into range and the window we cut below can
+                // never start past the end or point the selection outside _visibleRows.
+                _paginator.UpdateTotalRows(candidates.Count);
 
-            rows = candidates
-                .Skip(skip)
-                .Take(_paginator.MaxVisibleRows)
-                // Bypassed rows are rendered on the fly (view-state cue, never highlighted);
-                // matching rows reuse their cached, once-built markup.
-                .Select(c => c.Bypassed ? _layoutRenderer.CreateBypassRowMarkup(c.Item) : _markupCache[c.Item.Key])
-                .ToList();
+                // Keep short result sets visible: if everything fits, ignore the scroll offset.
+                var skip = candidates.Count < _paginator.MaxVisibleRows ? 0 : _paginator.VisibleStartIndex;
+
+                rows = candidates
+                    .Skip(skip)
+                    .Take(_paginator.MaxVisibleRows)
+                    // Bypassed rows are rendered on the fly (view-state cue, never highlighted);
+                    // matching rows reuse their cached, once-built markup.
+                    .Select(c => c.Bypassed ? _layoutRenderer.CreateBypassRowMarkup(c.Item) : _markupCache[c.Item.Key])
+                    .ToList();
+            }
         }
 
         _visibleRows = rows;
+        _stickyCount = stickyCount;
+    }
+
+    // Builds the unfiltered view: the natural scroll window, with any row that has an active
+    // operation AND is scrolled off the content window pinned (dimmed) to the top so a swap stays
+    // watchable wherever you scroll. An on-screen active row is left in place (no pin, so never a
+    // duplicate). The paginator reserves the pinned rows, shrinking the scroll window to fit them,
+    // so the pins are always shown and the selected row is never pushed off. Returns (rows, pins).
+    private (List<RowMarkup> Rows, int PinnedCount) BuildUnfilteredRowsLocked(IReadOnlyList<T> sorted)
+    {
+        _paginator.UpdateTotalRows(sorted.Count);
+        var max = _paginator.MaxVisibleRows;
+        var content = _paginator.ContentWindow;
+        var start = sorted.Count <= content ? 0 : _paginator.VisibleStartIndex;
+        var end = start + content;
+
+        // Active rows outside the content window become pinned copies; on-screen ones are seen in
+        // place. Leave at least one scrollable row.
+        var pinnedItems = new List<T>();
+        for (var i = 0; i < sorted.Count && pinnedItems.Count < max - 1; i++)
+        {
+            if ((i < start || i >= end) && sorted[i] is IOperationVisibility { HasActiveOperation: true })
+            {
+                pinnedItems.Add(sorted[i]);
+            }
+        }
+
+        // Reserve space for the pins so the scroll window shrinks to fit them; takes effect on the
+        // next rebuild (the row fill below caps at max, keeping this frame consistent meanwhile).
+        _paginator.SetReservedRows(pinnedItems.Count);
+
+        var rows = new List<RowMarkup>(max);
+        foreach (var item in pinnedItems)
+        {
+            rows.Add(_layoutRenderer.CreateBypassRowMarkup(item));
+        }
+
+        for (var i = start; i < sorted.Count && rows.Count < max; i++)
+        {
+            rows.Add(_markupCache[sorted[i].Key]);
+        }
+
+        return (rows, pinnedItems.Count);
     }
 
     private readonly record struct Candidate(T Item, bool Bypassed);
 
     // Applies the search filter, then lets rows with an active operation (IOperationVisibility)
     // bypass a non-matching filter so an in-progress operation stays watchable. Bypassed rows
-    // float to the top; matches keep their relative order below. Call while holding _gate.
+    // float to the top; matches keep their relative order below. Call while holding _gate, only
+    // when a filter is active (the unfiltered view is built by BuildUnfilteredRowsLocked).
     private List<Candidate> FilterCandidatesLocked(IReadOnlyList<T> sorted)
     {
-        if (string.IsNullOrWhiteSpace(_searchText))
-        {
-            // No filter: float a row with an active operation to the top ONLY when it is off-screen,
-            // so a long-running swap on a hidden app can be watched — while acting on a row you can
-            // already see (stop/start/refresh all finish well under a second) leaves it in place
-            // instead of jumping it up and then straight back down. "Off-screen" is judged against
-            // the natural (un-floated) window position, which does not change when a row floats, so a
-            // floated row keeps a stable spot and never oscillates. These are not "bypassed"
-            // (Bypassed=false) — the dim bypass cue is reserved for rows shown despite a filter.
-            var windowStart = sorted.Count <= _paginator.MaxVisibleRows ? 0 : _paginator.VisibleStartIndex;
-            var windowEnd = windowStart + _paginator.MaxVisibleRows;
-
-            var floated = new List<Candidate>();
-            var inPlace = new List<Candidate>();
-            for (var i = 0; i < sorted.Count; i++)
-            {
-                var item = sorted[i];
-                var offScreen = i < windowStart || i >= windowEnd;
-                if (offScreen && item is IOperationVisibility { HasActiveOperation: true })
-                {
-                    floated.Add(new Candidate(item, false));
-                }
-                else
-                {
-                    inPlace.Add(new Candidate(item, false));
-                }
-            }
-
-            floated.AddRange(inPlace);
-            return floated;
-        }
-
         var matches = new List<Candidate>();
         var bypassed = new List<Candidate>();
         foreach (var item in sorted)

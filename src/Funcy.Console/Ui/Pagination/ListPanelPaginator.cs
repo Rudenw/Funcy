@@ -7,6 +7,19 @@ public class ListPanelPaginator
     private int _amountOfRows;
     public int MaxVisibleRows { get; private set; }
 
+    // Rows at the top reserved for pinned (non-scrollable) content. The scrollable list uses the
+    // remaining rows, so all navigation/clamping happens against Window, not the raw height.
+    private int _reservedRows;
+
+    // Usable rows for the scrollable content (at least 1 so the view never collapses to nothing).
+    public int ContentWindow => Math.Max(1, MaxVisibleRows - _reservedRows);
+
+    // Reserve the top N rows for pinned content. Clamped so at least one scrollable row remains.
+    public void SetReservedRows(int count)
+    {
+        _reservedRows = Math.Clamp(count, 0, Math.Max(0, MaxVisibleRows - 1));
+    }
+
     // Window height source. Defaults to the real console; injectable so the paginator/view can
     // be exercised in headless tests (System.Console.WindowHeight throws without a console).
     private readonly Func<int> _windowHeight;
@@ -42,15 +55,15 @@ public class ListPanelPaginator
         // does not fire, leaving VisibleStartIndex past the last page and SelectedIndex past the
         // now-visible window. Both must be pulled back in, otherwise the view indexes _visibleRows
         // out of range (GetSelectedItem) and either throws or renders a blank frame.
-        var maxStart = Math.Max(0, _amountOfRows - MaxVisibleRows);
+        var maxStart = Math.Max(0, _amountOfRows - ContentWindow);
         if (VisibleStartIndex > maxStart)
         {
             VisibleStartIndex = maxStart;
         }
 
-        if (SelectedIndex >= MaxVisibleRows)
+        if (SelectedIndex >= ContentWindow)
         {
-            SelectedIndex = Math.Max(0, MaxVisibleRows - 1);
+            SelectedIndex = Math.Max(0, ContentWindow - 1);
         }
     }
 
@@ -81,7 +94,7 @@ public class ListPanelPaginator
         
         if (VisibleStartIndex > 0)
         {
-            VisibleStartIndex = Math.Max(0, VisibleStartIndex - MaxVisibleRows);
+            VisibleStartIndex = Math.Max(0, VisibleStartIndex - ContentWindow);
             isVisibleStartIndexChanged = true;
         }
         else
@@ -97,18 +110,18 @@ public class ListPanelPaginator
         var isVisibleStartIndexChanged = false;
         SelectedIndex++;
 
-        if (SelectedIndex >= MaxVisibleRows && SelectedIndex + VisibleStartIndex < _amountOfRows)
+        if (SelectedIndex >= ContentWindow && SelectedIndex + VisibleStartIndex < _amountOfRows)
         {
             isVisibleStartIndexChanged = true;
             VisibleStartIndex++;
-            SelectedIndex = MaxVisibleRows - 1;
+            SelectedIndex = ContentWindow - 1;
         }
 
-        if (SelectedIndex >= MaxVisibleRows)
+        if (SelectedIndex >= ContentWindow)
         {
-            SelectedIndex = MaxVisibleRows - 1;
+            SelectedIndex = ContentWindow - 1;
         }
-        
+
         if (SelectedIndex >= _amountOfRows)
         {
             SelectedIndex = _amountOfRows - 1;
@@ -116,18 +129,18 @@ public class ListPanelPaginator
 
         return isVisibleStartIndexChanged;
     }
-    
+
     public bool PageDown()
     {
         var isVisibleStartIndexChanged = false;
-        
-        if (VisibleStartIndex + MaxVisibleRows >= _amountOfRows)
+
+        if (VisibleStartIndex + ContentWindow >= _amountOfRows)
         {
-            SelectedIndex = MaxVisibleRows - 1;
+            SelectedIndex = ContentWindow - 1;
         }
         else
         {
-            VisibleStartIndex = Math.Min(_amountOfRows - MaxVisibleRows, VisibleStartIndex + MaxVisibleRows);
+            VisibleStartIndex = Math.Min(_amountOfRows - ContentWindow, VisibleStartIndex + ContentWindow);
             isVisibleStartIndexChanged = true;
         }
 
