@@ -104,6 +104,7 @@ var host = Host.CreateDefaultBuilder(args)
         services.AddTransient<IFunctionAppManagementService, FunctionAppManagementService>();
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         services.AddSingleton<IKeyVaultSecretResolver, KeyVaultSecretResolver>();
+        services.AddSingleton<IClipboardService, ClipboardService>();
         services.AddScoped<IAzureResourceService, AzureResourceService>();
         services.AddSingleton<IServiceBusInsightService, ServiceBusInsightService>();
         services.AddSingleton<TokenCredential, DefaultAzureCredential>();

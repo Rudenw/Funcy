@@ -26,6 +26,9 @@ public static class UiStyles
     // Marks a row kept visible by the operation-status bypass rather than a filter match.
     public static readonly string BypassGlyph = Unicode ? "•" : "*";
 
+    // Success tick, e.g. the transient "copied to clipboard" confirmation.
+    public static readonly string OkGlyph = Unicode ? "✓" : "+";
+
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
     public static Markup CreateShortcutMarkup(string shortcut, string description, bool isEnabled = true)

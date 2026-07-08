@@ -222,8 +222,17 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case var key when
-                key == ListPanelShortcuts.ClearIssues.Key:
-                ClearIssues();
+                key == ListPanelShortcuts.Copy.Key:
+                // C is shared: it copies the revealed value in the env-vars panel, otherwise it
+                // clears the Issues panel. The two panels are never the current view at once.
+                if (Current.Controller is IClipboardCopyController)
+                {
+                    CopySelectedValue();
+                }
+                else
+                {
+                    ClearIssues();
+                }
                 break;
 
             case var key when
@@ -384,6 +393,19 @@ public sealed class MainContainer : IDisposable
         if (Current.Controller is IMaskToggleController maskController)
         {
             maskController.ToggleSelectedMask();
+        }
+    }
+
+    private void CopySelectedValue()
+    {
+        if (!Current.View.IsActionValid(FunctionAction.CopyValue))
+        {
+            return;
+        }
+
+        if (Current.Controller is IClipboardCopyController copyController)
+        {
+            copyController.CopySelectedValue();
         }
     }
 

@@ -19,6 +19,12 @@ public static class AppSettingValueFormatter
 
     public static AppSettingValueCells Format(AppSettingDetails item)
     {
+        if (item.JustCopied)
+        {
+            var copied = $"{UiStyles.OkGlyph} copied";
+            return new AppSettingValueCells($"[{UiStyles.Hint}]{copied}[/]", copied);
+        }
+
         if (item.Masked)
         {
             return new AppSettingValueCells(Mask, Mask);

@@ -21,6 +21,7 @@ public sealed class ListPanelContextFactory(
     AppContext appContext,
     IAppSettingsService appSettingsService,
     IKeyVaultSecretResolver secretResolver,
+    IClipboardService clipboardService,
     IServiceBusInsightService serviceBusInsightService,
     ILogger<FunctionListController> functionListLogger,
     IFuncySettingsService settingsService,
@@ -101,6 +102,7 @@ public sealed class ListPanelContextFactory(
             app.Name,
             appSettingsService,
             secretResolver,
+            clipboardService,
             emptyState,
             loggerFactory.CreateLogger<AppSettingsListController>(),
             invalidate);
