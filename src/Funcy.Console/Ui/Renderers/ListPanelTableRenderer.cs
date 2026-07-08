@@ -7,6 +7,9 @@ namespace Funcy.Console.Ui.Renderers;
 
 public class ListPanelTableRenderer<T>
 {
+    // Leading gap between the last data column and the animation spinner so the two don't touch.
+    private const string AnimationIndent = "  ";
+
     private readonly IReadOnlyList<Column<T>> _columns;
     private readonly ColumnLayout<T> _columnLayout;
     public Table Table { get; set; }
@@ -95,7 +98,8 @@ public class ListPanelTableRenderer<T>
                 {
                     var animationContext = animatingKeys.FirstOrDefault(a => a.FunctionAppKey == row.Key);
                     if (animationContext is null) continue;
-                    markupsToRender.Add(Clip(new Markup(animationContext.AnimationFrame)));
+                    // Indent the spinner so it doesn't sit flush against the preceding column (DLQ).
+                    markupsToRender.Add(Clip(new Markup(AnimationIndent + animationContext.AnimationFrame)));
                 }
                 else
                 {

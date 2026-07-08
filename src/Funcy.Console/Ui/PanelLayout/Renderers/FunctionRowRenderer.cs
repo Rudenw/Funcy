@@ -7,10 +7,18 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
 {
     private const int ListensToWidth = 28;
 
-    // Widest common Azure trigger binding type ("ServiceBusTrigger" = 17). The old 15 truncated
-    // it (and EventGridTrigger, 16) on every row; sized so the reported trigger names fit while
-    // Name/Listens to stay the only flex columns that soak up the spare width.
-    private const int TriggerWidth = 17;
+    // Widest common Azure trigger binding type ("ServiceBusTrigger" = 17) plus the cell padding
+    // (1 each side). The old 17 left no room for padding, so the name was cropped to
+    // "ServiceBusTrig…" on every row. Name/Listens to stay the only flex columns that soak up
+    // the spare width.
+    private const int TriggerWidth = 19;
+
+    // Matches the Function Apps panel's Name width so the two lists line up; flexes for the spare.
+    private const int NameWidth = 20;
+
+    // "Disabled"/"Enabled" (8) plus the sort marker the header appends ("(3) ↓" = 5) and cell
+    // padding (2) — sized so the State column isn't flush against Trigger/Listens to.
+    private const int StateWidth = 12;
 
     // Msgs/DLQ hold small right-aligned numbers, so the header ("Msgs") plus the sort marker the
     // header renderer appends ("(n) ↓") and the cell padding is the binding width: 4 + 5 + 2 = 11.
@@ -58,9 +66,9 @@ public class FunctionLayoutRenderer: ILayoutRenderer<FunctionDetails>
     public ColumnLayout<FunctionDetails> CreateColumnLayout()
     {
         return new ColumnLayout<FunctionDetails>(
-            new Column<FunctionDetails>("Name", f => f.Name, 28, Flex: true),
+            new Column<FunctionDetails>("Name", f => f.Name, NameWidth, Flex: true),
             new Column<FunctionDetails>("Trigger", f => f.Trigger, TriggerWidth),
-            new Column<FunctionDetails>("State", f => f.IsDisabled ? "Disabled" : "Enabled", 10),
+            new Column<FunctionDetails>("State", f => f.IsDisabled ? "Disabled" : "Enabled", StateWidth),
             new Column<FunctionDetails>("Listens to", f => f.ListensTo, ListensToWidth, Flex: true),
             new Column<FunctionDetails>("Msgs", f => f.ActiveMessages, CountWidth, Alignment: Justify.Right),
             new Column<FunctionDetails>("DLQ", f => f.DeadLetteredMessages, CountWidth, Alignment: Justify.Right));
