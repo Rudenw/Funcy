@@ -21,9 +21,11 @@ public sealed class ListPanelContextFactory(
     AppContext appContext,
     IAppSettingsService appSettingsService,
     IKeyVaultSecretResolver secretResolver,
+    IClipboardService clipboardService,
     IServiceBusInsightService serviceBusInsightService,
     ILogger<FunctionListController> functionListLogger,
     IFuncySettingsService settingsService,
+    ITagCatalog tagCatalog,
     ILoggerFactory loggerFactory)
 {
     public ListPanelContext CreateIssuesPanel(Action invalidate)
@@ -44,6 +46,19 @@ public sealed class ListPanelContextFactory(
         var panel = listPanelFactory.CreateSettingsPanel();
         var view = (IListPanelView<SettingItemDetails>)panel;
         var controller = new SettingsListController(view, settingsService, invalidate);
+
+        return new ListPanelContext
+        {
+            View = panel,
+            Controller = controller
+        };
+    }
+
+    public ListPanelContext CreateTagSelectionPanel(Action invalidate)
+    {
+        var panel = listPanelFactory.CreateTagSelectionPanel();
+        var view = (IListPanelView<TagChoice>)panel;
+        var controller = new TagSelectionController(view, settingsService, tagCatalog, invalidate);
 
         return new ListPanelContext
         {
@@ -101,6 +116,7 @@ public sealed class ListPanelContextFactory(
             app.Name,
             appSettingsService,
             secretResolver,
+            clipboardService,
             emptyState,
             loggerFactory.CreateLogger<AppSettingsListController>(),
             invalidate);

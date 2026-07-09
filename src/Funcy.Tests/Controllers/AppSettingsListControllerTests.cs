@@ -25,8 +25,9 @@ public class AppSettingsListControllerTests
         };
 
     private static AppSettingsListController Build(FakeAppSettingsView view, IAppSettingsService service,
-        IKeyVaultSecretResolver resolver, AppSettingsEmptyState emptyState)
-        => new(view, "/arm/id", "app", service, resolver, emptyState, NullLogger.Instance);
+        IKeyVaultSecretResolver resolver, AppSettingsEmptyState emptyState, IClipboardService? clipboard = null)
+        => new(view, "/arm/id", "app", service, resolver, clipboard ?? new FakeClipboardService(), emptyState,
+            NullLogger.Instance);
 
     [Fact]
     public void Load_WhenServiceReturnsSettings_PopulatesView()
@@ -129,6 +130,70 @@ public class AppSettingsListControllerTests
 
         Assert.Equal(SecretResolutionState.Failed, setting.ResolutionState);
         Assert.Null(setting.ResolvedValue);
+    }
+
+    [Fact]
+    public void Copy_OnRevealedPlainSetting_CopiesValueAndFlagsRow()
+    {
+        var view = new FakeAppSettingsView();
+        var clipboard = new FakeClipboardService();
+        var setting = Plain("A", "secret-value");
+        var controller = Build(view, new FakeAppSettingsService([setting]), new FakeSecretResolver("x"),
+            new AppSettingsEmptyState(), clipboard);
+        view.SelectedKey = "A";
+
+        controller.ToggleSelectedMask(); // reveal first
+        controller.CopySelectedValue();
+
+        Assert.Equal(1, clipboard.CallCount);
+        Assert.Equal("secret-value", clipboard.LastCopied);
+        Assert.True(setting.JustCopied);
+    }
+
+    [Fact]
+    public void Copy_WhenStillMasked_DoesNothing()
+    {
+        var view = new FakeAppSettingsView();
+        var clipboard = new FakeClipboardService();
+        var setting = Plain("A", "secret-value");
+        var controller = Build(view, new FakeAppSettingsService([setting]), new FakeSecretResolver("x"),
+            new AppSettingsEmptyState(), clipboard);
+        view.SelectedKey = "A";
+
+        controller.CopySelectedValue(); // never revealed
+
+        Assert.Equal(0, clipboard.CallCount);
+        Assert.False(setting.JustCopied);
+    }
+
+    [Fact]
+    public void Copy_OnRevealedKeyVaultReference_CopiesResolvedValue()
+    {
+        var view = new FakeAppSettingsView();
+        var clipboard = new FakeClipboardService();
+        var setting = KeyVault("A");
+        var controller = Build(view, new FakeAppSettingsService([setting]), new FakeSecretResolver("resolved-value"),
+            new AppSettingsEmptyState(), clipboard);
+        view.SelectedKey = "A";
+
+        controller.ToggleSelectedMask(); // reveal -> resolves
+        controller.CopySelectedValue();
+
+        Assert.Equal("resolved-value", clipboard.LastCopied);
+        Assert.True(setting.JustCopied);
+    }
+
+    private sealed class FakeClipboardService(bool result = true) : IClipboardService
+    {
+        public int CallCount { get; private set; }
+        public string? LastCopied { get; private set; }
+
+        public Task<bool> TryCopyAsync(string text, CancellationToken cancellationToken = default)
+        {
+            CallCount++;
+            LastCopied = text;
+            return Task.FromResult(result);
+        }
     }
 
     private sealed class FakeAppSettingsService(IReadOnlyList<AppSettingDetails> settings) : IAppSettingsService
