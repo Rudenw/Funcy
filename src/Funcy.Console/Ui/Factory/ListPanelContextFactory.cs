@@ -6,6 +6,7 @@ using Funcy.Console.Ui.Controllers;
 using Funcy.Console.Ui.Navigation;
 using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Microsoft.Extensions.Logging;
@@ -16,21 +17,50 @@ public sealed class ListPanelContextFactory(
     FunctionStateCoordinator coordinator,
     ListPanelFactory listPanelFactory,
     IUiStatusState uiStatusState,
+    IUiErrorLog errorLog,
     AppContext appContext,
     IAppSettingsService appSettingsService,
     IKeyVaultSecretResolver secretResolver,
+    IClipboardService clipboardService,
     IServiceBusInsightService serviceBusInsightService,
     ILogger<FunctionListController> functionListLogger,
     IFuncySettingsService settingsService,
     ILoggerFactory loggerFactory,
     ILogQueryExecutor logQueryExecutor,
     IAppInsightsResolver appInsightsResolver)
+    ITagCatalog tagCatalog)
 {
+    public ListPanelContext CreateIssuesPanel(Action invalidate)
+    {
+        var panel = listPanelFactory.CreateIssuesPanel();
+        var view = (IListPanelView<UiErrorEntry>)panel;
+        var controller = new UiErrorListController(view, errorLog, invalidate);
+
+        return new ListPanelContext
+        {
+            View = panel,
+            Controller = controller
+        };
+    }
+
     public ListPanelContext CreateSettingsPanel(Action invalidate)
     {
         var panel = listPanelFactory.CreateSettingsPanel();
         var view = (IListPanelView<SettingItemDetails>)panel;
         var controller = new SettingsListController(view, settingsService, invalidate);
+
+        return new ListPanelContext
+        {
+            View = panel,
+            Controller = controller
+        };
+    }
+
+    public ListPanelContext CreateTagSelectionPanel(Action invalidate)
+    {
+        var panel = listPanelFactory.CreateTagSelectionPanel();
+        var view = (IListPanelView<TagChoice>)panel;
+        var controller = new TagSelectionController(view, settingsService, tagCatalog, invalidate);
 
         return new ListPanelContext
         {
@@ -88,6 +118,7 @@ public sealed class ListPanelContextFactory(
             app.Name,
             appSettingsService,
             secretResolver,
+            clipboardService,
             emptyState,
             loggerFactory.CreateLogger<AppSettingsListController>(),
             invalidate);

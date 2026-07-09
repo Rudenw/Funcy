@@ -8,13 +8,26 @@ public class FunctionAppLayoutRenderer(
     Func<string, int> getColumnWidth,
     bool showServiceBusCounts = false) : ILayoutRenderer<FunctionAppDetails>
 {
-    private const int NameWidth = 40;
-    private const int CountWidth = 7;
+    // General rule for a sortable column's minimum width: header text + the sort marker the header
+    // renderer appends ("(n) ↓") + the column's cell padding (1 each side). Falling short of that
+    // wraps the marker onto a second line (what happened to Msgs/DLQ at 7, then still tight at 9).
+    private const int SortMarkerAndPadding = 7; // "(n) ↓" (5) + padding (2)
 
-    // With the two count columns enabled we trim the Name column by their combined width so the
-    // fixed table budget is not pushed out further than the tag columns already do. A dedicated
-    // adaptive-width PR is in flight; this is the graceful stop-gap, not proper distribution.
-    private int NameColumnWidth => showServiceBusCounts ? NameWidth - (2 * CountWidth) : NameWidth;
+    // Msgs/DLQ hold small right-aligned numbers, so the header ("Msgs" = 4) is the binding width:
+    // 4 + SortMarkerAndPadding = 11.
+    private const int CountWidth = 11;
+
+    // The State/Status columns are enum-labelled. Sized a little wider than the widest label
+    // ("Running"/"Stopped" = 7; "Refreshing..." = 13) so they get some breathing room instead of
+    // sitting flush against the next column. The spare comes from the flexing right-hand margin.
+    private const int StateWidth = 13;
+    private const int StatusWidth = 16;
+
+    // Name flexes together with the trailing (animation) column, so the spare width is split
+    // between Name and a right-hand margin instead of Name (the sole flex column before) swallowing
+    // all of it. The tag columns stay content-sized. A small floor keeps Name readable on a narrow
+    // terminal; on a wide one it grows enough for the long app names.
+    private const int NameWidth = 20;
 
 
     public RowMarkup CreateRowMarkup(FunctionAppDetails item) => CreateRowMarkup(item, bypassed: false);
@@ -84,11 +97,21 @@ public class FunctionAppLayoutRenderer(
         rowMarkup.Add("DLQ", new RowCell(UiStyles.CreateSelectedCell(dlq), dlqUnselected));
     }
 
+    // Sort key for the Msgs/DLQ columns: the aggregated count, but null while the cell renders
+    // empty (the app has no Service Bus functions or its counts haven't all resolved). Keeping the
+    // key null in that case lets the sorter sink the blanks to the bottom instead of ordering them
+    // as zeros ahead of the real values.
+    private static object? CountSortKey(FunctionAppDetails app, Func<ServiceBusAppCounts, long> pick)
+    {
+        var counts = ServiceBusCountAggregator.Aggregate(app);
+        return counts is { HasServiceBusFunctions: true, AllLoaded: true } ? pick(counts) : null;
+    }
+
     public ColumnLayout<FunctionAppDetails> CreateColumnLayout()
     {
         var columns = new List<Column<FunctionAppDetails>>
         {
-            new("Name", f => f.Name, NameColumnWidth, Flex: true)
+            new("Name", f => f.Name, NameWidth, Flex: true)
         };
 
         foreach (var tag in tagColumns)
@@ -97,16 +120,18 @@ public class FunctionAppLayoutRenderer(
             columns.Add(new Column<FunctionAppDetails>(tagCopy, f => f.Tags.TryGetValue(tagCopy, out var v) ? v : null, getColumnWidth(tagCopy)));
         }
 
-        columns.Add(new Column<FunctionAppDetails>("State", f => f.State, 10));
-        columns.Add(new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), 20));
+        columns.Add(new Column<FunctionAppDetails>("State", f => f.State, StateWidth));
+        columns.Add(new Column<FunctionAppDetails>("Status", f => f.Status.ToDisplayLabel(), StatusWidth));
 
         if (showServiceBusCounts)
         {
-            columns.Add(new Column<FunctionAppDetails>("Msgs", f => ServiceBusCountAggregator.Aggregate(f).ActiveMessages, CountWidth, Alignment: Justify.Right));
-            columns.Add(new Column<FunctionAppDetails>("DLQ", f => ServiceBusCountAggregator.Aggregate(f).DeadLetteredMessages, CountWidth, Alignment: Justify.Right));
+            columns.Add(new Column<FunctionAppDetails>("Msgs", f => CountSortKey(f, c => c.ActiveMessages), CountWidth, Alignment: Justify.Right));
+            columns.Add(new Column<FunctionAppDetails>("DLQ", f => CountSortKey(f, c => c.DeadLetteredMessages), CountWidth, Alignment: Justify.Right));
         }
 
-        columns.Add(new Column<FunctionAppDetails>("", null, 10, true));
+        // Trailing animation column flexes so leftover width parks here as a right-hand margin
+        // rather than inflating Name or a tag column.
+        columns.Add(new Column<FunctionAppDetails>("", null, 10, AnimationColumn: true, Flex: true));
 
         return new ColumnLayout<FunctionAppDetails>([.. columns]);
     }

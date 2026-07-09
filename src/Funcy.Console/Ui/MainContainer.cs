@@ -19,9 +19,11 @@ public sealed class MainContainer : IDisposable
     private readonly IActionDispatcher _actionDispatcher;
     private readonly IDetailsLoader _detailsLoader;
     private readonly UiStateMarkupProvider _uiStateMarkupProvider;
+    private readonly IUiErrorLog _errorLog;
     private readonly TopPanel _topPanel;
     private readonly AppContext _appContext;
     private readonly IAzureSessionMonitor _sessionMonitor;
+    private static readonly Markup EmptyMarkup = new("");
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private readonly Stack<ListPanelContext> _contextStack = new();
@@ -46,6 +48,7 @@ public sealed class MainContainer : IDisposable
         IActionDispatcher actionDispatcher,
         IDetailsLoader detailsLoader,
         UiStateMarkupProvider uiStateMarkupProvider,
+        IUiErrorLog errorLog,
         AppContext appContext,
         IAzureSessionMonitor sessionMonitor,
         ITagCatalog tagCatalog,
@@ -55,6 +58,7 @@ public sealed class MainContainer : IDisposable
         _actionDispatcher = actionDispatcher;
         _detailsLoader = detailsLoader;
         _uiStateMarkupProvider = uiStateMarkupProvider;
+        _errorLog = errorLog;
         _appContext = appContext;
         _sessionMonitor = sessionMonitor;
         _tagCatalog = tagCatalog;
@@ -62,6 +66,8 @@ public sealed class MainContainer : IDisposable
         _settingsService.ColumnsChanged += RebuildRootPanel;
         _topPanel = new TopPanel(appContext);
 
+        // New errors arrive on background threads; wake the render loop so the indicator updates.
+        _errorLog.Changed += OnErrorLogChanged;
         // Background session-state changes wake the render loop; the banner is computed on the
         // render thread in UpdateUiStatus (no Spectre access off the render thread).
         _sessionMonitor.Changed += OnSessionChanged;
@@ -93,9 +99,23 @@ public sealed class MainContainer : IDisposable
         HandleUpdate();
         SyncSearchUi();
 
+        // On the settings-family panels the subscription/status line is noise; swap it for a hint.
+        _topPanel.SetContextHint(ContextHint());
+
         MainLayout["TopPanel"].Update(_topPanel.Panel);
         MainLayout["BodyPanel"].Update(Current.View.Panel);
     }
+
+    // A short "how to use this panel" hint shown in place of the subscription line, or null when
+    // the normal subscription header should show.
+    private string? ContextHint() => Current.Controller switch
+    {
+        TagSelectionController => $"[{UiStyles.Hint}]Enter to select · Esc to go back[/]",
+        SettingsListController => $"[{UiStyles.Hint}]Enter to change · Esc to go back[/]",
+        _ => null
+    };
+
+    private bool IsSettingsContext => Current.Controller is SettingsListController or TagSelectionController;
 
     public void HandleUpdate()
     {
@@ -107,6 +127,7 @@ public sealed class MainContainer : IDisposable
         UpdateUiStatus();
     }
 
+    private void OnErrorLogChanged() => _tcs.TrySetResult();
     private void OnSessionChanged() => _tcs.TrySetResult();
 
     // Applies a completed tag-suggestion fetch on the render thread. Called from HandleUpdate,
@@ -133,8 +154,18 @@ public sealed class MainContainer : IDisposable
             return;
         }
 
+        // Settings-family panels don't have Azure status to show; keep the status line clear so the
+        // contextual hint on the line above reads as the whole story.
+        if (IsSettingsContext)
+        {
+            _topPanel.SetUiStatusText(EmptyMarkup);
+            _topPanel.SetErrorIndicator(EmptyMarkup);
+            return;
+        }
+
         var uiStatusSnapshot = Current.View.GetUiStatusSnapshot();
         _topPanel.SetUiStatusText(_uiStateMarkupProvider.CreateMarkupFromUiStatusState(uiStatusSnapshot));
+        _topPanel.SetErrorIndicator(UiStyles.CreateErrorIndicator(_errorLog.Count) ?? EmptyMarkup);
     }
 
     private void UpdateShortcuts()
@@ -214,6 +245,25 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case var key when
+                key == ListPanelShortcuts.Issues.Key:
+                IssuesView();
+                break;
+
+            case var key when
+                key == ListPanelShortcuts.Copy.Key:
+                // C is shared: it copies the revealed value in the env-vars panel, otherwise it
+                // clears the Issues panel. The two panels are never the current view at once.
+                if (Current.Controller is IClipboardCopyController)
+                {
+                    CopySelectedValue();
+                }
+                else
+                {
+                    ClearIssues();
+                }
+                break;
+
+            case var key when
                 key == ListPanelShortcuts.ReLogin.Key:
                 // Only acts when the session is Expired; the monitor ignores it otherwise.
                 _sessionMonitor.BeginReLogin();
@@ -240,15 +290,7 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case ConsoleKey.Enter:
-                if (Current.Controller is IEditablePanel editable
-                    && editable.TryBeginEdit(out var editKey, out var currentValue))
-                {
-                    EnterEditMode(editKey, currentValue);
-                }
-                else
-                {
-                    TryPushNextPanelFromSelection();
-                }
+                HandleEnter();
                 break;
 
             case ConsoleKey.Escape:
@@ -278,6 +320,19 @@ public sealed class MainContainer : IDisposable
         }
         
         var nextContext = _listPanelContextFactory.CreateSubscriptionPanel(() => _tcs.TrySetResult());
+        _contextStack.Push(nextContext);
+        RefreshMainLayout();
+    }
+
+    private void IssuesView()
+    {
+        // Avoid stacking duplicate Issues panels if I is pressed while one is already open.
+        if (Current.Controller is UiErrorListController)
+        {
+            return;
+        }
+
+        var nextContext = _listPanelContextFactory.CreateIssuesPanel(() => _tcs.TrySetResult());
         _contextStack.Push(nextContext);
         RefreshMainLayout();
     }
@@ -337,6 +392,17 @@ public sealed class MainContainer : IDisposable
         RefreshMainLayout();
     }
 
+    private void ClearIssues()
+    {
+        // Clear is only meaningful inside the Issues panel.
+        if (Current.Controller is not UiErrorListController)
+        {
+            return;
+        }
+
+        _errorLog.Clear();
+    }
+
     private void ToggleMask()
     {
         if (!Current.View.IsActionValid(FunctionAction.ToggleMask))
@@ -347,6 +413,55 @@ public sealed class MainContainer : IDisposable
         if (Current.Controller is IMaskToggleController maskController)
         {
             maskController.ToggleSelectedMask();
+        }
+    }
+
+    // Enter routing: settings rows toggle/edit/open-picker per their kind, the tag picker toggles
+    // the selected tag, everything else navigates into the next panel.
+    private void HandleEnter()
+    {
+        switch (Current.Controller)
+        {
+            case SettingsListController settings:
+                switch (settings.ActivateSelected(out var key, out var rawValue))
+                {
+                    case SettingActivation.TextEdit:
+                        EnterEditMode(key, rawValue);
+                        break;
+                    case SettingActivation.OpenTagSelection:
+                        OpenTagSelection();
+                        break;
+                    // Handled: a toggle was applied and the view already invalidated.
+                }
+                break;
+
+            case IToggleSelectionController picker:
+                picker.ToggleSelected();
+                break;
+
+            default:
+                TryPushNextPanelFromSelection();
+                break;
+        }
+    }
+
+    private void OpenTagSelection()
+    {
+        var nextContext = _listPanelContextFactory.CreateTagSelectionPanel(() => _tcs.TrySetResult());
+        _contextStack.Push(nextContext);
+        RefreshMainLayout();
+    }
+
+    private void CopySelectedValue()
+    {
+        if (!Current.View.IsActionValid(FunctionAction.CopyValue))
+        {
+            return;
+        }
+
+        if (Current.Controller is IClipboardCopyController copyController)
+        {
+            copyController.CopySelectedValue();
         }
     }
 
@@ -591,6 +706,7 @@ public sealed class MainContainer : IDisposable
 
     public void Dispose()
     {
+        _errorLog.Changed -= OnErrorLogChanged;
         _sessionMonitor.Changed -= OnSessionChanged;
         _settingsService.ColumnsChanged -= RebuildRootPanel;
 

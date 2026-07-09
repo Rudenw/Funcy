@@ -13,7 +13,8 @@ public enum FunctionAction
     ToggleSubscriptionVisibility,
     Pin,
     ViewAppSettings,
-    ToggleMask
+    ToggleMask,
+    CopyValue
 }
 
 public static class FunctionActionExtensions

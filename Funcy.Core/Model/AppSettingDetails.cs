@@ -19,6 +19,17 @@ public class AppSettingDetails : IComparable<AppSettingDetails>, IHasKey
     public string? ResolvedValue { get; set; }
     public SecretResolutionState ResolutionState { get; set; } = SecretResolutionState.Pending;
 
+    // Transient "copied to clipboard" confirmation flag, cleared shortly after the copy.
+    public bool JustCopied { get; set; }
+
+    // The real value the user can currently see, or null when the row is masked or its Key Vault
+    // secret hasn't resolved. Copy-to-clipboard uses this so it never leaks a hidden value.
+    public string? RevealedValue => Masked
+        ? null
+        : IsKeyVaultReference
+            ? ResolutionState == SecretResolutionState.Resolved ? ResolvedValue : null
+            : Value;
+
     public int CompareTo(AppSettingDetails? other)
         => other is null ? 1 : StringComparer.Ordinal.Compare(Name, other.Name);
 }

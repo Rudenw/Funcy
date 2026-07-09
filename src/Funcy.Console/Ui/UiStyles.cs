@@ -1,3 +1,4 @@
+using Funcy.Console.Ui.Shortcuts;
 using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure;
 using Spectre.Console;
@@ -18,11 +19,19 @@ public static class UiStyles
 
     private static readonly string ArrowUp = Unicode ? "↑" : "^";
     private static readonly string ArrowDown = Unicode ? "↓" : "v";
+    private static readonly string WarningSign = Unicode ? "⚠" : "!";
     private static readonly string WarnGlyph = Unicode ? "⚠" : "!";
     public static readonly string PinGlyph = Unicode ? "★" : "*";
 
     // Marks a row kept visible by the operation-status bypass rather than a filter match.
     public static readonly string BypassGlyph = Unicode ? "•" : "*";
+
+    // Success tick, e.g. the transient "copied to clipboard" confirmation.
+    public static readonly string OkGlyph = Unicode ? "✓" : "+";
+
+    // Filled/empty markers for boolean toggles and checklist selection (no markup-reserved chars).
+    public static readonly string ToggleOn = Unicode ? "●" : "*";
+    public static readonly string ToggleOff = Unicode ? "○" : "-";
 
     public static Markup CreateLabelMarkup(string text) => new($"[{Label}]{text}[/]");
 
@@ -38,6 +47,18 @@ public static class UiStyles
         return $"[bold]{text}[/]{sorting}";
     }
     
+    // Compact top-panel indicator, e.g. "⚠ 3 errors (I)". Null when there is nothing to show.
+    public static Markup? CreateErrorIndicator(int count)
+    {
+        if (count <= 0)
+        {
+            return null;
+        }
+
+        var label = count == 1 ? "error" : "errors";
+        return new Markup($"[{Danger}]{WarningSign} {count} {label}[/] [{Shortcut}]({ListPanelShortcuts.Issues.DisplayChar})[/]");
+    }
+
     public static Markup CreateStatusText(string statusText)
     {
         return new Markup($"[{Color.CornflowerBlue}]{statusText}[/]");

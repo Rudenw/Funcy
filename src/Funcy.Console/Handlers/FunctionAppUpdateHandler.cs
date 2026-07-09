@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Funcy.Console.Handlers.Concurrency;
 using Funcy.Console.Settings;
 using Funcy.Console.Ui;
+using Funcy.Console.Ui.State;
 using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure;
@@ -17,6 +18,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
     private readonly FunctionStateCoordinator _functionStateCoordinator;
     private readonly AnimationHandler _animationHandler;
     private readonly IUiStatusState _uiStatusState;
+    private readonly IUiErrorLog _uiErrorLog;
     private readonly FunctionStatusManager _functionStatusManager;
     private readonly AppContext _appContext;
     private readonly IAzureSessionMonitor _sessionMonitor;
@@ -44,6 +46,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         FunctionStateCoordinator functionStateCoordinator,
         AnimationHandler animationHandler,
         IUiStatusState uiStatusState,
+        IUiErrorLog uiErrorLog,
         FunctionStatusManager functionStatusManager,
         AppContext appContext,
         IAzureSessionMonitor sessionMonitor,
@@ -55,6 +58,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _functionStateCoordinator = functionStateCoordinator;
         _animationHandler = animationHandler;
         _uiStatusState = uiStatusState;
+        _uiErrorLog = uiErrorLog;
         _functionStatusManager = functionStatusManager;
         _appContext = appContext;
         _sessionMonitor = sessionMonitor;
@@ -219,11 +223,13 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         catch (TimeoutException ex)
         {
             _logger.LogWarning(ex, "Timeout waiting for database lock - previous sync did not complete in time");
+            _uiErrorLog.Report("Sync", ex.Message);
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during synchronization");
+            _uiErrorLog.Report("Sync", ex.Message);
             _sessionMonitor.ReportPossibleAuthFailure(ex);
             throw;
         }
@@ -244,6 +250,12 @@ public class FunctionAppUpdateHandler : IDetailsLoader
         _uiStatusState.SetTotalDetails(allApps.Count);
         var updatedFunctionApps = _functionService.GetFunctionAppFunctionsAndSlotsAsync(allApps, token);
         await UpdateFunctionAppList(updatedFunctionApps, token);
+
+        // Details are now reflected in the UI. End the details-refresh status here (before the
+        // Service Bus count pass) so the TopPanel shows "Last Updated" instead of holding on
+        // "Refreshing function app details 0/N" for the whole, much slower, best-effort count pass.
+        // The counts then trickle in as background StateOnly updates per app.
+        _uiStatusState.EndDetailsRefresh();
 
         // Counts depend on the functions fetched above, so this always runs after the details pass.
         // It is a no-op (zero extra work, zero Azure calls) unless the setting is enabled. Shares
@@ -315,6 +327,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             }
 
             var byKey = serviceBusFunctions.ToDictionary(f => f.Key);
+            var newlyResolvedNamespaces = new List<(string FunctionName, string NamespaceId)>();
             foreach (var result in results)
             {
                 if (!byKey.TryGetValue(result.FunctionKey, out var function))
@@ -327,6 +340,19 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 function.CountStatus = result.Success
                     ? ServiceBusCountStatus.Loaded
                     : ServiceBusCountStatus.Failed;
+
+                // First-time namespace resolution: cache it on the model and stage it for the
+                // one-time SQLite write so future refreshes skip the lookup entirely.
+                if (string.IsNullOrEmpty(function.ServiceBusNamespaceId) && !string.IsNullOrEmpty(result.NamespaceId))
+                {
+                    function.ServiceBusNamespaceId = result.NamespaceId;
+                    newlyResolvedNamespaces.Add((function.Name, result.NamespaceId));
+                }
+            }
+
+            if (newlyResolvedNamespaces.Count > 0)
+            {
+                await _functionService.SaveServiceBusNamespacesAsync(app.Id, newlyResolvedNamespaces);
             }
 
             await _functionStateCoordinator.PublishUpdateAsync(app);
@@ -383,6 +409,7 @@ public class FunctionAppUpdateHandler : IDetailsLoader
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during refresh all");
+                _uiErrorLog.Report("Sync", ex.Message);
                 _sessionMonitor.ReportPossibleAuthFailure(ex);
             }
             finally
@@ -442,8 +469,9 @@ public class FunctionAppUpdateHandler : IDetailsLoader
                 }
                 else
                 {
-                    // Per-app fetch failures stream their error text here; classify so an expired
-                    // session is caught even when the overall sync does not throw.
+                    // Per-app fetch failure streamed from the Azure service — surface it persistently
+                    // and classify so an expired session is caught even when the sync does not throw.
+                    _uiErrorLog.Report(newApp.Name, newApp.ErrorMessage ?? "Failed to fetch function app details");
                     _sessionMonitor.ReportPossibleAuthFailure(newApp.ErrorMessage);
                 }
             }

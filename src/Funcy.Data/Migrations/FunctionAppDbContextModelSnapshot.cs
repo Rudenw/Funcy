@@ -43,6 +43,9 @@ namespace Funcy.Data.Migrations
                     b.Property<string>("QueueName")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ServiceBusNamespaceId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SubscriptionName")
                         .HasColumnType("TEXT");
 

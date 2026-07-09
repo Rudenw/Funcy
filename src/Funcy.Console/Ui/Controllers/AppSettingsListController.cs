@@ -5,8 +5,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Funcy.Console.Ui.Controllers;
 
-public sealed class AppSettingsListController : ListPanelControllerBase<AppSettingDetails>, IMaskToggleController
+public sealed class AppSettingsListController : ListPanelControllerBase<AppSettingDetails>, IMaskToggleController, IClipboardCopyController
 {
+    // How long the "✓ copied" confirmation stays on the row before the value reappears.
+    private static readonly TimeSpan CopiedConfirmationDuration = TimeSpan.FromSeconds(1.5);
+
     private static readonly string LoadingMessage = $"[{UiStyles.Hint}]Loading environment variables…[/]";
     private static readonly string EmptyMessage = $"[{UiStyles.Hint}]No environment variables found.[/]";
     private static readonly string ErrorMessage =
@@ -16,6 +19,7 @@ public sealed class AppSettingsListController : ListPanelControllerBase<AppSetti
     private readonly string _appName;
     private readonly IAppSettingsService _settingsService;
     private readonly IKeyVaultSecretResolver _secretResolver;
+    private readonly IClipboardService _clipboard;
     private readonly AppSettingsEmptyState _emptyState;
     private readonly ILogger _logger;
     private readonly Action? _invalidate;
@@ -30,6 +34,7 @@ public sealed class AppSettingsListController : ListPanelControllerBase<AppSetti
         string appName,
         IAppSettingsService settingsService,
         IKeyVaultSecretResolver secretResolver,
+        IClipboardService clipboard,
         AppSettingsEmptyState emptyState,
         ILogger logger,
         Action? invalidate = null)
@@ -39,6 +44,7 @@ public sealed class AppSettingsListController : ListPanelControllerBase<AppSetti
         _appName = appName;
         _settingsService = settingsService;
         _secretResolver = secretResolver;
+        _clipboard = clipboard;
         _emptyState = emptyState;
         _logger = logger;
         _invalidate = invalidate;
@@ -145,6 +151,72 @@ public sealed class AppSettingsListController : ListPanelControllerBase<AppSetti
             item.ResolutionState = SecretResolutionState.Failed;
         }
 
+        View.Upsert(item);
+        _invalidate?.Invoke();
+    }
+
+    // Copies the selected row's revealed value to the OS clipboard, then flashes a brief
+    // confirmation on the row. Masked or unresolved rows have nothing to copy and are ignored.
+    public void CopySelectedValue()
+    {
+        var key = View.GetSelectedItemKey();
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        AppSettingDetails? item;
+        lock (_gate)
+        {
+            _items.TryGetValue(key, out item);
+        }
+
+        if (item?.RevealedValue is not { } value)
+        {
+            return;
+        }
+
+        _ = CopyAsync(item, value);
+    }
+
+    private async Task CopyAsync(AppSettingDetails item, string value)
+    {
+        bool copied;
+        try
+        {
+            copied = await _clipboard.TryCopyAsync(value, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (_cts.IsCancellationRequested)
+        {
+            return;
+        }
+
+        if (!copied)
+        {
+            _logger.LogWarning("Clipboard copy failed for setting {SettingName} on {FunctionAppName}",
+                item.Name, _appName);
+            return;
+        }
+
+        item.JustCopied = true;
+        View.Upsert(item);
+        _invalidate?.Invoke();
+
+        try
+        {
+            await Task.Delay(CopiedConfirmationDuration, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        item.JustCopied = false;
         View.Upsert(item);
         _invalidate?.Invoke();
     }

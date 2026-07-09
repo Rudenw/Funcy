@@ -13,6 +13,10 @@ public class FunctionDetails : IComparable<FunctionDetails>, IHasKey
     public string? SubscriptionName { get; set; }
     public string? ConnectionSetting { get; set; }
 
+    // ARM id of the resolved Service Bus namespace, cached (persisted) so the namespace is looked
+    // up only once. Null until resolved.
+    public string? ServiceBusNamespaceId { get; set; }
+
     // Live runtime counts for Service Bus triggers; null until resolved.
     public long? ActiveMessages { get; set; }
     public long? DeadLetteredMessages { get; set; }

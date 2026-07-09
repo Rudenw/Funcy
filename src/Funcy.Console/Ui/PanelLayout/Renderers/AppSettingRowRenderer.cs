@@ -25,10 +25,12 @@ public class AppSettingLayoutRenderer : ILayoutRenderer<AppSettingDetails>
     {
         // Only Name is sortable; the natural order is already by name. Value/Source have no
         // selector so filtering/sorting can never key off a (possibly hidden) value.
+        // Name and Value flex so the spare width on a wide terminal is used instead of left blank;
+        // Source is fixed just wide enough for "Key Vault (<vault-name>)" (~30 chars).
         return new ColumnLayout<AppSettingDetails>(
-            new Column<AppSettingDetails>("Name", f => f.Name, 40),
-            new Column<AppSettingDetails>("Value", null, 53),
-            new Column<AppSettingDetails>("Source", null, 22));
+            new Column<AppSettingDetails>("Name", f => f.Name, 40, Flex: true),
+            new Column<AppSettingDetails>("Value", null, 43, Flex: true),
+            new Column<AppSettingDetails>("Source", null, 32));
     }
 
     private static (string Unselected, string Selected) FormatSource(AppSettingDetails item)

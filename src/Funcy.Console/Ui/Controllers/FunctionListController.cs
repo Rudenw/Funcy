@@ -24,6 +24,16 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
     private readonly Lock _countGate = new();
     private CancellationTokenSource? _countCts;
 
+    // Last-known resolved %SettingName% binding names, keyed by function Key. A Details-kind
+    // republish replaces the row set with freshly DB-mapped instances that carry the RAW names,
+    // which would revert the "Listens to" column to %X% until the async re-fetch lands (and leave
+    // it raw for good if that fetch is superseded, cancelled or fails). Overlaying this memo on
+    // every SetAll keeps the display resolved across all orderings. Display-only; SQLite keeps raw.
+    private readonly Dictionary<string, ResolvedNames> _resolvedNames = new();
+    private readonly Lock _resolvedNamesGate = new();
+
+    private readonly record struct ResolvedNames(string? QueueName, string? TopicName, string? SubscriptionName);
+
     public FunctionListController(IListPanelView<FunctionDetails> view,
         string appKey,
         IEnumerable<FunctionDetails> initial,
@@ -41,7 +51,7 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
         _uiStatusState = uiStatusState;
         _functionAppKey = appKey;
 
-        View.SetAll(initial.ToList());
+        View.SetAll(OverlayResolvedNames(initial.ToList()));
         PushStatusToView(_uiStatusState.GetSnapshot());
         _invalidate?.Invoke();
 
@@ -57,7 +67,7 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
     {
         if (string.Equals(_functionAppKey, functionAppKey))
         {
-            View.SetAll(updated);
+            View.SetAll(OverlayResolvedNames(updated));
             _invalidate?.Invoke();
             // The row set was replaced; re-fetch counts for the new instances.
             TriggerCountFetch();
@@ -117,11 +127,24 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
 
                     function.ActiveMessages = result.ActiveMessages;
                     function.DeadLetteredMessages = result.DeadLetteredMessages;
+                    // Cache the resolved namespace on the model so a repeat fetch in this view skips
+                    // resolution; the app-list sync is what persists it to SQLite.
+                    if (string.IsNullOrEmpty(function.ServiceBusNamespaceId) && !string.IsNullOrEmpty(result.NamespaceId))
+                    {
+                        function.ServiceBusNamespaceId = result.NamespaceId;
+                    }
                     // Publish the resolved %SettingName% binding names so "Listens to" shows the real
                     // target. This is a per-runtime display value; the raw names remain in SQLite.
                     function.QueueName = result.QueueName;
                     function.TopicName = result.TopicName;
                     function.SubscriptionName = result.SubscriptionName;
+                    // Remember them so a later Details-kind republish (which carries raw names) can be
+                    // overlaid back to the resolved display without waiting on another fetch.
+                    lock (_resolvedNamesGate)
+                    {
+                        _resolvedNames[function.Key] =
+                            new ResolvedNames(result.QueueName, result.TopicName, result.SubscriptionName);
+                    }
                     function.CountStatus = result.Success
                         ? ServiceBusCountStatus.Loaded
                         : ServiceBusCountStatus.Failed;
@@ -139,6 +162,33 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
                 _logger.LogError(e, "Failed to fetch Service Bus counts for {FunctionApp}", _functionAppKey);
             }
         }, token);
+    }
+
+    // Applies any memoized resolved binding names onto the incoming instances so the "Listens to"
+    // column stays resolved even when the update carries raw %SettingName% names (e.g. a Details
+    // republish of freshly DB-mapped functions). Mutates the display instances only; the raw names
+    // stay authoritative in SQLite. A subsequent re-fetch refreshes both the memo and the row.
+    private List<FunctionDetails> OverlayResolvedNames(List<FunctionDetails> functions)
+    {
+        lock (_resolvedNamesGate)
+        {
+            if (_resolvedNames.Count == 0)
+            {
+                return functions;
+            }
+
+            foreach (var function in functions)
+            {
+                if (_resolvedNames.TryGetValue(function.Key, out var resolved))
+                {
+                    function.QueueName = resolved.QueueName;
+                    function.TopicName = resolved.TopicName;
+                    function.SubscriptionName = resolved.SubscriptionName;
+                }
+            }
+        }
+
+        return functions;
     }
 
     private void OnUiStatusChanged()

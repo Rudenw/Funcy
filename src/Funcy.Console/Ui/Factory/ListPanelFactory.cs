@@ -54,6 +54,16 @@ public sealed class ListPanelFactory(
             "Settings");
     }
 
+    public IListPanel CreateTagSelectionPanel()
+    {
+        return CreateFromList(
+            new TagChoiceMatcher(),
+            new TagChoiceLayoutRenderer(),
+            new TagSelectionShortcutProvider(),
+            null,
+            "Tag columns");
+    }
+
     public IListPanel CreateFunctionAppPanel(IReadOnlyList<FunctionAppDetails> apps)
     {
         var settings = settingsService.Current;
@@ -95,6 +105,17 @@ public sealed class ListPanelFactory(
         
         var slotDetails = app.Slots[0];
         return new InputActionResult(FunctionAction.Swap, app, slotDetails);
+    }
+
+    public IListPanel CreateIssuesPanel()
+    {
+        return CreateFromList(
+            new UiErrorMatcher(),
+            new UiErrorLayoutRenderer(),
+            new UiErrorShortcutProvider(),
+            null,
+            "Issues",
+            emptyStateMessage: _ => $"[{UiStyles.Hint}]No errors — all clear[/]");
     }
 
     public IListPanel CreateAppSettingsPanel(string appName, Func<UiStatusSnapshot, string?> emptyStateMessage)
