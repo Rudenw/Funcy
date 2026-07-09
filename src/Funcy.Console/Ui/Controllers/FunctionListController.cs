@@ -61,7 +61,7 @@ public sealed class FunctionListController : ListPanelControllerBase<FunctionDet
         TriggerCountFetch();
     }
 
-    public void Refresh() => TriggerCountFetch();
+    public override void Refresh() => TriggerCountFetch();
 
     private void OnListUpdated(string functionAppKey, List<FunctionDetails> updated)
     {

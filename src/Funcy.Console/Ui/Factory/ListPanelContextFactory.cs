@@ -25,8 +25,10 @@ public sealed class ListPanelContextFactory(
     IServiceBusInsightService serviceBusInsightService,
     ILogger<FunctionListController> functionListLogger,
     IFuncySettingsService settingsService,
-    ITagCatalog tagCatalog,
-    ILoggerFactory loggerFactory)
+    ILoggerFactory loggerFactory,
+    ILogQueryExecutor logQueryExecutor,
+    IAppInsightsResolver appInsightsResolver)
+    ITagCatalog tagCatalog)
 {
     public ListPanelContext CreateIssuesPanel(Action invalidate)
     {
@@ -151,6 +153,19 @@ public sealed class ListPanelContextFactory(
             {
                 var view = (IListPanelView<FunctionAppSlotDetails>)panel;
                 var controller = new SnapshotListController<FunctionAppSlotDetails>(view, app.Slots, invalidate);
+                return new ListPanelContext
+                {
+                    View = panel,
+                    Controller = controller
+                };
+            }
+            case PanelTarget.FunctionLogs:
+            {
+                var view = (IListPanelView<LogEntryDetails>)panel;
+                var functionName = request.SecondaryKey ?? "";
+                var controller = new FunctionLogsController(
+                    view, logQueryExecutor, appInsightsResolver,
+                    app.Id, app.Name, functionName, invalidate);
                 return new ListPanelContext
                 {
                     View = panel,

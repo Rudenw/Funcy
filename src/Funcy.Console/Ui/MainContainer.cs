@@ -220,6 +220,11 @@ public sealed class MainContainer : IDisposable
                 break;
 
             case var key when
+                key == ListPanelShortcuts.TypeFilter.Key:
+                Current.Controller.ToggleTypeFilter();
+                break;
+
+            case var key when
                 key == ListPanelShortcuts.RefreshAll.Key:
                 LoadAllDetails();
                 break;
@@ -585,20 +590,25 @@ public sealed class MainContainer : IDisposable
 
     private void LoadDetails()
     {
-        if (!Current.View.IsActionValid(FunctionAction.Refresh))
+        var currentKey = Current.View.GetSelectedItemKey();
+
+        if (Current.View.IsActionValid(FunctionAction.Refresh))
         {
+            // On the Functions panel, Refresh re-runs the controller's Service Bus count fetch
+            // rather than reloading the (already loaded) function app details.
+            if (Current.Controller is ICountRefreshable refreshable)
+            {
+                refreshable.Refresh();
+                return;
+            }
+
+            _detailsLoader.LoadDetails(currentKey);
             return;
         }
 
-        // On the Functions panel, Refresh re-runs the controller's Service Bus count fetch
-        // rather than reloading the (already loaded) function app details.
-        if (Current.Controller is ICountRefreshable refreshable)
-        {
-            refreshable.Refresh();
-            return;
-        }
-
-        _detailsLoader.LoadDetails(Current.View.GetSelectedItemKey());
+        // Panels that own live data (e.g. logs) react to Refresh via their controller instead of
+        // the app-details loader. Default controllers treat this as a no-op.
+        Current.Controller.Refresh();
     }
 
     private void LoadAllDetails()

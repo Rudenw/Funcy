@@ -40,6 +40,10 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     private bool _needsRender;
 
     private List<RowMarkup> _visibleRows = [];
+    // Pending header text and a dynamic empty-state override, set by background updates and
+    // applied on the render thread. Both guarded by _gate.
+    private string? _pendingHeader;
+    private string? _dynamicEmptyState;
 
     // Number of leading rows in _visibleRows that are sticky (pinned off-screen active operations),
     // not part of the scrollable content. The selection index is relative to the content, so it is
@@ -186,6 +190,24 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         }
     }
 
+    public void SetHeader(string header)
+    {
+        lock (_gate)
+        {
+            _pendingHeader = header;
+            _needsRender = true;
+        }
+    }
+
+    public void SetEmptyStateMessage(string? message)
+    {
+        lock (_gate)
+        {
+            _dynamicEmptyState = message;
+            _needsRender = true;
+        }
+    }
+
     public void HandleResize()
     {
         ApplyAdaptiveWidth();
@@ -281,6 +303,8 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
 
     public void RenderCurrentView()
     {
+        ApplyPendingHeader();
+
         if (_visibleRows.Count == 0)
         {
             _renderer.RenderEmpty(GetEmptyStateMessage());
@@ -419,12 +443,30 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
         return _sortedCache;
     }
     
+    // Applied on the render thread only — the Panel header is Spectre state like the table.
+    private void ApplyPendingHeader()
+    {
+        string? header;
+        lock (_gate)
+        {
+            header = _pendingHeader;
+            _pendingHeader = null;
+        }
+
+        if (header is not null)
+        {
+            Panel.Header(header, Justify.Center);
+        }
+    }
+
     private string? GetEmptyStateMessage()
     {
         int count;
+        string? dynamicEmptyState;
         lock (_gate)
         {
             count = _items.Count;
+            dynamicEmptyState = _dynamicEmptyState;
         }
 
         if (!string.IsNullOrWhiteSpace(_searchText) || count > 0)
@@ -432,7 +474,7 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
             return null;
         }
 
-        return _emptyStateMessage?.Invoke(_uiStatus);
+        return dynamicEmptyState ?? _emptyStateMessage?.Invoke(_uiStatus);
     }
 
     public bool TryGetNavigationRequest(out NavigationRequest? navigationRequest)

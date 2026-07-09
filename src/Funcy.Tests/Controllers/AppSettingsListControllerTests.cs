@@ -235,6 +235,8 @@ public class AppSettingsListControllerTests
         public void Upsert(AppSettingDetails item) => Upserts.Add(item);
         public void Remove(string key) { }
         public void SetUiStatus(UiStatusSnapshot uiStatusSnapshot) { }
+        public void SetHeader(string header) { }
+        public void SetEmptyStateMessage(string? message) { }
 
         public string GetSelectedItemKey() => SelectedKey;
 

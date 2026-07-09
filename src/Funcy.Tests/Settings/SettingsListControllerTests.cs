@@ -123,6 +123,8 @@ public class SettingsListControllerTests : IDisposable
         public void Upsert(SettingItemDetails item) { }
         public void Remove(string key) { }
         public void SetUiStatus(UiStatusSnapshot uiStatusSnapshot) { }
+        public void SetHeader(string header) { }
+        public void SetEmptyStateMessage(string? message) { }
 
         public string GetSelectedItemKey() => SelectedKey;
 
