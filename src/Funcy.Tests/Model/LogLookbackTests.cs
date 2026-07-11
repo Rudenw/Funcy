@@ -12,22 +12,33 @@ public class LogLookbackTests
     [InlineData(LogLookback.TwentyFourHours, LogLookback.ThreeDays)]
     [InlineData(LogLookback.ThreeDays, LogLookback.SevenDays)]
     [InlineData(LogLookback.SevenDays, LogLookback.ThirtyDays)]
-    [InlineData(LogLookback.ThirtyDays, LogLookback.OneHour)]
-    public void Next_CyclesInOrder(LogLookback current, LogLookback expected)
+    public void Longer_StepsUp(LogLookback current, LogLookback expected)
     {
-        Assert.Equal(expected, current.Next());
+        Assert.Equal(expected, current.Longer());
+    }
+
+    [Theory]
+    [InlineData(LogLookback.ThirtyDays, LogLookback.SevenDays)]
+    [InlineData(LogLookback.SevenDays, LogLookback.ThreeDays)]
+    [InlineData(LogLookback.ThreeDays, LogLookback.TwentyFourHours)]
+    [InlineData(LogLookback.TwentyFourHours, LogLookback.TwelveHours)]
+    [InlineData(LogLookback.TwelveHours, LogLookback.SixHours)]
+    [InlineData(LogLookback.SixHours, LogLookback.OneHour)]
+    public void Shorter_StepsDown(LogLookback current, LogLookback expected)
+    {
+        Assert.Equal(expected, current.Shorter());
     }
 
     [Fact]
-    public void Next_FullCycleReturnsToStart()
+    public void Longer_ClampsAtWidest()
     {
-        var lookback = LogLookback.OneHour;
-        for (var i = 0; i < 7; i++)
-        {
-            lookback = lookback.Next();
-        }
+        Assert.Equal(LogLookback.ThirtyDays, LogLookback.ThirtyDays.Longer());
+    }
 
-        Assert.Equal(LogLookback.OneHour, lookback);
+    [Fact]
+    public void Shorter_ClampsAtNarrowest()
+    {
+        Assert.Equal(LogLookback.OneHour, LogLookback.OneHour.Shorter());
     }
 
     [Theory]

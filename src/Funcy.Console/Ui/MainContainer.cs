@@ -8,6 +8,7 @@ using Funcy.Console.Ui.Panels;
 using Funcy.Console.Ui.Panels.Interfaces;
 using Funcy.Console.Ui.Shortcuts;
 using Funcy.Console.Ui.State;
+using Funcy.Core.Interfaces;
 using Funcy.Core.Model;
 using Funcy.Infrastructure.Azure;
 using Spectre.Console;
@@ -23,6 +24,7 @@ public sealed class MainContainer : IDisposable
     private readonly TopPanel _topPanel;
     private readonly AppContext _appContext;
     private readonly IAzureSessionMonitor _sessionMonitor;
+    private readonly IClipboardService _clipboard;
     private static readonly Markup EmptyMarkup = new("");
     private TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -52,7 +54,8 @@ public sealed class MainContainer : IDisposable
         AppContext appContext,
         IAzureSessionMonitor sessionMonitor,
         ITagCatalog tagCatalog,
-        IFuncySettingsService settingsService)
+        IFuncySettingsService settingsService,
+        IClipboardService clipboard)
     {
         _listPanelContextFactory = listPanelContextFactory;
         _actionDispatcher = actionDispatcher;
@@ -63,6 +66,7 @@ public sealed class MainContainer : IDisposable
         _sessionMonitor = sessionMonitor;
         _tagCatalog = tagCatalog;
         _settingsService = settingsService;
+        _clipboard = clipboard;
         _settingsService.ColumnsChanged += RebuildRootPanel;
         _topPanel = new TopPanel(appContext);
 
@@ -184,6 +188,12 @@ public sealed class MainContainer : IDisposable
 
         if (_searchMode)
         {
+            if (IsPaste(keyInfo))
+            {
+                PasteIntoSearch();
+                return;
+            }
+
             _searchMode = Current.SearchInputManager.HandleInput(keyInfo);
             SyncSearchUi();
             return;
@@ -224,9 +234,12 @@ public sealed class MainContainer : IDisposable
                 Current.Controller.ToggleTypeFilter();
                 break;
 
-            case var key when
-                key == ListPanelShortcuts.LogWindow.Key:
-                Current.Controller.ToggleLookback();
+            case var key when key == ListPanelShortcuts.RangeShorter.Key:
+                Current.Controller.CycleLookback(longer: false);
+                break;
+
+            case var key when key == ListPanelShortcuts.RangeLonger.Key:
+                Current.Controller.CycleLookback(longer: true);
                 break;
 
             case var key when
@@ -636,6 +649,36 @@ public sealed class MainContainer : IDisposable
     {
         _searchMode = true;
         Current.SearchInputManager.InitializeSearchMode();
+        SyncSearchUi();
+    }
+
+    // Ctrl+V, or Shift+Insert — the two conventional terminal paste chords. Bare characters from a
+    // paste already arrive as key events and flow through HandleInput normally.
+    private static bool IsPaste(ConsoleKeyInfo keyInfo)
+        => (keyInfo.Key == ConsoleKey.V && keyInfo.Modifiers.HasFlag(ConsoleModifiers.Control))
+           || (keyInfo.Key == ConsoleKey.Insert && keyInfo.Modifiers.HasFlag(ConsoleModifiers.Shift));
+
+    // Reads the OS clipboard and inserts it at the search cursor. Blocks briefly (paste is rare and
+    // user-initiated); a missing clipboard tool yields null and is a no-op.
+    private void PasteIntoSearch()
+    {
+        string? text;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
+            text = _clipboard.TryReadAsync(cts.Token).GetAwaiter().GetResult();
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        Current.SearchInputManager.InsertText(text);
         SyncSearchUi();
     }
     

@@ -120,6 +120,42 @@ public class SearchInputManagerTests
         Assert.Equal("", mgr.SearchText);
     }
 
+    // ---- Paste (InsertText) ----
+
+    [Fact]
+    public void InsertText_InsertsAtCursor_BeforePlaceholder()
+    {
+        var mgr = Typed("ab");        // "ab ", cursor on trailing placeholder
+        mgr.InsertText("XY");
+        Assert.Equal("abXY ", mgr.SearchText);
+    }
+
+    [Fact]
+    public void InsertText_AtCursorPosition_SplitsExistingText()
+    {
+        var mgr = Typed("abc");
+        mgr.HandleInput(Key(ConsoleKey.LeftArrow));
+        mgr.HandleInput(Key(ConsoleKey.LeftArrow)); // cursor at index 1
+        mgr.InsertText("XY");
+        Assert.Equal("aXYbc ", mgr.SearchText);
+    }
+
+    [Fact]
+    public void InsertText_StripsControlChars_FromMultiLineClipboard()
+    {
+        var mgr = Typed("a");
+        mgr.InsertText("b\r\nc\td");
+        Assert.Equal("abcd ", mgr.SearchText);
+    }
+
+    [Fact]
+    public void InsertText_WhenNotInSearchMode_IsNoOp()
+    {
+        var mgr = new SearchInputManager(); // never initialized
+        mgr.InsertText("xyz");
+        Assert.Equal("", mgr.SearchText);
+    }
+
     // ---- SearchMarkup rendering ----
 
     [Fact]

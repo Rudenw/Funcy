@@ -37,6 +37,9 @@ public sealed class LogBuffer(int capacity)
 
     public int Count => _entries.Count;
 
+    // The entry with this key, or null if it is no longer retained (e.g. capped out).
+    public LogEntryDetails? Find(string key) => _entries.GetValueOrDefault(key);
+
     // Drops every entry so the next poll refetches the whole window from scratch (used when the
     // lookback window changes and the retained set no longer matches the requested range).
     public void Clear()

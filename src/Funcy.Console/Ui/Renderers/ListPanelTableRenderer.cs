@@ -121,10 +121,23 @@ public class ListPanelTableRenderer<T>
             return;
         }
 
-        var cells = new List<IRenderable> { Clip(new Markup(message)) };
-        for (var i = 1; i < _columns.Count; i++)
+        // Place the message under the panel's primary (first flex) column so it lands in the wide
+        // column that can show it on one line, rather than being crammed into a narrow first column
+        // (e.g. the logs panel's "Time"). Falls back to the first column when nothing flexes.
+        var messageColumn = 0;
+        for (var i = 0; i < _columns.Count; i++)
         {
-            cells.Add(Clip(new Markup(" ")));
+            if (_columns[i].Flex)
+            {
+                messageColumn = i;
+                break;
+            }
+        }
+
+        var cells = new List<IRenderable>(_columns.Count);
+        for (var i = 0; i < _columns.Count; i++)
+        {
+            cells.Add(Clip(new Markup(i == messageColumn ? message : " ")));
         }
 
         Table.AddRow(cells);

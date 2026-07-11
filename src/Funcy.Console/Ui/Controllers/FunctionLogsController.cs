@@ -9,7 +9,7 @@ namespace Funcy.Console.Ui.Controllers;
 // open and then only on demand (R) — there is no background polling. All view mutation goes
 // through SetAll/SetHeader/invalidate; the Spectre table itself is only ever touched on the
 // render thread.
-public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDetails>
+public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDetails>, IClipboardCopyController
 {
     private const int InitialMaxRows = 200;
     private const int IncrementalMaxRows = 200;
@@ -17,9 +17,13 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     // Small overlap so entries arriving out of order around the boundary are not missed; dedupe
     // by Key removes the duplicates that the overlap re-fetches.
     private static readonly TimeSpan PollOverlap = TimeSpan.FromSeconds(30);
+    private static readonly string[] SpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    private static readonly TimeSpan SpinnerInterval = TimeSpan.FromMilliseconds(120);
+    private static readonly TimeSpan CopyConfirmDuration = TimeSpan.FromSeconds(1.5);
 
     private readonly ILogQueryExecutor _executor;
     private readonly IAppInsightsResolver _resolver;
+    private readonly IClipboardService _clipboard;
     private readonly Action? _invalidate;
     private readonly string _functionAppArmId;
     private readonly string _functionAppName;
@@ -33,11 +37,13 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     private LogTypeFilter _filter = LogTypeFilter.All;
     private LogLookback _lookback = LogLookback.OneHour;
     private DateTimeOffset? _lastPolled;
+    private bool _copyConfirm;
 
     public FunctionLogsController(
         IListPanelView<LogEntryDetails> view,
         ILogQueryExecutor executor,
         IAppInsightsResolver resolver,
+        IClipboardService clipboard,
         string functionAppArmId,
         string functionAppName,
         string functionName,
@@ -46,12 +52,14 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     {
         _executor = executor;
         _resolver = resolver;
+        _clipboard = clipboard;
         _invalidate = invalidate;
         _functionAppArmId = functionAppArmId;
         _functionAppName = functionAppName;
         _functionName = functionName;
 
-        View.SetEmptyStateMessage($"[gray]Loading Application Insights logs for {Markup.Escape(functionName)}…[/]");
+        // Static placeholder until the poll loop resolves the resource and the spinner takes over.
+        View.SetEmptyStateMessage($"[gray]Loading logs for {Markup.Escape(functionName)}…[/]");
         UpdateHeader();
         _invalidate?.Invoke();
 
@@ -78,21 +86,81 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
         _invalidate?.Invoke();
     }
 
-    public override void ToggleLookback()
+    public override void CycleLookback(bool longer)
     {
         lock (_sync)
         {
-            _lookback = _lookback.Next();
+            var next = longer ? _lookback.Longer() : _lookback.Shorter();
+            if (next == _lookback)
+            {
+                // Already at the widest/narrowest window; nothing to refetch.
+                return;
+            }
+
+            _lookback = next;
             // The retained entries no longer match the requested range; drop them so the next
             // fetch reloads the whole window (since = null).
             _buffer.Clear();
-            View.SetEmptyStateMessage($"[gray]Loading last {_lookback.ToDisplayLabel()}…[/]");
             ApplyViewLocked();
         }
 
         _invalidate?.Invoke();
         // Re-fetch immediately with the new window.
         Refresh();
+    }
+
+    public void CopySelectedValue()
+    {
+        var key = View.GetSelectedItemKey();
+        if (string.IsNullOrEmpty(key))
+        {
+            return;
+        }
+
+        LogEntryDetails? entry;
+        lock (_sync)
+        {
+            entry = _buffer.Find(key);
+        }
+
+        if (entry is not null)
+        {
+            _ = CopyAsync(entry.Message);
+        }
+    }
+
+    private async Task CopyAsync(string message)
+    {
+        var copied = await _clipboard.TryCopyAsync(message, _cts.Token);
+        if (!copied)
+        {
+            return;
+        }
+
+        lock (_sync)
+        {
+            _copyConfirm = true;
+            UpdateHeader();
+        }
+
+        _invalidate?.Invoke();
+
+        try
+        {
+            await Task.Delay(CopyConfirmDuration, _cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        lock (_sync)
+        {
+            _copyConfirm = false;
+            UpdateHeader();
+        }
+
+        _invalidate?.Invoke();
     }
 
     private async Task PollLoopAsync(CancellationToken cancellationToken)
@@ -130,10 +198,21 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     {
         DateTimeOffset? since;
         LogLookback lookback;
+        bool wasEmpty;
         lock (_sync)
         {
             since = _buffer.MaxTimestamp is { } max ? max - PollOverlap : null;
             lookback = _lookback;
+            wasEmpty = _buffer.Count == 0;
+        }
+
+        // Animate a spinner in the empty state while the first load for this window is in flight;
+        // there is nothing to show yet, so the panel would otherwise look frozen.
+        CancellationTokenSource? spinnerCts = null;
+        if (wasEmpty)
+        {
+            spinnerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            _ = SpinLoadingAsync($"Loading last {lookback.ToDisplayLabel()}", spinnerCts.Token);
         }
 
         try
@@ -142,6 +221,9 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
             var entries = await _executor.QueryAsync(
                 new LogQueryRequest(resourceId, _functionAppName, _functionName, since, maxRows, lookback.ToTimeSpan()),
                 cancellationToken);
+
+            // Stop the spinner before writing the final empty-state text so it cannot overwrite it.
+            spinnerCts?.Cancel();
 
             lock (_sync)
             {
@@ -163,7 +245,32 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
         }
         catch
         {
-            // Transient query failure: keep the existing buffer and try again next poll.
+            spinnerCts?.Cancel();
+            View.SetEmptyStateMessage("[gray]Could not load logs. Press R to try again.[/]");
+            _invalidate?.Invoke();
+        }
+        finally
+        {
+            spinnerCts?.Dispose();
+        }
+    }
+
+    private async Task SpinLoadingAsync(string label, CancellationToken cancellationToken)
+    {
+        var frame = 0;
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                View.SetEmptyStateMessage($"[gray]{label} {SpinnerFrames[frame]}[/]");
+                _invalidate?.Invoke();
+                frame = (frame + 1) % SpinnerFrames.Length;
+                await Task.Delay(SpinnerInterval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Load finished (or panel closed); the caller sets the terminal empty-state text.
         }
     }
 
@@ -174,14 +281,16 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
         UpdateHeader();
     }
 
+    // Caller holds _sync (or runs single-threaded in the ctor).
     private void UpdateHeader()
     {
         var refreshed = _lastPolled is { } p ? p.ToString("HH:mm:ss") : "—";
         var count = _buffer.Count;
+        var confirm = _copyConfirm ? $" · [green]{UiStyles.OkGlyph} copied[/]" : "";
         View.SetHeader(
             $"Logs: {Markup.Escape(_functionName)} " +
             $"[yellow]{_filter.ToDisplayLabel()}[/] · last [yellow]{_lookback.ToDisplayLabel()}[/] " +
-            $"(refreshed {refreshed}, {count} entries)");
+            $"(refreshed {refreshed}, {count} entries){confirm}");
     }
 
     public override void Dispose()

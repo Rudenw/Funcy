@@ -27,8 +27,8 @@ public static class LogLookbackExtensions
         _ => TimeSpan.FromHours(1),
     };
 
-    // Cycles 1h -> 6h -> 12h -> 24h -> 3d -> 7d -> 30d -> 1h.
-    public static LogLookback Next(this LogLookback lookback) => lookback switch
+    // A longer window (next step up), clamped at the widest (30d) — used by the "range +" key.
+    public static LogLookback Longer(this LogLookback lookback) => lookback switch
     {
         LogLookback.OneHour => LogLookback.SixHours,
         LogLookback.SixHours => LogLookback.TwelveHours,
@@ -36,6 +36,18 @@ public static class LogLookbackExtensions
         LogLookback.TwentyFourHours => LogLookback.ThreeDays,
         LogLookback.ThreeDays => LogLookback.SevenDays,
         LogLookback.SevenDays => LogLookback.ThirtyDays,
+        _ => LogLookback.ThirtyDays,
+    };
+
+    // A shorter window (next step down), clamped at the narrowest (1h) — used by the "range -" key.
+    public static LogLookback Shorter(this LogLookback lookback) => lookback switch
+    {
+        LogLookback.ThirtyDays => LogLookback.SevenDays,
+        LogLookback.SevenDays => LogLookback.ThreeDays,
+        LogLookback.ThreeDays => LogLookback.TwentyFourHours,
+        LogLookback.TwentyFourHours => LogLookback.TwelveHours,
+        LogLookback.TwelveHours => LogLookback.SixHours,
+        LogLookback.SixHours => LogLookback.OneHour,
         _ => LogLookback.OneHour,
     };
 

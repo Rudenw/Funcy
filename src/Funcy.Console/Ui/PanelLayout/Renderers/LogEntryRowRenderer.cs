@@ -15,6 +15,13 @@ public class LogEntryLayoutRenderer : ILayoutRenderer<LogEntryDetails>
     private const int SevWidth = 13;
     private const int MessageWidth = 40;
 
+    // Spectre adds one column of padding on each side of every column, so the four columns claim
+    // 2*4 = 8 chars that the resolved width does not account for. The table then shrinks the
+    // columns to fit, and a message truncated to the full resolved width overflows the shrunk
+    // Message column and word-wraps onto a second line (breaking the paginator's 1-row == 1-line
+    // assumption). Reserve that budget so the truncated text always fits on one line.
+    private const int PaddingReserve = 8;
+
     // Grows with the table (see SetResolvedWidths); starts at the configured minimum so the first
     // markup build before any resize still truncates sanely.
     private int _messageWidth = MessageWidth;
@@ -23,7 +30,7 @@ public class LogEntryLayoutRenderer : ILayoutRenderer<LogEntryDetails>
     {
         if (resolvedWidths.TryGetValue("Message", out var width) && width > 0)
         {
-            _messageWidth = width;
+            _messageWidth = Math.Max(MessageWidth, width - PaddingReserve);
         }
     }
 
