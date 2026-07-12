@@ -73,6 +73,28 @@ public class LogBufferTests
     }
 
     [Fact]
+    public void Find_ReturnsEntryByKey_OrNullWhenAbsent()
+    {
+        var buffer = new LogBuffer(100);
+        buffer.Merge([Entry("a", Base), Entry("b", Base.AddSeconds(1))]);
+
+        Assert.Equal("a", buffer.Find("a")?.Key);
+        Assert.Null(buffer.Find("missing"));
+    }
+
+    [Fact]
+    public void Clear_EmptiesBuffer_AndResetsMaxTimestamp()
+    {
+        var buffer = new LogBuffer(100);
+        buffer.Merge([Entry("a", Base), Entry("b", Base.AddSeconds(1))]);
+
+        buffer.Clear();
+
+        Assert.Equal(0, buffer.Count);
+        Assert.Null(buffer.MaxTimestamp);
+    }
+
+    [Fact]
     public void Snapshot_FiltersByType_AndOrdersNewestFirst()
     {
         var buffer = new LogBuffer(100);

@@ -15,7 +15,7 @@ using Spectre.Console;
 
 namespace Funcy.Console.Ui.Panels;
 
-public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T : IComparable<T>, IHasKey
+public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T>, IOrderTogglePanel where T : IComparable<T>, IHasKey
 {
     private readonly ISorter<T> _sorter;
     private readonly ISearchMatcher<T> _searchMatcher;
@@ -529,6 +529,18 @@ public class ListPanelView<T> : IActionHandlingPanel, IListPanelView<T> where T 
     public void SortViewBy(int keyInfoKey)
     {
         _sorter.Toggle(keyInfoKey);
+        _renderer.ToggleSortingColumn(_sorter.CurrentColumn, _sorter.Desc);
+        lock (_gate)
+        {
+            _sortDirty = true;
+        }
+
+        RefreshView();
+    }
+
+    public void SetSortOrder(int columnIndex, bool descending)
+    {
+        _sorter.SetOrder(columnIndex, descending);
         _renderer.ToggleSortingColumn(_sorter.CurrentColumn, _sorter.Desc);
         lock (_gate)
         {

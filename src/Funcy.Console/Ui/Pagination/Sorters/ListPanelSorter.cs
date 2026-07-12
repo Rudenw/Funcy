@@ -45,6 +45,17 @@ public sealed class ListPanelSorter<T> : ISorter<T>
         }
     }
 
+    public void SetOrder(int columnIndex, bool descending)
+    {
+        if (!_map.ContainsKey(columnIndex))
+        {
+            return;
+        }
+
+        CurrentColumn = columnIndex;
+        Desc = descending;
+    }
+
     public IReadOnlyList<T> Sort(IReadOnlyList<T> source)
     {
         if (CurrentColumn is null)

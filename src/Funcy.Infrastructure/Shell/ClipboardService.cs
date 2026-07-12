@@ -22,6 +22,20 @@ public sealed class ClipboardService : IClipboardService
         return false;
     }
 
+    public async Task<string?> TryReadAsync(CancellationToken cancellationToken = default)
+    {
+        foreach (var (file, arguments) in ReadCandidates())
+        {
+            var text = await TryReadWithAsync(file, arguments, cancellationToken);
+            if (text is not null)
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
     private static IEnumerable<(string File, string Arguments)> Candidates()
     {
         if (OperatingSystem.IsWindows())
@@ -36,6 +50,63 @@ public sealed class ClipboardService : IClipboardService
         {
             yield return ("wl-copy", string.Empty);
             yield return ("xclip", "-selection clipboard");
+        }
+    }
+
+    private static IEnumerable<(string File, string Arguments)> ReadCandidates()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // Windows has no read-side 'clip'; PowerShell's Get-Clipboard is the standard fallback.
+            yield return ("powershell", "-NoProfile -Command Get-Clipboard");
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            yield return ("pbpaste", string.Empty);
+        }
+        else
+        {
+            yield return ("wl-paste", "--no-newline");
+            yield return ("xclip", "-selection clipboard -o");
+        }
+    }
+
+    private static async Task<string?> TryReadWithAsync(string file, string arguments, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = file,
+                Arguments = arguments,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var process = new Process { StartInfo = psi };
+            if (!process.Start())
+            {
+                return null;
+            }
+
+            var readTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = await readTask;
+
+            if (process.ExitCode != 0 || string.IsNullOrEmpty(output))
+            {
+                return null;
+            }
+
+            // Get-Clipboard appends a trailing newline; drop only trailing line breaks.
+            return output.TrimEnd('\r', '\n');
+        }
+        catch (Exception)
+        {
+            // Tool not on PATH or the read failed — let the caller try the next one.
+            return null;
         }
     }
 

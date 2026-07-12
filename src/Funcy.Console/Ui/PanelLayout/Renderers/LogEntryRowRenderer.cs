@@ -6,8 +6,33 @@ namespace Funcy.Console.Ui.PanelLayout.Renderers;
 
 public class LogEntryLayoutRenderer : ILayoutRenderer<LogEntryDetails>
 {
-    // Table total width is 115: 10 + 11 + 9 + 85.
-    private const int MessageWidth = 85;
+    // Fixed columns are sized for their content plus the sort marker the header appends ("(n) ↓")
+    // and the cell padding (1 each side), so they read with breathing room rather than flush
+    // together: "HH:mm:ss" (8), "Exception" (9), "Critical" (8). Message is the only flex column,
+    // so it absorbs all the spare width the terminal offers.
+    private const int TimeWidth = 12;
+    private const int TypeWidth = 15;
+    private const int SevWidth = 13;
+    private const int MessageWidth = 40;
+
+    // Spectre adds one column of padding on each side of every column, so the four columns claim
+    // 2*4 = 8 chars that the resolved width does not account for. The table then shrinks the
+    // columns to fit, and a message truncated to the full resolved width overflows the shrunk
+    // Message column and word-wraps onto a second line (breaking the paginator's 1-row == 1-line
+    // assumption). Reserve that budget so the truncated text always fits on one line.
+    private const int PaddingReserve = 8;
+
+    // Grows with the table (see SetResolvedWidths); starts at the configured minimum so the first
+    // markup build before any resize still truncates sanely.
+    private int _messageWidth = MessageWidth;
+
+    public void SetResolvedWidths(IReadOnlyDictionary<string, int> resolvedWidths)
+    {
+        if (resolvedWidths.TryGetValue("Message", out var width) && width > 0)
+        {
+            _messageWidth = Math.Max(MessageWidth, width - PaddingReserve);
+        }
+    }
 
     public RowMarkup CreateRowMarkup(LogEntryDetails item)
     {
@@ -16,17 +41,17 @@ public class LogEntryLayoutRenderer : ILayoutRenderer<LogEntryDetails>
         rowMarkup.Add("Time", Cell(item.Timestamp.ToLocalTime().ToString("HH:mm:ss"), color));
         rowMarkup.Add("Type", Cell(item.ItemType.ToString(), color));
         rowMarkup.Add("Sev", Cell(item.Severity ?? "", color));
-        rowMarkup.Add("Message", Cell(Truncate(item.Message, MessageWidth - 1), color));
+        rowMarkup.Add("Message", Cell(Truncate(item.Message, _messageWidth - 1), color));
         return rowMarkup;
     }
 
     public ColumnLayout<LogEntryDetails> CreateColumnLayout()
     {
         return new ColumnLayout<LogEntryDetails>(
-            new Column<LogEntryDetails>("Time", e => e.Timestamp, 10),
-            new Column<LogEntryDetails>("Type", e => e.ItemType, 11),
-            new Column<LogEntryDetails>("Sev", e => e.Severity, 9),
-            new Column<LogEntryDetails>("Message", e => e.Message, MessageWidth));
+            new Column<LogEntryDetails>("Time", e => e.Timestamp, TimeWidth),
+            new Column<LogEntryDetails>("Type", e => e.ItemType, TypeWidth),
+            new Column<LogEntryDetails>("Sev", e => e.Severity, SevWidth),
+            new Column<LogEntryDetails>("Message", e => e.Message, MessageWidth, Flex: true));
     }
 
     private static RowCell Cell(string text, string? color)

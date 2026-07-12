@@ -14,6 +14,11 @@ public static class ListPanelShortcuts
     public static readonly Shortcut ShowAll = new(ConsoleKey.H, "H", "Show all");
     public static readonly Shortcut ToggleVisibility = new(ConsoleKey.X, "X", "Toggle hidden");
     public static readonly Shortcut TypeFilter = new(ConsoleKey.E, "E", "Type");
+    public static readonly Shortcut RangeShorter = new(ConsoleKey.OemComma, ",", "Range -");
+    public static readonly Shortcut RangeLonger = new(ConsoleKey.OemPeriod, ".", "Range +");
+    public static readonly Shortcut ViewLogs = new(ConsoleKey.Enter, "↩", "Logs");
+    public static readonly Shortcut CopyMessage = new(ConsoleKey.C, "C", "Copy");
+    public static readonly Shortcut SortOrder = new(ConsoleKey.B, "B", "Order");
     public static readonly Shortcut ReLogin = new(ConsoleKey.L, "L", "Re-login");
     public static readonly Shortcut Pin = new(ConsoleKey.P, "P", "Pin");
     public static readonly Shortcut View = new(ConsoleKey.V, "V", "Env vars");

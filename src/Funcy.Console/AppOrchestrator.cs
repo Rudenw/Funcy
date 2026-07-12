@@ -3,6 +3,7 @@ using Funcy.Console.Settings;
 using Funcy.Console.Ui;
 using Funcy.Console.Ui.Factory;
 using Funcy.Console.Ui.State;
+using Funcy.Core.Interfaces;
 using Funcy.Infrastructure.Azure;
 
 namespace Funcy.Console;
@@ -21,7 +22,8 @@ public class AppOrchestrator(
     AppContext appContext,
     IAzureSessionMonitor sessionMonitor,
     ITagCatalog tagCatalog,
-    IFuncySettingsService settingsService)
+    IFuncySettingsService settingsService,
+    IClipboardService clipboard)
 {
     private MainContainer _mainContainer = null!;
 
@@ -30,7 +32,7 @@ public class AppOrchestrator(
         var cts = new CancellationTokenSource();
 
         _mainContainer = new MainContainer(listPanelContextFactory, actionDispatcher, functionAppUpdateHandler,
-            uiStateMarkupProvider, errorLog, appContext, sessionMonitor, tagCatalog, settingsService);
+            uiStateMarkupProvider, errorLog, appContext, sessionMonitor, tagCatalog, settingsService, clipboard);
         try
         {
             // InitializeAsync is now done in Program.cs before StartAsync
@@ -77,8 +79,14 @@ public class AppOrchestrator(
 
                     if (inputHandler.IsTriggered)
                     {
-                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
+                        // Reset first, then drain: any key that arrives mid-drain re-triggers and is
+                        // handled next iteration rather than being lost. Draining the whole buffer
+                        // keeps fast bursts (paste) intact instead of collapsing them.
                         inputHandler.ResetTrigger();
+                        while (inputHandler.TryDequeue(out var keyInfo))
+                        {
+                            _mainContainer.HandleInput(keyInfo);
+                        }
                     }
                     
                     if (resizeHandler.IsTriggered)

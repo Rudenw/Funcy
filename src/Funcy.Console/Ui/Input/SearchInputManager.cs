@@ -85,6 +85,25 @@ public class SearchInputManager
         return !char.IsControl(keyInfo.KeyChar) ? keyInfo.KeyChar : null;
     }
 
+    // Inserts pasted text at the cursor. Control characters (newlines, tabs from a multi-line
+    // clipboard) are dropped so the single-line search field stays intact.
+    public void InsertText(string text)
+    {
+        if (!_searchMode || string.IsNullOrEmpty(text))
+        {
+            return;
+        }
+
+        var clean = new string(text.Where(c => !char.IsControl(c)).ToArray());
+        if (clean.Length == 0)
+        {
+            return;
+        }
+
+        _searchText.Insert(_searchIndex, clean);
+        _searchIndex += clean.Length;
+    }
+
     public void InitializeSearchMode()
     {
         _searchMode = true;

@@ -194,6 +194,9 @@ public class AppSettingsListControllerTests
             LastCopied = text;
             return Task.FromResult(result);
         }
+
+        public Task<string?> TryReadAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<string?>(null);
     }
 
     private sealed class FakeAppSettingsService(IReadOnlyList<AppSettingDetails> settings) : IAppSettingsService

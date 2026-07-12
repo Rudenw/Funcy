@@ -164,7 +164,7 @@ public sealed class ListPanelContextFactory(
                 var view = (IListPanelView<LogEntryDetails>)panel;
                 var functionName = request.SecondaryKey ?? "";
                 var controller = new FunctionLogsController(
-                    view, logQueryExecutor, appInsightsResolver,
+                    view, logQueryExecutor, appInsightsResolver, clipboardService,
                     app.Id, app.Name, functionName, invalidate);
                 return new ListPanelContext
                 {
