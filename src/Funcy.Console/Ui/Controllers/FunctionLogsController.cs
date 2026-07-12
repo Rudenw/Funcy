@@ -34,10 +34,15 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     private readonly SemaphoreSlim _pollNow = new(0, 1);
     private readonly CancellationTokenSource _cts = new();
 
+    // The Time column is the first column in LogEntryLayoutRenderer; the sorter keys columns 1-based.
+    private const int TimeColumnIndex = 1;
+
     private LogTypeFilter _filter = LogTypeFilter.All;
     private LogLookback _lookback = LogLookback.OneHour;
     private DateTimeOffset? _lastPolled;
     private bool _copyConfirm;
+    // Newest-first matches the buffer's natural order; the toggle flips to oldest-first.
+    private bool _newestFirst = true;
 
     public FunctionLogsController(
         IListPanelView<LogEntryDetails> view,
@@ -107,6 +112,22 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
         _invalidate?.Invoke();
         // Re-fetch immediately with the new window.
         Refresh();
+    }
+
+    public override void ToggleSortOrder()
+    {
+        bool newestFirst;
+        lock (_sync)
+        {
+            _newestFirst = !_newestFirst;
+            newestFirst = _newestFirst;
+            UpdateHeader();
+        }
+
+        // Drive the view's sorter directly so it is a clean two-way toggle (asc/desc), not the
+        // three-state column cycle. Descending on Time == newest first.
+        (View as IOrderTogglePanel)?.SetSortOrder(TimeColumnIndex, descending: newestFirst);
+        _invalidate?.Invoke();
     }
 
     public void CopySelectedValue()
@@ -286,10 +307,11 @@ public sealed class FunctionLogsController : ListPanelControllerBase<LogEntryDet
     {
         var refreshed = _lastPolled is { } p ? p.ToString("HH:mm:ss") : "—";
         var count = _buffer.Count;
+        var order = _newestFirst ? "newest" : "oldest";
         var confirm = _copyConfirm ? $" · [green]{UiStyles.OkGlyph} copied[/]" : "";
         View.SetHeader(
             $"Logs: {Markup.Escape(_functionName)} " +
-            $"[yellow]{_filter.ToDisplayLabel()}[/] · last [yellow]{_lookback.ToDisplayLabel()}[/] " +
+            $"[yellow]{_filter.ToDisplayLabel()}[/] · last [yellow]{_lookback.ToDisplayLabel()}[/] · [yellow]{order} first[/] " +
             $"(refreshed {refreshed}, {count} entries){confirm}");
     }
 

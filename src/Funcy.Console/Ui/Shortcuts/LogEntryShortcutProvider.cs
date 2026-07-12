@@ -16,6 +16,8 @@ public class LogEntryShortcutProvider : IShortcutProvider<LogEntryDetails>
             // The lookback range: shorter (,) and longer (.).
             { new TableIndex(1, 2), new ShortcutMap(ListPanelShortcuts.RangeShorter, true) },
             { new TableIndex(1, 3), new ShortcutMap(ListPanelShortcuts.RangeLonger, true) },
+            // Toggle newest-first / oldest-first ordering.
+            { new TableIndex(1, 4), new ShortcutMap(ListPanelShortcuts.SortOrder, true) },
         };
     }
 

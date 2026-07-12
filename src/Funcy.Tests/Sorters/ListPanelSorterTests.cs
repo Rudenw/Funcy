@@ -48,6 +48,29 @@ public class ListPanelSorterTests
     }
 
     [Fact]
+    public void SetOrder_ActivatesColumnWithExplicitDirection_NoOffState()
+    {
+        var sorter = MakeSorter();
+
+        sorter.SetOrder(1, descending: true);
+        Assert.Equal(1, sorter.CurrentColumn);
+        Assert.True(sorter.Desc);
+
+        // Unlike Toggle, re-applying the same direction stays active (never cycles to 'off').
+        sorter.SetOrder(1, descending: false);
+        Assert.Equal(1, sorter.CurrentColumn);
+        Assert.False(sorter.Desc);
+    }
+
+    [Fact]
+    public void SetOrder_UnknownColumn_IsIgnored()
+    {
+        var sorter = MakeSorter(columnCount: 2);
+        sorter.SetOrder(99, descending: true);
+        Assert.Null(sorter.CurrentColumn);
+    }
+
+    [Fact]
     public void Toggle_SameColumn_ThirdTime_ClearsSort()
     {
         var sorter = MakeSorter();

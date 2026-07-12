@@ -242,6 +242,10 @@ public sealed class MainContainer : IDisposable
                 Current.Controller.CycleLookback(longer: true);
                 break;
 
+            case var key when key == ListPanelShortcuts.SortOrder.Key:
+                Current.Controller.ToggleSortOrder();
+                break;
+
             case var key when
                 key == ListPanelShortcuts.RefreshAll.Key:
                 LoadAllDetails();

@@ -79,8 +79,14 @@ public class AppOrchestrator(
 
                     if (inputHandler.IsTriggered)
                     {
-                        _mainContainer.HandleInput(inputHandler.TriggeredKeyInfo);
+                        // Reset first, then drain: any key that arrives mid-drain re-triggers and is
+                        // handled next iteration rather than being lost. Draining the whole buffer
+                        // keeps fast bursts (paste) intact instead of collapsing them.
                         inputHandler.ResetTrigger();
+                        while (inputHandler.TryDequeue(out var keyInfo))
+                        {
+                            _mainContainer.HandleInput(keyInfo);
+                        }
                     }
                     
                     if (resizeHandler.IsTriggered)
