@@ -14,7 +14,7 @@ namespace Funcy.Console.Ui;
 public static class SplashScreenLayout
 {
     private const string Tagline = "Azure Function Apps, at a glance";
-    private const string BrandName = "Funcy";
+    private const string BrandName = "az-funcy";
 
     // Below this width the Figlet wordmark no longer fits, so fall back to a compact text mark.
     private const int FigletMinWidth = 50;
@@ -62,7 +62,7 @@ public static class SplashScreenLayout
         }
 
         body.Add(new Markup(""));
-        body.Add(new Markup("[bold red]Install the missing tools and restart Funcy.[/]"));
+        body.Add(new Markup("[bold red]Install the missing tools and restart az-funcy.[/]"));
         body.Add(new Markup("[grey54]Press any key to exit...[/]"));
 
         return Compose(consoleWidth, Color.Red, centeredBody: false, body.ToArray());

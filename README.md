@@ -1,6 +1,6 @@
-# Funcy
+# az-funcy
 
-Funcy is a terminal-based (TUI) tool for monitoring and administering **Azure Function Apps** across Azure subscriptions.
+az-funcy is a terminal-based (TUI) tool for monitoring and administering **Azure Function Apps** across Azure subscriptions.
 
 It is built with **Spectre.Console** and inspired by tools like **btop** and **k9s**, focusing on fast feedback, keyboard-driven workflows, and minimal friction.
 
@@ -27,7 +27,7 @@ It is built with **Spectre.Console** and inspired by tools like **btop** and **k
 
 ### Azure CLI extensions
 
-Funcy depends on **Azure Resource Graph**, which is **not installed by default**.
+az-funcy depends on **Azure Resource Graph**, which is **not installed by default**.
 
 Install it explicitly:
 
@@ -43,7 +43,7 @@ az extension list
 
 ### Azure authentication
 
-Funcy uses `DefaultAzureCredential`.
+az-funcy uses `DefaultAzureCredential`.
 
 You must be logged in via Azure CLI:
 
@@ -75,7 +75,7 @@ Required permissions:
    dotnet run --project src/Funcy.Console
    ```
 
-On startup, Funcy:
+On startup, az-funcy:
 1. Loads Function Apps from a local database cache (fast)
 2. Refreshes data from Azure in the background
 
@@ -83,7 +83,7 @@ On startup, Funcy:
 
 ## Configuration
 
-On first run, Funcy creates a `settings.json` file in the data directory:
+On first run, az-funcy creates a `settings.json` file in the data directory:
 
 | Platform | Path |
 |----------|------|
@@ -91,7 +91,7 @@ On first run, Funcy creates a `settings.json` file in the data directory:
 | macOS    | `~/Library/Application Support/Funcy/settings.json` |
 | Linux    | `~/.local/share/funcy/settings.json` |
 
-Edit it to customize Funcy's behavior:
+Edit it to customize az-funcy's behavior:
 
 ```json
 {
@@ -107,7 +107,7 @@ Edit it to customize Funcy's behavior:
 
 ## Subscription switching
 
-Funcy supports **switching Azure subscriptions at runtime**.
+az-funcy supports **switching Azure subscriptions at runtime**.
 
 - The currently active subscription is shown in the top panel
 - Use the subscription shortcut to open the **Switch Subscription** view
