@@ -1,19 +1,19 @@
-# Funcy – Feature audit & öppna frågor
+# az-funcy – Feature audit & öppna frågor
 
 *Datum: 2026-07-06. Underlag: genomgång av hela kodbasen (arkitektur, UI-ramverk, datalager, Azure-access) samt README-roadmapen.*
 
 ## Sammanfattning
 
-Funcy har en solid kärna: snabb cache-först-listning av Function Apps, start/stopp/slot-swap, subscription-växling och ett väl genomtänkt trådnings-/uppdateringsflöde (modellmutation på bakgrundstrådar, rendering på render-tråden). Det som saknas är främst **djup** — man ser *att* en funktion finns och vilken triggertyp den har, men inte *vad den gör just nu*. De implementerade featurerna nedan adresserar det.
+az-funcy har en solid kärna: snabb cache-först-listning av Function Apps, start/stopp/slot-swap, subscription-växling och ett väl genomtänkt trådnings-/uppdateringsflöde (modellmutation på bakgrundstrådar, rendering på render-tråden). Det som saknas är främst **djup** — man ser *att* en funktion finns och vilken triggertyp den har, men inte *vad den gör just nu*. De implementerade featurerna nedan adresserar det.
 
 ## Implementerade features (en PR per feature)
 
 | Feature | Branch | PR |
 |---|---|---|
-| Settings-vy i appen (ersätter handredigering av settings.json), öppnas med `O` | `feat/settings-view` | [#25](https://github.com/Rudenw/Funcy/pull/25) |
-| Service Bus-insikt: queue/topic+subscription per SB-triggad funktion, aktiva meddelanden + DLQ | `feat/servicebus-trigger-insight` | [#27](https://github.com/Rudenw/Funcy/pull/27) |
-| App Insights-loggvy per funktion (Enter på funktion): nära realtid, `E` typfilter, `F` fritextsök | `feat/appinsights-logs` | [#28](https://github.com/Rudenw/Funcy/pull/28) |
-| Favoriter/pinnade Function Apps (`P`), sorteras överst, persisteras | `feat/pinned-function-apps` | [#26](https://github.com/Rudenw/Funcy/pull/26) |
+| Settings-vy i appen (ersätter handredigering av settings.json), öppnas med `O` | `feat/settings-view` | [#25](https://github.com/sunday-commit/az-funcy/pull/25) |
+| Service Bus-insikt: queue/topic+subscription per SB-triggad funktion, aktiva meddelanden + DLQ | `feat/servicebus-trigger-insight` | [#27](https://github.com/sunday-commit/az-funcy/pull/27) |
+| App Insights-loggvy per funktion (Enter på funktion): nära realtid, `E` typfilter, `F` fritextsök | `feat/appinsights-logs` | [#28](https://github.com/sunday-commit/az-funcy/pull/28) |
+| Favoriter/pinnade Function Apps (`P`), sorteras överst, persisteras | `feat/pinned-function-apps` | [#26](https://github.com/sunday-commit/az-funcy/pull/26) |
 
 Alla fyra implementerades av delegerade agenter och granskades därefter manuellt: varje diff kodgranskades, byggdes om från scratch och testkördes. Två granskningsfynd åtgärdades innan PR: en saknad exception-guard i pin-togglen (#26) och en disposal-race i loggvyns poll-loop (#28).
 
@@ -21,10 +21,10 @@ Alla fyra implementerades av delegerade agenter och granskades därefter manuell
 
 | Feature | Branch | PR |
 |---|---|---|
-| Appar med pågående operation stannar synliga genom filterbyten (swap-scenariot) | `feat/keep-active-operations-visible` | [#29](https://github.com/Rudenw/Funcy/pull/29) |
-| Disable/enable av enskild funktion (`D`), via `AzureWebJobs.<namn>.Disabled` | `feat/function-disable-toggle` | [#30](https://github.com/Rudenw/Funcy/pull/30) |
-| Felytning i UI: `⚠ N errors`-indikator + Issues-panel (`I`, rensa med `C`) | `feat/error-surfacing` | [#31](https://github.com/Rudenw/Funcy/pull/31) |
-| Environment variables-vy (`V`), maskerade värden, `M` visar vald rad, Key Vault-referenser löses upp | `feat/app-settings-view` | [#32](https://github.com/Rudenw/Funcy/pull/32) |
+| Appar med pågående operation stannar synliga genom filterbyten (swap-scenariot) | `feat/keep-active-operations-visible` | [#29](https://github.com/sunday-commit/az-funcy/pull/29) |
+| Disable/enable av enskild funktion (`D`), via `AzureWebJobs.<namn>.Disabled` | `feat/function-disable-toggle` | [#30](https://github.com/sunday-commit/az-funcy/pull/30) |
+| Felytning i UI: `⚠ N errors`-indikator + Issues-panel (`I`, rensa med `C`) | `feat/error-surfacing` | [#31](https://github.com/sunday-commit/az-funcy/pull/31) |
+| Environment variables-vy (`V`), maskerade värden, `M` visar vald rad, Key Vault-referenser löses upp | `feat/app-settings-view` | [#32](https://github.com/sunday-commit/az-funcy/pull/32) |
 
 Beslut i omgång 2: **DLQ-åtgärder skippas** (purge/resubmit — destruktivt, låg nytta just nu). **Live Metrics skippas** — det är genuint realtid (~1 s, QuickPulse-streaming) men flyktigt och utan historik, och huvudbehovet är felsökning i efterhand, vilket loggvyn i #28 täcker.
 
@@ -32,8 +32,8 @@ Beslut i omgång 2: **DLQ-åtgärder skippas** (purge/resubmit — destruktivt, 
 
 | Leverans | Branch | PR |
 |---|---|---|
-| Karakteriseringstestsvit: 243 nya tester som låser mains beteende (283 totalt, ~2 s) | `test/characterization-suite` | [#33](https://github.com/Rudenw/Funcy/pull/33) |
-| Azure session health: proaktiv probe, expired-banner, `L` = device-code-relogin i appen, auto refresh-all | `feat/azure-session-health` | [#34](https://github.com/Rudenw/Funcy/pull/34) |
+| Karakteriseringstestsvit: 243 nya tester som låser mains beteende (283 totalt, ~2 s) | `test/characterization-suite` | [#33](https://github.com/sunday-commit/az-funcy/pull/33) |
+| Azure session health: proaktiv probe, expired-banner, `L` = device-code-relogin i appen, auto refresh-all | `feat/azure-session-health` | [#34](https://github.com/sunday-commit/az-funcy/pull/34) |
 
 Testsviten är **inmergad i alla feature-brancher**. Utfall per branch: 6 av 9 hade avvikelser — **samtliga var avsiktliga featureändringar** (nya genvägar i grid:arna, nya kolumner i funktionslistan, den avsiktliga fixen av Enter-kraschen i #28); testerna uppdaterades i respektive branch med dokumenterande commits. Inga oavsiktliga beteendeförändringar hittades. `feat/keep-active-operations-visible`, `feat/error-surfacing` och `feat/azure-session-health` gick igenom helt orörda.
 
@@ -46,7 +46,7 @@ Testsviten är **inmergad i alla feature-brancher**. Utfall per branch: 6 av 9 h
 5. `ListPanelPaginator.MaxVisibleRows` kan bli negativ i terminaler lägre än 8 rader.
 6. Selektion är indexbaserad — tar man bort vald rad glider nästa rad in under markören.
 
-Beslut: **1–5 fixade** i [#35](https://github.com/Rudenw/Funcy/pull/35) (baserad på testsviten — merga #33 först). **6 behålls medvetet**: indexbaserad selektion är standardbeteende i TUI-verktyg (k9s gör likadant), och negativa `MaxVisibleRows` kastade aldrig (LINQ `Take(-n)` ger tom sekvens) men golvas nu på 0 ändå.
+Beslut: **1–5 fixade** i [#35](https://github.com/sunday-commit/az-funcy/pull/35) (baserad på testsviten — merga #33 först). **6 behålls medvetet**: indexbaserad selektion är standardbeteende i TUI-verktyg (k9s gör likadant), och negativa `MaxVisibleRows` kastade aldrig (LINQ `Take(-n)` ger tom sekvens) men golvas nu på 0 ändå.
 
 ## Ytterligare features som borde finnas (ej implementerade)
 

@@ -121,7 +121,7 @@ public class SplashScreenLayoutTests
         var text = MarkupText.Plain(SplashScreenLayout.Initializing(40, "*"));
 
         // Below the Figlet threshold the wordmark falls back to a literal text mark.
-        Assert.Contains("FUNCY", text);
+        Assert.Contains("AZ-FUNCY", text);
     }
 
     [Theory]

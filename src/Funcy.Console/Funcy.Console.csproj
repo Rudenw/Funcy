@@ -13,9 +13,9 @@
         <ToolCommandName>funcy</ToolCommandName>
         <PackageId>az-funcy</PackageId>
         <Authors>Rudenw</Authors>
-        <Description>TUI tool for monitoring and administering Azure Function Apps</Description>
+        <Description>az-funcy is a terminal UI (TUI) for monitoring and administering Azure Function Apps across subscriptions.</Description>
         <PackageTags>azure;functions;tui;cli</PackageTags>
-        <RepositoryUrl>https://github.com/Rudenw/Funcy</RepositoryUrl>
+        <RepositoryUrl>https://github.com/sunday-commit/az-funcy</RepositoryUrl>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
